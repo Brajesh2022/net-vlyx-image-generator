@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 
-const TARGET_URL = "https://hdhub4u.florist/"
+const TARGET_URL = "https://hdhub4u.cologne/"
 
 // Reordered CORS proxies with the working one first
 const CORS_PROXIES = [
@@ -159,7 +159,7 @@ function parseMovieData(html: string): ParsedMovieData {
     }
 
     if (title && title !== "Unknown Title") {
-      const fullLink = link.startsWith("http") ? link : `https://hdhub4u.florist${link}`
+      const fullLink = link.startsWith("http") ? link : `https://hdhub4u.cologne${link}`
 
       movies.push({
         title,
@@ -200,7 +200,7 @@ function parseMovieData(html: string): ParsedMovieData {
         category = "Web Series"
       }
 
-      const fullLink = link.startsWith("http") ? link : `https://hdhub4u.florist${link}`
+      const fullLink = link.startsWith("http") ? link : `https://hdhub4u.cologne${link}`
 
       movies.push({
         title,

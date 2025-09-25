@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 
-const TARGET_URL = "https://hdhub4u.florist/"
+const TARGET_URL = "https://hdhub4u.cologne/"
 
 // Reordered CORS proxies with the working one first
 const CORS_PROXIES = [
@@ -411,7 +411,7 @@ function extractScreenshots($: cheerio.CheerioAPI): string[] {
 
           if (src && !screenshots.includes(src)) {
             // Convert relative URLs to absolute URLs
-            const fullUrl = src.startsWith("http") ? src : `https://hdhub4u.florist/${src}`
+            const fullUrl = src.startsWith("http") ? src : `https://hdhub4u.cologne/${src}`
             screenshots.push(fullUrl)
           }
         })
@@ -420,7 +420,7 @@ function extractScreenshots($: cheerio.CheerioAPI): string[] {
         if ($next.is("img")) {
           const src = $next.attr("src")
           if (src && !screenshots.includes(src)) {
-            const fullUrl = src.startsWith("http") ? src : `https://hdhub4u.florist/${src}`
+            const fullUrl = src.startsWith("http") ? src : `https://hdhub4u.cologne/${src}`
             screenshots.push(fullUrl)
           }
         }
@@ -443,7 +443,7 @@ function extractScreenshots($: cheerio.CheerioAPI): string[] {
 
       // Check if this looks like a screenshot
       if (src && (alt.includes("frame") || alt.includes("vlcsnap") || src.includes("images/"))) {
-        const fullUrl = src.startsWith("http") ? src : `https://hdhub4u.florist/${src}`
+        const fullUrl = src.startsWith("http") ? src : `https://hdhub4u.cologne/${src}`
         if (!screenshots.includes(fullUrl)) {
           screenshots.push(fullUrl)
         }
