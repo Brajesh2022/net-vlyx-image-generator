@@ -4,7 +4,7 @@ import * as cheerio from "cheerio"
 const SOURCES = {
   vegaA: "https://vegamovise.biz",
   vegaB: "https://bollyhub.one",
-  luxLike: "https://www.vegamovies-nl.wang",
+  luxLike: "https://www.vegamovies-nl.world/",
 }
 
 // CORS proxies to bypass restrictions
@@ -150,7 +150,7 @@ function parseVegaLike(html: string, base: string): Movie[] {
 }
 
 function parseLuxLike(html: string, base: string): Movie[] {
-  // Lux-like (vegamovies-nl.wang) is very similar to parseVegaLike
+  // Lux-like (vegamovies-nl.world) is very similar to parseVegaLike
   return parseVegaLike(html, base)
 }
 

@@ -621,7 +621,7 @@ export default function Home() {
                   if (searchType === "search2") {
                     if (host.includes("vegamovise.biz") || host.includes("bollyhub.one")) {
                       movieUrl = `/vega/${slug}?src=${encodeURIComponent(host)}`
-                    } else if (host.includes("vegamovies-nl.wang")) {
+                    } else if (host.includes("vegamovies-nl.world")) {
                       movieUrl = `/lux/${slug}?src=${encodeURIComponent(host)}`
                     } else {
                       // fallback: send to vega by default
