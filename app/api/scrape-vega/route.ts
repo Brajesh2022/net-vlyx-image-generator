@@ -4,7 +4,7 @@ import * as cheerio from "cheerio"
 const SOURCES = {
   vegaA: "https://vegamovise.biz",
   vegaB: "https://bollyhub.one",
-  luxLike: "https://www.vegamovies-nl.world/",
+  luxLike: "https://www.vegamovies-nl.bond/",
 }
 
 // CORS proxies to bypass restrictions
