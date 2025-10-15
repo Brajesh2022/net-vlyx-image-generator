@@ -79,6 +79,8 @@ export default function NextDrivePage() {
 
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeDownload | null>(null)
   const [showDownloadModal, setShowDownloadModal] = useState(false)
+  const [showVCloudConfirm, setShowVCloudConfirm] = useState(false)
+  const [selectedVCloudServer, setSelectedVCloudServer] = useState<{name: string, url: string} | null>(null)
 
   // Extract IMDb ID and type from the URL parameter
   const extractImdbInfo = (tmdbid: string | null) => {
@@ -158,9 +160,36 @@ export default function NextDrivePage() {
     enabled: !!tmdbId && contentType === "tv" && nextDriveData?.type === "episode",
   })
 
+  // Check if a server is VCloud
+  const isVCloudServer = (serverName: string): boolean => {
+    const normalizedServerName = serverName.toLowerCase().replace(/[-\s[\]]/g, "")
+    return normalizedServerName.includes("vcloud") || normalizedServerName.includes("v-cloud")
+  }
+
   const handleEpisodeClick = (episode: EpisodeDownload) => {
     setSelectedEpisode(episode)
-    setShowDownloadModal(true)
+    
+    // Check for VCloud servers
+    const vcloudServers = episode.servers.filter(s => isVCloudServer(s.name))
+    
+    if (vcloudServers.length > 0) {
+      // If there's VCloud, show confirmation modal
+      setSelectedVCloudServer(vcloudServers[0]) // Use first VCloud server
+      setShowVCloudConfirm(true)
+    } else {
+      // No VCloud, show server selection modal
+      setShowDownloadModal(true)
+    }
+  }
+
+  const handleMovieVCloudClick = () => {
+    if (!nextDriveData?.movie) return
+    
+    const vcloudServers = nextDriveData.movie.servers.filter(s => isVCloudServer(s.name))
+    if (vcloudServers.length > 0) {
+      // Directly go to VCloud page for movies (no confirmation popup)
+      handleServerClick(vcloudServers[0].url)
+    }
   }
 
   const getServerStyle = (serverName: string, isHighlighted: boolean) => {
@@ -220,10 +249,54 @@ export default function NextDrivePage() {
     return false
   }
 
-  // Function to check if a server is v-cloud
-  const isVCloudServer = (serverName: string): boolean => {
-    const normalizedServerName = serverName.toLowerCase().replace(/[-\s[\]]/g, "")
-    return normalizedServerName.includes("vcloud") || normalizedServerName.includes("v-cloud")
+  // Function to check if a URL is a vcloud link (any vcloud domain)
+  const isVCloudLolLink = (url: string): boolean => {
+    // Check for vcloud in the URL hostname (matches vcloud.lol, vcloud.zip, vcloud.*, etc.)
+    return /vcloud\./i.test(url)
+  }
+
+  // Function to extract vcloud ID from URL
+  const extractVCloudId = (url: string): string | null => {
+    try {
+      const urlObj = new URL(url)
+      const pathParts = urlObj.pathname.split('/').filter(Boolean)
+      return pathParts[pathParts.length - 1] || null
+    } catch {
+      return null
+    }
+  }
+
+  // Function to handle vcloud link click
+  const handleVCloudClick = (url: string) => {
+    const vcloudId = extractVCloudId(url)
+    if (!vcloudId) {
+      window.open(url, "_blank")
+      return
+    }
+
+    const displayPoster = hasTmdbData ? tmdbDetails?.poster || tmdbDetails?.poster_path : null
+    const posterUrl = displayPoster 
+      ? displayPoster.startsWith('http') 
+        ? displayPoster 
+        : `https://image.tmdb.org/t/p/w500${displayPoster}`
+      : ""
+
+    const params = new URLSearchParams({
+      id: vcloudId,
+      title: displayTitle,
+      ...(posterUrl && { poster: posterUrl })
+    })
+
+    window.location.href = `/vcloud?${params.toString()}`
+  }
+
+  // Function to handle server click (checks for vcloud.lol)
+  const handleServerClick = (url: string) => {
+    if (isVCloudLolLink(url)) {
+      handleVCloudClick(url)
+    } else {
+      window.open(url, "_blank")
+    }
   }
 
   // Enhanced server style with v-cloud preference
@@ -332,9 +405,9 @@ export default function NextDrivePage() {
               // Minimal Episode Design (Similar to user's HTML example)
               <div>
                 <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold mb-2">Download Episodes</h2>
+                  <h2 className="text-2xl font-bold mb-2">Episodes</h2>
                   <p className="text-gray-400">
-                    Use Download Manager Like IDM Or ADM For ⚡ Instant download!
+                    Select an episode to watch or download
                     {season && ` • Season ${season}`}
                   </p>
                 </div>
@@ -353,7 +426,7 @@ export default function NextDrivePage() {
                           <Button
                             key={serverIndex}
                             className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
-                            onClick={() => window.open(server.url, "_blank")}
+                            onClick={() => handleServerClick(server.url)}
                           >
                             <Download className="h-4 w-4 mr-2" />
                             {isVCloudServer(server.name) && <span className="mr-1">⚡</span>}
@@ -387,7 +460,7 @@ export default function NextDrivePage() {
                         <Button
                           key={index}
                           className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
-                          onClick={() => window.open(server.url, "_blank")}
+                          onClick={() => handleServerClick(server.url)}
                         >
                           <Download className="h-4 w-4 mr-2" />
                           {isVCloudServer(server.name) && <span className="mr-1">⚡</span>}
@@ -519,7 +592,7 @@ export default function NextDrivePage() {
               <div className="text-center mb-12">
                 <h2 className="text-4xl font-bold mb-4">Episodes</h2>
                 <p className="text-gray-400 text-lg">
-                  {nextDriveData.episodes?.length} episodes available for download
+                  {nextDriveData.episodes?.length} episodes available
                   {season && ` • Season ${season}`}
                 </p>
               </div>
@@ -582,33 +655,14 @@ export default function NextDrivePage() {
                           </div>
                         </div>
 
-                        {/* Download Servers */}
+                        {/* Access Button */}
                         <div className="lg:col-span-4">
-                          <div className="flex flex-wrap gap-2">
-                            {episode.servers.map((server, serverIndex) => (
-                              <Button
-                                key={serverIndex}
-                                size="sm"
-                                className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
-                                onClick={() => window.open(server.url, "_blank")}
-                              >
-                                <Download className="h-3 w-3 mr-1" />
-                                {isVCloudServer(server.name) && <span className="mr-1">⚡</span>}
-                                {server.name}
-                                <ExternalLink className="h-3 w-3 ml-1" />
-                              </Button>
-                            ))}
-                          </div>
-
-                          {/* Alternative: Show download modal for more options */}
                           <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-2 w-full border-gray-600 text-gray-300 hover:bg-gray-700 bg-transparent"
+                            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
                             onClick={() => handleEpisodeClick(episode)}
                           >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View All Options
+                            <Eye className="h-5 w-5 mr-2" />
+                            Get Episode
                           </Button>
                         </div>
                       </div>
@@ -621,59 +675,120 @@ export default function NextDrivePage() {
             // Movie View
             <div>
               <div className="text-center mb-12">
-                <h2 className="text-4xl font-bold mb-4">Download Options</h2>
-                <p className="text-gray-400 text-lg">Choose your preferred download server</p>
+                <h2 className="text-4xl font-bold mb-4">Access Options</h2>
+                <p className="text-gray-400 text-lg">Watch or Download</p>
               </div>
 
-              <div className="max-w-4xl mx-auto">
-                <div className="bg-gray-900/50 rounded-2xl p-8 border border-gray-800">
-                  <h3 className="text-2xl font-bold mb-6 text-center">Primary Servers</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                    {nextDriveData.movie?.servers.map((server, index) => (
+              <div className="max-w-2xl mx-auto">
+                {(() => {
+                  const hasVCloud = nextDriveData.movie?.servers.some(s => isVCloudServer(s.name))
+                  
+                  return hasVCloud ? (
+                    <div className="text-center space-y-4">
                       <Button
-                        key={index}
-                        className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
-                        onClick={() => window.open(server.url, "_blank")}
+                        className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+                        onClick={handleMovieVCloudClick}
                       >
-                        <Download className="h-4 w-4 mr-2" />
-                        {isVCloudServer(server.name) && <span className="mr-1">⚡</span>}
-                        {server.name}
-                        {isVCloudServer(server.name) && (
-                          <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
-                        )}
-                        <ExternalLink className="h-4 w-4 ml-2" />
+                        <Eye className="h-5 w-5 mr-2" />
+                        ⚡ Continue with VCloud
                       </Button>
-                    ))}
-                  </div>
-
-                  {nextDriveData.movie?.alternatives && nextDriveData.movie.alternatives.length > 0 && (
-                    <div>
-                      <h4 className="text-xl font-semibold mb-4 text-center text-gray-300">Alternative Sources</h4>
-                      <div className="space-y-2">
-                        {nextDriveData.movie.alternatives.map((alt, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
-                            <span className="text-gray-300">{alt.name}</span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => window.open(alt.url, "_blank")}
-                              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                            >
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              Open
-                            </Button>
-                          </div>
+                      <button
+                        onClick={() => setShowDownloadModal(true)}
+                        className="block mx-auto text-sm text-gray-400 hover:text-white transition-colors"
+                      >
+                        Show more options
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-900/50 rounded-2xl p-8 border border-gray-800">
+                      <h3 className="text-2xl font-bold mb-6 text-center">Select Server</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {nextDriveData.movie?.servers.map((server, index) => (
+                          <Button
+                            key={index}
+                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                            onClick={() => handleServerClick(server.url)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            {server.name}
+                            <ExternalLink className="h-4 w-4 ml-2" />
+                          </Button>
                         ))}
                       </div>
                     </div>
-                  )}
-                </div>
+                  )
+                })()}
               </div>
             </div>
           )}
         </div>
       </section>
+
+      {/* VCloud Confirmation Modal */}
+      <Dialog open={showVCloudConfirm} onOpenChange={setShowVCloudConfirm}>
+        <DialogContent className="max-w-md bg-gray-900 border-gray-700 p-4 md:p-6">
+          <div className="text-center">
+            <div className="mx-auto mb-3 md:mb-4 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
+              <Eye className="h-6 w-6 md:h-8 md:w-8 text-white" />
+            </div>
+            <DialogHeader>
+              <DialogTitle className="text-xl md:text-2xl font-bold text-white mb-2">
+                Ready to Access!
+              </DialogTitle>
+            </DialogHeader>
+            
+            {selectedVCloudServer && (
+              <div className="mt-3 md:mt-4 space-y-2 md:space-y-3 text-left">
+                <div className="bg-gray-800/50 rounded-lg p-3 md:p-4 space-y-1.5 md:space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs md:text-sm">Server:</span>
+                    <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs">
+                      ⚡ VCloud (Preferred)
+                    </Badge>
+                  </div>
+                  {selectedEpisode && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-xs md:text-sm">Episode:</span>
+                      <span className="text-white text-sm md:text-base font-semibold">Episode {selectedEpisode.episodeNumber}</span>
+                    </div>
+                  )}
+                  {season && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-xs md:text-sm">Season:</span>
+                      <span className="text-white text-sm md:text-base">{season}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 md:mt-6 space-y-2 md:space-y-3">
+              <Button
+                onClick={() => {
+                  if (selectedVCloudServer) {
+                    handleServerClick(selectedVCloudServer.url)
+                    setShowVCloudConfirm(false)
+                  }
+                }}
+                className="w-full px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white text-sm md:text-base font-bold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                <ExternalLink className="h-4 w-4 md:h-5 md:w-5 mr-2" />
+                Continue with VCloud
+              </Button>
+              
+              <button
+                onClick={() => {
+                  setShowVCloudConfirm(false)
+                  setShowDownloadModal(true)
+                }}
+                className="w-full text-xs md:text-sm text-gray-400 hover:text-white transition-colors py-2"
+              >
+                Show more options
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Download Modal */}
       <Dialog open={showDownloadModal} onOpenChange={setShowDownloadModal}>
@@ -681,16 +796,18 @@ export default function NextDrivePage() {
           <div className="p-6">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
-                <Download className="h-6 w-6 text-blue-500" />
+                <Eye className="h-6 w-6 text-blue-500" />
                 <div>
-                  <div>Download Episode {selectedEpisode?.episodeNumber}</div>
+                  <div>
+                    {selectedEpisode ? `Episode ${selectedEpisode.episodeNumber} - Select Server` : 'Select Server'}
+                  </div>
                   {server && <div className="text-sm text-gray-400 font-normal">Preferred: {server}</div>}
                 </div>
               </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 mt-6">
-              {selectedEpisode?.servers.map((server, index) => (
+              {(selectedEpisode ? selectedEpisode.servers : nextDriveData?.movie?.servers || []).map((server, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-4 bg-gray-800/50 rounded-xl border border-gray-700"
@@ -710,12 +827,11 @@ export default function NextDrivePage() {
                     )}
                   </div>
                   <Button
-                    onClick={() => window.open(server.url, "_blank")}
+                    onClick={() => handleServerClick(server.url)}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                    <ExternalLink className="h-4 w-4 ml-2" />
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Continue
                   </Button>
                 </div>
               ))}

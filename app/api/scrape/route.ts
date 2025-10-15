@@ -253,3 +253,40 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+// POST endpoint for general URL scraping (used by VCloud page)
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { url } = body
+
+    if (!url) {
+      return NextResponse.json({ error: "URL is required" }, { status: 400 })
+    }
+
+    console.log("Fetching URL:", url)
+
+    const html = await fetchWithProxy(url)
+    console.log("HTML fetched successfully, length:", html.length)
+
+    // Extract title from HTML
+    const $ = cheerio.load(html)
+    const title = $("title").text() || ""
+
+    return NextResponse.json({
+      html,
+      title,
+      success: true,
+    })
+  } catch (error) {
+    console.error("Error in POST scrape API:", error)
+
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Failed to fetch URL",
+        success: false,
+      },
+      { status: 500 },
+    )
+  }
+}

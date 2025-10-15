@@ -133,6 +133,11 @@ export default function VegaMoviePage() {
   const [showDownloadModal, setShowDownloadModal] = useState(false)
   const [selectedQuality, setSelectedQuality] = useState<string>("")
   const [showShareModal, setShowShareModal] = useState(false)
+  const [selectedMode, setSelectedMode] = useState<"download" | "watch" | null>(null) // Download or Watch mode
+  const [downloadType, setDownloadType] = useState<"episode" | "bulk" | null>(null) // Episode-wise or Bulk
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [selectedDownload, setSelectedDownload] = useState<any>(null)
+  const [showOtherOptions, setShowOtherOptions] = useState(false) // For showing non-VCloud options in modal
 
   // Touch handling for mobile swipe
   const touchStartX = useRef<number>(0)
@@ -159,10 +164,43 @@ export default function VegaMoviePage() {
     }
   }
 
-  // Handle quality selection
+  // Handle quality selection with VCloud auto-selection logic
   const handleQualitySelect = (quality: string) => {
     setSelectedQuality(quality)
-    setShowDownloadModal(true)
+    setShowOtherOptions(false) // Reset other options toggle
+    
+    const { episodeDownloads, batchDownloads } = separateDownloads()
+    let filteredDownloads = []
+
+    // Filter based on mode and download type
+    if (selectedMode === "watch") {
+      // For watch mode, filter out bulk/zip downloads
+      filteredDownloads = episodeDownloads.filter(
+        (item) => item.download.quality === quality
+      )
+    } else if (selectedMode === "download") {
+      if (downloadType === "bulk") {
+        filteredDownloads = batchDownloads.filter(
+          (item) => item.download.quality === quality
+        )
+      } else {
+        filteredDownloads = episodeDownloads.filter(
+          (item) => item.download.quality === quality
+        )
+      }
+    }
+
+    // Check for VCloud links
+    const vcloudLinks = filteredDownloads.filter((item) => isVCloudLink(item.link.label))
+
+    if (vcloudLinks.length === 1) {
+      // Auto-select the single VCloud option and show confirmation
+      setSelectedDownload(vcloudLinks[0])
+      setShowConfirmModal(true)
+    } else {
+      // Show all options (either no VCloud or multiple VCloud options)
+      setShowDownloadModal(true)
+    }
   }
 
   // Touch handlers for swipe navigation
@@ -260,7 +298,9 @@ export default function VegaMoviePage() {
 
   // Enhanced nextdrive URL generation function with season support
   const generateNextdriveUrl = (url: string, label: string, sectionSeason?: string | null): string => {
-    const isNextDrive = /nexdrive\.(?:pro|biz|ink)\//i.test(url) || /nexdrive\//i.test(url)
+    // Check if it's ANY nextdrive URL (broader pattern to catch all nextdrive domains)
+    const isNextDrive = /nexdrive/i.test(url)
+    
     if (isNextDrive) {
       const tmdbType = tmdbDetails?.contentType === "tv" ? "tv" : "movie"
       const tmdbIdWithType = `${tmdbType}${movieDetails?.imdbLink?.match(/tt(\d+)/)?.[1] || ""}`
@@ -274,19 +314,8 @@ export default function VegaMoviePage() {
       if (serverName) nextdriveUrl += `&server=${encodeURIComponent(serverName)}`
       return nextdriveUrl
     }
-    // legacy support: nexdrive.pro/<id> only
-    const idMatch = url.match(/nexdrive\.pro\/([^/]+)/i)
-    if (idMatch) {
-      const driveId = idMatch[1]
-      const tmdbType = tmdbDetails?.contentType === "tv" ? "tv" : "movie"
-      const tmdbIdWithType = `${tmdbType}${movieDetails?.imdbLink?.match(/tt(\d+)/)?.[1] || ""}`
-      const serverName = extractServerName(label)
-      const seasonNumber = sectionSeason || extractSeasonFromTitle(movieDetails?.title || "")
-      let nextdriveUrl = `/nextdrive/?driveid=${encodeURIComponent(driveId)}&tmdbid=${encodeURIComponent(tmdbIdWithType)}`
-      if (seasonNumber) nextdriveUrl += `&season=${encodeURIComponent(seasonNumber)}`
-      if (serverName) nextdriveUrl += `&server=${encodeURIComponent(serverName)}`
-      return nextdriveUrl
-    }
+    
+    // For non-nextdrive links, return original URL
     return url
   }
 
@@ -512,41 +541,39 @@ export default function VegaMoviePage() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-4 mb-8">
+                <div className="flex flex-wrap gap-3 md:gap-4 mb-6 md:mb-8">
                   <Button
-                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full text-white font-semibold text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300"
+                    className="px-5 py-2.5 md:px-8 md:py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full text-white font-semibold text-sm md:text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300"
                     onClick={scrollToDownloadSection}
                   >
-                    <Download className="h-5 w-5 mr-3" />
+                    <Download className="h-4 w-4 md:h-5 md:w-5 mr-2 md:mr-3" />
                     Download
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="px-5 py-2.5 md:px-8 md:py-4 bg-green-600/20 backdrop-blur-sm rounded-full text-white font-semibold text-sm md:text-lg hover:bg-green-600/30 transition-all duration-300 border-green-600/50"
+                    onClick={scrollToDownloadSection}
+                  >
+                    <Eye className="h-4 w-4 md:h-5 md:w-5 mr-2 md:mr-3" />
+                    Watch
                   </Button>
                   {movieDetails.imdbLink && (
                     <Button
                       variant="outline"
-                      className="px-8 py-4 bg-white/10 backdrop-blur-sm rounded-full text-white font-semibold text-lg hover:bg-white/20 transition-all duration-300 border-white/30"
+                      className="px-5 py-2.5 md:px-8 md:py-4 bg-white/10 backdrop-blur-sm rounded-full text-white font-semibold text-sm md:text-lg hover:bg-white/20 transition-all duration-300 border-white/30"
                       onClick={() => window.open(movieDetails.imdbLink, "_blank")}
                     >
-                      <ExternalLink className="h-5 w-5 mr-3" />
+                      <ExternalLink className="h-4 w-4 md:h-5 md:w-5 mr-2 md:mr-3" />
                       IMDb
-                    </Button>
-                  )}
-                  {tmdbDetails?.trailer && (
-                    <Button
-                      variant="outline"
-                      className="px-8 py-4 bg-red-600/20 backdrop-blur-sm rounded-full text-white font-semibold text-lg hover:bg-red-600/30 transition-all duration-300 border-red-600/50"
-                      onClick={() => window.open(tmdbDetails.trailer, "_blank")}
-                    >
-                      <PlayCircle className="h-5 w-5 mr-3" />
-                      Trailer
                     </Button>
                   )}
                   <Button
                     variant="ghost"
                     size="lg"
-                    className="px-6 py-4 bg-white/5 backdrop-blur-sm rounded-full text-white hover:bg-white/15 transition-all duration-300"
+                    className="px-4 py-2.5 md:px-6 md:py-4 bg-white/5 backdrop-blur-sm rounded-full text-white hover:bg-white/15 transition-all duration-300"
                     onClick={() => setShowShareModal(true)}
                   >
-                    <Share className="h-6 w-6" />
+                    <Share className="h-5 w-5 md:h-6 md:w-6" />
                   </Button>
                 </div>
 
@@ -672,31 +699,116 @@ export default function VegaMoviePage() {
         </section>
       )}
 
-      {/* Download Section */}
-      <section id="download-section" className="py-20">
+      {/* Download & Watch Section */}
+      <section id="download-section" className="py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Download Options</h2>
-            <p className="text-gray-400 text-lg">Choose your preferred quality and format</p>
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">Download & Watch Options</h2>
+            <p className="text-gray-400 text-sm md:text-lg">Choose how you want to enjoy this content</p>
           </div>
 
-          {/* Download Quality Selection */}
-          {(() => {
+          {/* Step 1: Mode Selection (Download or Watch) */}
+          {!selectedMode && (
+            <div className="mb-12 md:mb-16 animate-fade-in">
+              <h3 className="text-xl md:text-2xl font-semibold mb-6 md:mb-8 text-center">What would you like to do?</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-3xl mx-auto">
+                <button
+                  onClick={() => setSelectedMode("download")}
+                  className="group relative p-6 md:p-8 rounded-xl md:rounded-2xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 border-2 border-blue-500/30 hover:border-blue-400 hover:from-blue-600/30 hover:to-purple-600/30 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
+                >
+                  <Download className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                  <h4 className="text-xl md:text-2xl font-bold text-white mb-1 md:mb-2">Download</h4>
+                  <p className="text-sm md:text-base text-gray-400">Save to your device</p>
+                </button>
+                <button
+                  onClick={() => setSelectedMode("watch")}
+                  className="group relative p-6 md:p-8 rounded-xl md:rounded-2xl bg-gradient-to-br from-green-600/20 to-teal-600/20 border-2 border-green-500/30 hover:border-green-400 hover:from-green-600/30 hover:to-teal-600/30 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
+                >
+                  <Eye className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 text-green-400 group-hover:text-green-300 transition-colors" />
+                  <h4 className="text-xl md:text-2xl font-bold text-white mb-1 md:mb-2">Watch Online</h4>
+                  <p className="text-sm md:text-base text-gray-400">Stream instantly</p>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Download Type Selection (if bulk downloads available) */}
+          {selectedMode === "download" && !downloadType && (() => {
+            const { episodeDownloads, batchDownloads } = separateDownloads()
+            const hasBulkOptions = batchDownloads.length > 0
+            
+            if (!hasBulkOptions) {
+              // Auto-select episode-wise if no bulk downloads
+              setTimeout(() => setDownloadType("episode"), 0)
+              return null
+            }
+
+            return (
+              <div className="mb-12 md:mb-16 animate-fade-in">
+                <button
+                  onClick={() => {
+                    setSelectedMode(null)
+                    setDownloadType(null)
+                  }}
+                  className="mb-6 md:mb-8 text-sm md:text-base text-gray-400 hover:text-white transition-colors flex items-center gap-2 mx-auto"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back to mode selection
+                </button>
+                <h3 className="text-xl md:text-2xl font-semibold mb-6 md:mb-8 text-center">Choose Download Type</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-3xl mx-auto">
+                  <button
+                    onClick={() => setDownloadType("episode")}
+                    className="group relative p-6 md:p-8 rounded-xl md:rounded-2xl bg-gradient-to-br from-green-600/20 to-teal-600/20 border-2 border-green-500/30 hover:border-green-400 hover:from-green-600/30 hover:to-teal-600/30 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
+                  >
+                    <PlayCircle className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 text-green-400 group-hover:text-green-300 transition-colors" />
+                    <h4 className="text-xl md:text-2xl font-bold text-white mb-1 md:mb-2">Episode-wise</h4>
+                    <p className="text-sm md:text-base text-gray-400">Download individual episodes</p>
+                  </button>
+                  <button
+                    onClick={() => setDownloadType("bulk")}
+                    className="group relative p-6 md:p-8 rounded-xl md:rounded-2xl bg-gradient-to-br from-purple-600/20 to-pink-600/20 border-2 border-purple-500/30 hover:border-purple-400 hover:from-purple-600/30 hover:to-pink-600/30 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
+                  >
+                    <Download className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                    <h4 className="text-xl md:text-2xl font-bold text-white mb-1 md:mb-2">Bulk Download</h4>
+                    <p className="text-sm md:text-base text-gray-400">Download complete package</p>
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Step 3: Quality Selection */}
+          {((selectedMode === "watch") || (selectedMode === "download" && downloadType)) && (() => {
             const availableQualities = getAvailableQualities()
 
             return availableQualities.length > 0 ? (
-              <div className="mb-16">
-                <h3 className="text-2xl font-semibold mb-8 text-center">Select Quality</h3>
-                <div className="flex flex-wrap justify-center gap-4">
+              <div className="mb-12 md:mb-16 animate-fade-in">
+                <button
+                  onClick={() => {
+                    setDownloadType(null)
+                    if (selectedMode === "watch") setSelectedMode(null)
+                  }}
+                  className="mb-6 md:mb-8 text-sm md:text-base text-gray-400 hover:text-white transition-colors flex items-center gap-2 mx-auto"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back
+                </button>
+                <h3 className="text-xl md:text-2xl font-semibold mb-6 md:mb-8 text-center">Select Quality</h3>
+                <div className="flex flex-wrap justify-center gap-3 md:gap-4">
                   {availableQualities.map((quality, index) => (
                     <Button
                       key={index}
                       onClick={() => handleQualitySelect(quality)}
-                      className="px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-2 border-blue-500 hover:border-purple-400 hover:scale-105 hover:shadow-xl"
+                      className="px-5 py-3 md:px-8 md:py-4 rounded-xl md:rounded-2xl font-semibold text-base md:text-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-2 border-blue-500 hover:border-purple-400 hover:scale-105 hover:shadow-xl"
                     >
-                      <Download className="h-5 w-5 mr-3" />
+                      {selectedMode === "download" ? (
+                        <Download className="h-4 w-4 md:h-5 md:w-5 mr-2 md:mr-3" />
+                      ) : (
+                        <Eye className="h-4 w-4 md:h-5 md:w-5 mr-2 md:mr-3" />
+                      )}
                       {quality}
-                      <span className="ml-3 text-sm opacity-80 bg-black/30 px-2 py-1 rounded-full">
+                      <span className="ml-2 md:ml-3 text-xs md:text-sm opacity-80 bg-black/30 px-2 py-1 rounded-full">
                         {getSizeForQuality(quality)}
                       </span>
                     </Button>
@@ -705,11 +817,11 @@ export default function VegaMoviePage() {
               </div>
             ) : (
               <div className="text-center">
-                <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-8 max-w-2xl mx-auto">
-                  <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-300 mb-2">No Downloads Available</h3>
-                  <p className="text-gray-400">
-                    Download links are not currently available for this content. Please check back later.
+                <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6 md:p-8 max-w-2xl mx-auto">
+                  <AlertCircle className="h-10 w-10 md:h-12 md:w-12 text-gray-400 mx-auto mb-3 md:mb-4" />
+                  <h3 className="text-lg md:text-xl font-semibold text-gray-300 mb-2">No Options Available</h3>
+                  <p className="text-sm md:text-base text-gray-400">
+                    Links are not currently available for this content. Please check back later.
                   </p>
                 </div>
               </div>
@@ -832,18 +944,27 @@ export default function VegaMoviePage() {
       )}
 
       {/* Download Modal */}
-      <Dialog open={showDownloadModal} onOpenChange={setShowDownloadModal}>
+      <Dialog open={showDownloadModal} onOpenChange={(open) => {
+        setShowDownloadModal(open)
+        if (!open) setShowOtherOptions(false) // Reset when modal closes
+      }}>
         <DialogContent className="max-w-[90vw] sm:max-w-2xl lg:max-w-4xl max-h-[85vh] overflow-y-auto bg-gray-900 border-gray-700 p-0">
           <div className="p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle className="text-lg sm:text-xl lg:text-2xl font-bold text-white flex items-start gap-3">
-                <Download className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500 flex-shrink-0 mt-1" />
+                {selectedMode === "watch" ? (
+                  <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-green-500 flex-shrink-0 mt-1" />
+                ) : (
+                  <Download className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500 flex-shrink-0 mt-1" />
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="break-words">
-                    Download <span className="text-blue-400">{selectedQuality}</span>
+                    {selectedMode === "watch" ? "Watch" : "Download"} <span className="text-blue-400">{selectedQuality}</span>
                   </div>
                   <div className="text-sm font-normal text-gray-400 mt-1 break-words">{movieDetails.title}</div>
-                  <Badge className="mt-2 bg-blue-600 text-white text-xs">High Quality</Badge>
+                  <Badge className="mt-2 bg-blue-600 text-white text-xs">
+                    {selectedMode === "watch" ? "Stream Online" : downloadType === "bulk" ? "Bulk Download" : "High Quality"}
+                  </Badge>
                 </div>
               </DialogTitle>
             </DialogHeader>
@@ -851,22 +972,84 @@ export default function VegaMoviePage() {
             <div className="space-y-6 mt-6">
               {(() => {
                 const { episodeDownloads, batchDownloads } = separateDownloads()
-                const qualityEpisodeDownloads = episodeDownloads.filter(
-                  (item) => item.download.quality === selectedQuality,
-                )
-                const qualityBatchDownloads = batchDownloads.filter((item) => item.download.quality === selectedQuality)
+                
+                // Filter based on mode and download type
+                let qualityEpisodeDownloads = []
+                let qualityBatchDownloads = []
+
+                if (selectedMode === "watch") {
+                  // For watch mode, only show episode downloads (filter out bulk/zip)
+                  qualityEpisodeDownloads = episodeDownloads.filter(
+                    (item) => item.download.quality === selectedQuality
+                  )
+                } else if (selectedMode === "download") {
+                  if (downloadType === "bulk") {
+                    // Show only bulk downloads
+                    qualityBatchDownloads = batchDownloads.filter(
+                      (item) => item.download.quality === selectedQuality
+                    )
+                  } else {
+                    // Show only episode downloads
+                    qualityEpisodeDownloads = episodeDownloads.filter(
+                      (item) => item.download.quality === selectedQuality
+                    )
+                  }
+                } else {
+                  // Fallback to showing all (for backward compatibility)
+                  qualityEpisodeDownloads = episodeDownloads.filter(
+                    (item) => item.download.quality === selectedQuality
+                  )
+                  qualityBatchDownloads = batchDownloads.filter(
+                    (item) => item.download.quality === selectedQuality
+                  )
+                }
+
+                // Smart VCloud filtering logic
+                // Separate VCloud and non-VCloud links
+                const vcloudEpisodeDownloads = qualityEpisodeDownloads.filter((item) => isVCloudLink(item.link.label))
+                const otherEpisodeDownloads = qualityEpisodeDownloads.filter((item) => !isVCloudLink(item.link.label))
+                
+                const vcloudBatchDownloads = qualityBatchDownloads.filter((item) => isVCloudLink(item.link.label))
+                const otherBatchDownloads = qualityBatchDownloads.filter((item) => !isVCloudLink(item.link.label))
+
+                // Determine what to show
+                const hasVCloudOptions = vcloudEpisodeDownloads.length > 0 || vcloudBatchDownloads.length > 0
+                const hasOtherOptions = otherEpisodeDownloads.length > 0 || otherBatchDownloads.length > 0
+                const hasMixedOptions = hasVCloudOptions && hasOtherOptions
+
+                // Determine what to display
+                // For mixed options: always show VCloud first, then other options if toggled
+                let displayVCloudEpisodeDownloads = []
+                let displayOtherEpisodeDownloads = []
+                let displayVCloudBatchDownloads = []
+                let displayOtherBatchDownloads = []
+
+                if (hasMixedOptions) {
+                  // Always show VCloud
+                  displayVCloudEpisodeDownloads = vcloudEpisodeDownloads
+                  displayVCloudBatchDownloads = vcloudBatchDownloads
+                  // Show other options only if toggled
+                  if (showOtherOptions) {
+                    displayOtherEpisodeDownloads = otherEpisodeDownloads
+                    displayOtherBatchDownloads = otherBatchDownloads
+                  }
+                } else {
+                  // Not mixed, show everything as before
+                  displayVCloudEpisodeDownloads = qualityEpisodeDownloads
+                  displayVCloudBatchDownloads = qualityBatchDownloads
+                }
 
                 return (
                   <>
-                    {/* Episode-wise Downloads / Movie Downloads */}
-                    {qualityEpisodeDownloads.length > 0 && (
+                    {/* VCloud Episode-wise Downloads */}
+                    {displayVCloudEpisodeDownloads.length > 0 && (
                       <div>
                         <h4 className="text-xl font-semibold text-green-400 mb-4 text-center flex items-center justify-center gap-2">
                           <PlayCircle className="h-5 w-5" />
                           {tmdbDetails?.contentType === "movie" ? "Download Movie" : "Episode-wise Downloads"}
                         </h4>
                         <div className="space-y-3">
-                          {qualityEpisodeDownloads.map((item, index) => (
+                          {displayVCloudEpisodeDownloads.map((item, index) => (
                             <div
                               key={index}
                               className="bg-gray-800 rounded-xl p-4 sm:p-6 hover:bg-gray-750 transition-colors border border-gray-700"
@@ -921,7 +1104,10 @@ export default function VegaMoviePage() {
                                 >
                                   <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                                   {isVCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
-                                  {tmdbDetails?.contentType === "movie" ? "Download Movie" : "Download Episode"}
+                                  {selectedMode === "watch" 
+                                    ? (tmdbDetails?.contentType === "movie" ? "Watch Movie" : "Watch Episode")
+                                    : (tmdbDetails?.contentType === "movie" ? "Download Movie" : "Download Episode")
+                                  }
                                 </Button>
                               </div>
                             </div>
@@ -930,15 +1116,15 @@ export default function VegaMoviePage() {
                       </div>
                     )}
 
-                    {/* Batch/Complete Downloads */}
-                    {qualityBatchDownloads.length > 0 && (
+                    {/* VCloud Batch/Complete Downloads */}
+                    {displayVCloudBatchDownloads.length > 0 && (
                       <div>
                         <h4 className="text-xl font-semibold text-purple-400 mb-4 text-center flex items-center justify-center gap-2">
                           <Download className="h-5 w-5" />
                           Batch/Complete Downloads
                         </h4>
                         <div className="space-y-3">
-                          {qualityBatchDownloads.map((item, index) => (
+                          {displayVCloudBatchDownloads.map((item, index) => (
                             <div
                               key={index}
                               className="bg-gray-800 rounded-xl p-4 sm:p-6 hover:bg-gray-750 transition-colors border border-gray-700"
@@ -999,8 +1185,142 @@ export default function VegaMoviePage() {
                       </div>
                     )}
 
+                    {/* Other (non-VCloud) Episode-wise Downloads */}
+                    {displayOtherEpisodeDownloads.length > 0 && (
+                      <div className="mt-6 pt-6 border-t border-gray-700">
+                        <h4 className="text-xl font-semibold text-blue-400 mb-4 text-center flex items-center justify-center gap-2">
+                          <PlayCircle className="h-5 w-5" />
+                          Other Options
+                        </h4>
+                        <div className="space-y-3">
+                          {displayOtherEpisodeDownloads.map((item, index) => (
+                            <div
+                              key={index}
+                              className="bg-gray-800 rounded-xl p-4 sm:p-6 hover:bg-gray-750 transition-colors border border-gray-700"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <PlayCircle className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-lg sm:text-xl text-white break-words">
+                                      {item.link.label}
+                                    </h4>
+                                    <p className="text-sm sm:text-base text-gray-400 break-words">
+                                      {item.download.quality} • {item.download.size} •{" "}
+                                      {tmdbDetails?.contentType === "movie" ? "Movie Download" : "Episode Download"}
+                                      {item.season && (
+                                        <span className="text-blue-400 ml-2">• Season {item.season}</span>
+                                      )}
+                                    </p>
+                                    <div className="flex gap-2 mt-2">
+                                      <Badge className="bg-blue-600 text-white text-xs">
+                                        {tmdbDetails?.contentType === "movie" ? "Movie File" : "Individual Episode"}
+                                      </Badge>
+                                      {item.season && (
+                                        <Badge className="bg-blue-600 text-white text-xs">Season {item.season}</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  className="w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                                  onClick={() => {
+                                    const nextdriveUrl = generateNextdriveUrl(
+                                      item.link.url,
+                                      item.link.label,
+                                      item.season,
+                                    )
+                                    window.open(nextdriveUrl, "_blank")
+                                  }}
+                                  disabled={!item.link.url || item.link.url === "#"}
+                                >
+                                  <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                                  {selectedMode === "watch" 
+                                    ? (tmdbDetails?.contentType === "movie" ? "Watch Movie" : "Watch Episode")
+                                    : (tmdbDetails?.contentType === "movie" ? "Download Movie" : "Download Episode")
+                                  }
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Other (non-VCloud) Batch Downloads */}
+                    {displayOtherBatchDownloads.length > 0 && (
+                      <div className={displayOtherEpisodeDownloads.length > 0 ? "mt-6" : "mt-6 pt-6 border-t border-gray-700"}>
+                        <h4 className="text-xl font-semibold text-blue-400 mb-4 text-center flex items-center justify-center gap-2">
+                          <Download className="h-5 w-5" />
+                          {displayOtherEpisodeDownloads.length > 0 ? "Other Bulk Downloads" : "Other Options - Bulk"}
+                        </h4>
+                        <div className="space-y-3">
+                          {displayOtherBatchDownloads.map((item, index) => (
+                            <div
+                              key={index}
+                              className="bg-gray-800 rounded-xl p-4 sm:p-6 hover:bg-gray-750 transition-colors border border-gray-700"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <Download className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-lg sm:text-xl text-white break-words">
+                                      {item.link.label}
+                                    </h4>
+                                    <p className="text-sm sm:text-base text-gray-400 break-words">
+                                      {item.download.quality} • {item.download.size} • Complete Package
+                                      {item.season && (
+                                        <span className="text-blue-400 ml-2">• Season {item.season}</span>
+                                      )}
+                                    </p>
+                                    <div className="flex gap-2 mt-2">
+                                      <Badge className="bg-blue-600 text-white text-xs">Bulk Download</Badge>
+                                      {item.season && (
+                                        <Badge className="bg-blue-600 text-white text-xs">Season {item.season}</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  className="w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                                  onClick={() => {
+                                    const nextdriveUrl = generateNextdriveUrl(
+                                      item.link.url,
+                                      item.link.label,
+                                      item.season,
+                                    )
+                                    window.open(nextdriveUrl, "_blank")
+                                  }}
+                                  disabled={!item.link.url || item.link.url === "#"}
+                                >
+                                  <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                                  Download Complete
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show other options button when VCloud and other options are mixed */}
+                    {hasMixedOptions && !showOtherOptions && (otherEpisodeDownloads.length + otherBatchDownloads.length > 0) && (
+                      <div className="text-center pt-4 md:pt-6">
+                        <button
+                          onClick={() => setShowOtherOptions(true)}
+                          className="text-xs md:text-sm text-gray-400 hover:text-white transition-colors py-2 px-3 md:px-4 rounded-lg hover:bg-gray-800"
+                        >
+                          See other options ({otherEpisodeDownloads.length + otherBatchDownloads.length} more)
+                        </button>
+                      </div>
+                    )}
+
                     {/* If no downloads found, show all downloads */}
-                    {qualityEpisodeDownloads.length === 0 && qualityBatchDownloads.length === 0 && (
+                    {displayVCloudEpisodeDownloads.length === 0 && displayVCloudBatchDownloads.length === 0 && displayOtherEpisodeDownloads.length === 0 && displayOtherBatchDownloads.length === 0 && (
                       <div>
                         {movieDetails.downloadSections
                           .filter((section) =>
@@ -1070,6 +1390,90 @@ export default function VegaMoviePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* VCloud Confirmation Modal */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="max-w-md bg-gray-900 border-gray-700 p-4 md:p-6">
+          <div className="text-center">
+            <div className="mx-auto mb-3 md:mb-4 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
+              <Download className="h-6 w-6 md:h-8 md:w-8 text-white" />
+            </div>
+            <DialogHeader>
+              <DialogTitle className="text-xl md:text-2xl font-bold text-white mb-2">
+                Ready to {selectedMode === "watch" ? "Watch" : "Download"}!
+              </DialogTitle>
+            </DialogHeader>
+            
+            {selectedDownload && (
+              <div className="mt-3 md:mt-4 space-y-2 md:space-y-3 text-left">
+                <div className="bg-gray-800/50 rounded-lg p-3 md:p-4 space-y-1.5 md:space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs md:text-sm">Server:</span>
+                    <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs">
+                      ⚡ VCloud (Preferred)
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs md:text-sm">Quality:</span>
+                    <span className="text-white text-sm md:text-base font-semibold">{selectedDownload.download.quality}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs md:text-sm">Size:</span>
+                    <span className="text-white text-sm md:text-base">{selectedDownload.download.size}</span>
+                  </div>
+                  {selectedDownload.season && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-xs md:text-sm">Season:</span>
+                      <span className="text-white text-sm md:text-base">{selectedDownload.season}</span>
+                    </div>
+                  )}
+                  {downloadType === "bulk" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-xs md:text-sm">Type:</span>
+                      <Badge className="bg-purple-600 text-white text-xs">Bulk Download</Badge>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 md:mt-6 space-y-2 md:space-y-3">
+              <Button
+                onClick={() => {
+                  if (selectedDownload) {
+                    const nextdriveUrl = generateNextdriveUrl(
+                      selectedDownload.link.url,
+                      selectedDownload.link.label,
+                      selectedDownload.season
+                    )
+                    window.open(nextdriveUrl, "_blank")
+                    setShowConfirmModal(false)
+                    // Reset state
+                    setSelectedMode(null)
+                    setDownloadType(null)
+                    setSelectedQuality("")
+                  }
+                }}
+                className="w-full px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white text-sm md:text-base font-bold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                <ExternalLink className="h-4 w-4 md:h-5 md:w-5 mr-2" />
+                Continue
+              </Button>
+              
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false)
+                  setShowDownloadModal(true)
+                }}
+                className="w-full text-xs md:text-sm text-gray-400 hover:text-white transition-colors py-2"
+              >
+                Show more options
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {debugMode && (
         <div className="my-6 rounded-lg border border-gray-700 bg-gray-900/50 p-4 text-sm text-gray-300">
           <h3 className="mb-2 text-lg font-semibold text-gray-100">Vega Debug</h3>
@@ -1169,6 +1573,24 @@ function MovieDetailSkeleton() {
           </div>
         </div>
       </section>
+      
+      {/* Inline styles for animations */}
+      <style jsx global>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.4s ease-out forwards;
+        }
+      `}</style>
     </div>
   )
 }
