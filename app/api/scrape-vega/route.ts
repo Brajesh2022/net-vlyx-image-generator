@@ -4,7 +4,7 @@ import * as cheerio from "cheerio"
 const SOURCES = {
   vegaA: "https://vegamovise.biz",
   vegaB: "https://bollyhub.one",
-  luxLike: "https://www.vegamovies-nl.bond/",
+  luxLike: "https://www.vegamovies-nl.bike/",
 }
 
 // CORS proxies to bypass restrictions
@@ -154,31 +154,75 @@ function parseLuxLike(html: string, base: string): Movie[] {
   return parseVegaLike(html, base)
 }
 
-// Ranking for merged results
+// Normalize title for comparison
 function normalize(str: string) {
   return (str || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
 }
+
+// Extract sequel number if present (e.g., "Panchayat 2" -> 2, "Season 3" -> 3)
+function extractSequelNumber(title: string): number | null {
+  const normalized = normalize(title)
+  // Match patterns like: "title 2", "title season 2", "title s02", "title part 2"
+  const patterns = [
+    /\b(\d+)\s*$/,           // "Panchayat 2" -> 2
+    /season\s*(\d+)/,        // "Season 2" -> 2
+    /s\s*0*(\d+)/,           // "S02" -> 2
+    /part\s*(\d+)/,          // "Part 2" -> 2
+    /chapter\s*(\d+)/,       // "Chapter 2" -> 2
+  ]
+  
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern)
+    if (match) {
+      return Number.parseInt(match[1], 10)
+    }
+  }
+  return null
+}
+
+// Get base title without sequel number (e.g., "Panchayat 2" -> "panchayat")
+function getBaseTitle(title: string): string {
+  const normalized = normalize(title)
+  return normalized
+    .replace(/\b(season|s|part|chapter)\s*0*\d+\b/g, "")
+    .replace(/\b\d+\s*$/, "")
+    .trim()
+}
+
+// Score for search relevance
 function bestMatchScore(title: string, q: string): number {
   const t = normalize(title)
   const query = normalize(q)
+  const baseTitle = getBaseTitle(title)
+  const sequelNum = extractSequelNumber(title)
+  
   if (!t || !query) return 0
-  if (t === query) return 1000 // exact
-  // sequel: "panda 2", "panda 3"...
-  const sequel = t.match(new RegExp(`^${query}\\s*(\\d+)\\b`))
-  if (sequel) {
-    const n = Number.parseInt(sequel[1], 10)
-    // higher score than general contains, but below exact; sort ascending by n via negative
-    return 900 - Math.min(n, 100)
+  
+  // Exact match gets highest score
+  if (t === query) return 10000
+  
+  // Base title matches exactly (e.g., "Panchayat" search matches "Panchayat 2")
+  if (baseTitle === query && sequelNum !== null) {
+    // Score: 9000 for season 1, 8999 for season 2, etc. (descending order)
+    return 9000 - sequelNum
   }
-  // startsWith query
-  if (t.startsWith(query + " ")) return 800
-  // contains as word
-  if (new RegExp(`\\b${query}\\b`).test(t)) return 700
-  // substring
-  if (t.includes(query)) return 600
+  
+  // Starts with query exactly
+  if (t.startsWith(query + " ")) {
+    const num = extractSequelNumber(title)
+    return num !== null ? 8000 - num : 8000
+  }
+  
+  // Contains query as whole word
+  if (new RegExp(`\\b${query}\\b`).test(t)) return 7000
+  
+  // Contains query as substring
+  if (t.includes(query)) return 6000
+  
+  // Partial match
   return 100
 }
 
@@ -224,24 +268,38 @@ export async function GET(request: NextRequest) {
       movies = movies.concat(list)
     }
 
-    // Deduplicate by link, fallback by normalized title
-    const seen = new Set<string>()
+    // Deduplicate by exact title match (case-insensitive)
+    const seenTitles = new Map<string, Movie>()
     const deduped = movies.filter((m) => {
-      const key = m.link || normalize(m.title)
-      if (seen.has(key)) return false
-      seen.add(key)
+      const titleKey = m.title.trim().toLowerCase()
+      
+      if (seenTitles.has(titleKey)) {
+        // Keep the one with more complete information (prefer longer description or valid image)
+        const existing = seenTitles.get(titleKey)!
+        if (m.description.length > existing.description.length || (m.image && !existing.image)) {
+          seenTitles.set(titleKey, m)
+          return false // Remove the existing one
+        }
+        return false // Duplicate, skip this one
+      }
+      
+      seenTitles.set(titleKey, m)
       return true
     })
 
-    // Sort by best match if searchTerm provided
+    // Sort by best match if searchTerm provided, otherwise alphabetical
     const sorted = searchTerm
       ? deduped.sort((a, b) => {
           const sa = bestMatchScore(a.title, searchTerm)
           const sb = bestMatchScore(b.title, searchTerm)
+          
+          // Primary sort by relevance score
           if (sa !== sb) return sb - sa
-          return a.title.localeCompare(b.title)
+          
+          // Secondary sort: alphabetical order for same relevance
+          return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
         })
-      : deduped
+      : deduped.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }))
 
     return NextResponse.json({
       movies: sorted,

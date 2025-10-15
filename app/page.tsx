@@ -25,18 +25,31 @@ interface ParsedMovieData {
   totalMovies: number
 }
 
-type SearchType = "search1" | "search2"
+// Categories for vegamovies-nl
+const VEGA_CATEGORIES = [
+  { label: "Home", value: "home" },
+  { label: "Bollywood", value: "bollywood" },
+  { label: "South Movies", value: "south-movies" },
+  { label: "Dual Audio Movies", value: "dual-audio-movies" },
+  { label: "Dual Audio Series", value: "dual-audio-series" },
+  { label: "Hindi Dubbed", value: "hindi-dubbed" },
+  { label: "Animation", value: "animation" },
+  { label: "Horror", value: "horror" },
+  { label: "Sci-Fi", value: "sci-fi" },
+]
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [selectedCategory, setSelectedCategory] = useState("home")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [allMovies, setAllMovies] = useState<Movie[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
   const [showWishlistModal, setShowWishlistModal] = useState(false)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [showSearchBar, setShowSearchBar] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [searchType, setSearchType] = useState<SearchType>("search1")
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const searchTimeout = useRef<NodeJS.Timeout>()
   const slideInterval = useRef<NodeJS.Timeout>()
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -49,14 +62,35 @@ export default function Home() {
   const { wishlist, isClient } = useWishlist()
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: [searchType === "search1" ? "/api/scrape" : "/api/scrape-vega", searchTerm, searchType],
+    queryKey: [searchTerm ? "/api/scrape-vega" : "/api/scrape", searchTerm, selectedCategory],
     queryFn: async () => {
-      const apiEndpoint = searchType === "search1" ? "/api/scrape" : "/api/scrape-vega"
-      const response = await fetch(`${apiEndpoint}${searchTerm ? `?s=${encodeURIComponent(searchTerm)}` : ""}`)
+      // Use search2 (aggregated) for search, search1 (vegamovies-nl) for browsing
+      const apiEndpoint = searchTerm ? "/api/scrape-vega" : "/api/scrape"
+      let url = apiEndpoint
+      const params = new URLSearchParams()
+      
+      if (searchTerm) {
+        params.append("s", searchTerm)
+      } else {
+        // Browsing mode - use vegamovies-nl with categories
+        params.append("category", selectedCategory)
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`
+      }
+      
+      const response = await fetch(url)
       if (!response.ok) {
         throw new Error("Failed to fetch movies")
       }
-      return await response.json()
+      const result = await response.json()
+      
+      // Reset accumulated movies when category or search changes
+      setAllMovies(result.movies || [])
+      setCurrentPage(1)
+      
+      return result
     },
   })
 
@@ -121,13 +155,6 @@ export default function Home() {
     refetch()
   }
 
-  const handleSearchTypeChange = (type: SearchType) => {
-    setSearchType(type)
-    setTimeout(() => {
-      refetch()
-    }, 100)
-  }
-
   const handleSuggestionClick = (suggestion: string) => {
     setSearchTerm(suggestion)
     setShowSuggestions(false)
@@ -138,33 +165,94 @@ export default function Home() {
     }, 100)
   }
 
-  const filteredMovies =
-    data?.movies.filter((movie) => {
-      const matchesCategory = selectedCategory === "all" || movie.category === selectedCategory
-      return matchesCategory
-    }) || []
+  // Handle closing search bar - clears everything
+  const handleCloseSearch = () => {
+    setSearchTerm("")
+    setSuggestions([])
+    setShowSuggestions(false)
+    setShowSearchBar(false)
+  }
 
-  const categories = ["all", ...(data?.categories || [])]
+  // Load more movies function (only for browsing, not search)
+  const handleLoadMore = async () => {
+    if (isLoadingMore || searchTerm) return // Don't load more when searching
 
-  const createMovieSlug = (movie: { link: string; title: string }) => {
+    setIsLoadingMore(true)
     try {
-      const u = new URL(movie.link)
-      const parts = u.pathname.split("/").filter(Boolean)
-      let slug = parts[parts.length - 1] || ""
-      if (!slug || slug === "search") {
-        slug = parts[parts.length - 2] || ""
+      const nextPage = currentPage + 1
+      const params = new URLSearchParams()
+      params.append("category", selectedCategory)
+      params.append("page", nextPage.toString())
+      
+      const url = `/api/scrape?${params.toString()}`
+      const response = await fetch(url)
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.movies && result.movies.length > 0) {
+          setAllMovies((prev) => [...prev, ...result.movies])
+          setCurrentPage(nextPage)
+        }
       }
-      if (!slug) {
-        slug = movie.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-      }
-      return slug
-    } catch {
-      return movie.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+    } catch (error) {
+      console.error("Error loading more movies:", error)
+    } finally {
+      setIsLoadingMore(false)
     }
   }
 
+  const filteredMovies = searchTerm ? (data?.movies || []) : allMovies
+
+  const categories = !searchTerm ? VEGA_CATEGORIES : ["all", ...(data?.categories || [])]
+
+  const createMovieSlug = (movie: { link: string; title: string }) => {
+    // Try to extract slug from URL
+    try {
+      if (!movie.link) throw new Error("No link")
+      
+      // Handle relative URLs by adding a dummy base
+      const url = movie.link.startsWith("http") ? movie.link : `https://dummy.com${movie.link}`
+      const u = new URL(url)
+      const parts = u.pathname.split("/").filter(Boolean)
+      
+      let slug = parts[parts.length - 1] || ""
+      
+      // Skip search or empty slugs
+      if (!slug || slug === "search" || slug.length < 3) {
+        slug = parts[parts.length - 2] || ""
+      }
+      
+      // If we have a valid slug, return it
+      if (slug && slug.length >= 3) {
+        return slug
+      }
+    } catch (error) {
+      // URL parsing failed, fall through to title-based slug
+    }
+    
+    // Fallback: Create slug from title
+    if (movie.title) {
+      const titleSlug = movie.title
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") // Remove leading/trailing dashes
+        .substring(0, 200) // Limit length
+      
+      if (titleSlug && titleSlug.length >= 2) {
+        return titleSlug
+      }
+    }
+    
+    // Last resort: use timestamp-based slug
+    return `movie-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }
+
   const heroSlides = useMemo(() => {
-    if (!data?.movies || data.movies.length === 0) {
+    // Only show slideshow on homepage (not on category pages or search)
+    const isHomePage = selectedCategory === "home" && !searchTerm
+    
+    if (!isHomePage || !allMovies || allMovies.length === 0) {
       return [
         {
           title: "Unlimited Entertainment on NetVlyx",
@@ -177,19 +265,39 @@ export default function Home() {
       ]
     }
 
-    const trendingMovies = data.movies.slice(0, 3)
+    // Use first 5 movies for slideshow (like in the HTML example)
+    const trendingMovies = allMovies.slice(0, 5)
 
-    return trendingMovies.map((movie, index) => ({
-      title: movie.title,
-      description:
-        movie.description || "Experience premium entertainment with crystal clear quality and immersive viewing.",
-      background:
-        movie.image ||
-        `https://images.unsplash.com/photo-${1489599517276 + index}?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80`,
-      gradient: "from-black via-black/70 to-transparent",
-      movieSlug: createMovieSlug(movie),
-    }))
-  }, [data?.movies])
+    return trendingMovies.map((movie, index) => {
+      const slug = createMovieSlug(movie)
+      
+      // Determine source URL
+      let sourceUrl = "https://www.vegamovies-nl.bike"
+      if (movie.link) {
+        try {
+          const u = new URL(movie.link)
+          sourceUrl = u.origin
+        } catch {
+          sourceUrl = movie.link
+        }
+      }
+      
+      // ALWAYS use /vega/ page
+      const movieUrl = `/vega/${slug}?src=${encodeURIComponent(sourceUrl)}`
+      
+      return {
+        title: movie.title,
+        description:
+          movie.description || "Experience premium entertainment with crystal clear quality and immersive viewing.",
+        background:
+          movie.image ||
+          `https://images.unsplash.com/photo-${1489599517276 + index}?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80`,
+        gradient: "from-black via-black/70 to-transparent",
+        movieSlug: slug,
+        movieUrl: movieUrl,
+      }
+    })
+  }, [allMovies, selectedCategory, searchTerm])
 
   useEffect(() => {
     if (!searchTerm) {
@@ -255,15 +363,17 @@ export default function Home() {
                       handleSearchSubmit()
                     }
                     if (e.key === "Escape") {
-                      setShowSuggestions(false)
+                      // Close search completely on Escape
+                      handleCloseSearch()
                     }
                   }}
                   className="pl-12 pr-12 w-full glass-effect border-gray-700 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500/20 h-14 rounded-full bg-black/90 backdrop-blur-xl border-2 shadow-2xl"
                   autoFocus
                 />
                 <button
-                  onClick={() => setShowSearchBar(false)}
+                  onClick={handleCloseSearch}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-all duration-300 hover:scale-110 z-10"
+                  title="Clear search"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -455,8 +565,8 @@ export default function Home() {
                         {heroSlides[currentSlide].description}
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                        {heroSlides[currentSlide].movieSlug ? (
-                          <Link href={`/movie/${heroSlides[currentSlide].movieSlug}`}>
+                        {heroSlides[currentSlide].movieUrl ? (
+                          <Link href={heroSlides[currentSlide].movieUrl}>
                             <Button className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base">
                               <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                               Watch Now
@@ -510,59 +620,16 @@ export default function Home() {
         )}
 
         <div className="max-w-7xl mx-auto px-4 py-8">
-          {/* Search Tabs - Only show when there's a search term */}
-          {searchTerm && (
-            <div className="mb-8">
-              <div className="flex items-center justify-center">
-                <div className="flex bg-gray-900/80 backdrop-blur-sm rounded-full p-1 border border-gray-700">
-                  <button
-                    onClick={() => handleSearchTypeChange("search1")}
-                    className={`px-4 py-3 rounded-full font-semibold transition-all duration-300 ${
-                      searchType === "search1"
-                        ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg transform scale-105"
-                        : "text-gray-400 hover:text-white hover:bg-gray-800/50"
-                    }`}
-                  >
-                    Search 1
-                  </button>
-                  <button
-                    onClick={() => handleSearchTypeChange("search2")}
-                    className={`px-4 py-3 rounded-full font-semibold transition-all duration-300 ${
-                      searchType === "search2"
-                        ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105"
-                        : "text-gray-400 hover:text-white hover:bg-gray-800/50"
-                    }`}
-                  >
-                    Search 2
-                  </button>
-                </div>
-              </div>
-              <div className="text-center mt-4">
-                <p className="text-sm text-gray-400">
-                  {searchType === "search1" ? (
-                    <>
-                      <span className="text-red-400 font-semibold">Search 1:</span>{" "}
-                      <span className="text-green-400">✨ Independent</span> •{" "}
-                      <span className="text-blue-400">Ad-free</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-blue-400 font-semibold">Search 2:</span>{" "}
-                      <span className="text-yellow-400">🎬 Aggregated (Vega + Lux-like)</span> •{" "}
-                      <span className="text-orange-400">⚠️ Contains Ads</span>
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Content Header - Only show when not searching */}
           {!searchTerm && (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
-                  <h3 className="text-xl font-semibold">Popular Content</h3>
+                  <h3 className="text-xl font-semibold">
+                    {!searchTerm && selectedCategory !== "home" 
+                      ? VEGA_CATEGORIES.find(c => c.value === selectedCategory)?.label || "Popular Content"
+                      : searchTerm ? "Search Results" : "Popular Content"}
+                  </h3>
                   {data && (
                     <Badge variant="secondary" className="bg-gray-800 text-gray-300">
                       {filteredMovies.length} items
@@ -570,17 +637,23 @@ export default function Home() {
                   )}
                 </div>
 
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-red-500 focus:ring-red-500/20"
-                >
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category === "all" ? "All Categories" : category}
-                    </option>
-                  ))}
-                </select>
+                {!searchTerm && (
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value)
+                      setCurrentPage(1)
+                      setAllMovies([])
+                    }}
+                    className="px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-red-500 focus:ring-red-500/20"
+                  >
+                    {categories.map((category) => (
+                      <option key={category.value} value={category.value}>
+                        {category.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           )}
@@ -610,36 +683,38 @@ export default function Home() {
 
           {/* Movies Grid */}
           {!isLoading && data && filteredMovies.length > 0 && (
+            <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
               {filteredMovies.map((movie: any, index: number) => {
+                // Create slug from movie (with robust fallback)
                 const slug = createMovieSlug(movie)
-                let movieUrl = `/movie/${slug}`
-
-                try {
-                  const u = new URL(movie.link)
-                  const host = u.origin
-                  if (searchType === "search2") {
-                    if (host.includes("vegamovise.biz") || host.includes("bollyhub.one")) {
-                      movieUrl = `/vega/${slug}?src=${encodeURIComponent(host)}`
-                    } else if (host.includes("vegamovies-nl.bond")) {
-                      movieUrl = `/vega-nl/${slug}?src=${encodeURIComponent(host)}`
-                    } else {
-                      // fallback: send to vega by default
-                      movieUrl = `/vega/${slug}?src=${encodeURIComponent(host)}`
-                    }
+                if (!slug || slug.length < 2) return null // Skip invalid movies
+                
+                // Determine source URL for the movie
+                let sourceUrl = "https://www.vegamovies-nl.bike" // Default fallback
+                if (movie.link) {
+                  try {
+                    const u = new URL(movie.link)
+                    sourceUrl = u.origin
+                  } catch {
+                    // If parsing fails, use the link itself
+                    sourceUrl = movie.link
                   }
-                } catch {
-                  // keep default
                 }
+                
+                // ALWAYS construct /vega/ URL - NEVER /movie/
+                const movieUrl = `/vega/${slug}?src=${encodeURIComponent(sourceUrl)}`
 
+                // Use high-quality images directly for browsing (vegamovies-nl)
+                // Use image proxy for search to avoid CORS issues
                 const imgSrc =
-                  movie.image && searchType === "search2"
+                  movie.image && searchTerm
                     ? `/api/image-proxy?url=${encodeURIComponent(movie.image)}`
                     : movie.image ||
                       "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
 
                 return (
-                  <Link key={index} href={movieUrl}>
+                  <Link key={`m-${index}-${slug.substring(0, 50)}`} href={movieUrl}>
                     <div className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10">
                       <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900">
                         <img
@@ -681,6 +756,27 @@ export default function Home() {
                 )
               })}
             </div>
+            
+            {/* Load More Button - Only show when browsing (not searching) */}
+            {!searchTerm && (
+              <div className="flex justify-center mt-8">
+                <Button
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-all duration-300 hover:scale-105"
+                >
+                  {isLoadingMore ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Loading...
+                    </span>
+                  ) : (
+                    "Load More"
+                  )}
+                </Button>
+              </div>
+            )}
+            </>
           )}
 
           {/* No Results */}
@@ -697,9 +793,7 @@ export default function Home() {
               </p>
               {searchTerm && (
                 <Button
-                  onClick={() => {
-                    setSearchTerm("")
-                  }}
+                  onClick={handleCloseSearch}
                   variant="outline"
                   className="border-gray-600 text-white hover:bg-gray-800"
                 >

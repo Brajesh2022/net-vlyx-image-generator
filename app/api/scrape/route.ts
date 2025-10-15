@@ -1,16 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 
-const TARGET_URL = "https://hdhub4u.cologne/"
+const BASE_URL = "https://www.vegamovies-nl.bike/"
+const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
-// Reordered CORS proxies with the working one first
-const CORS_PROXIES = [
-  "https://thingproxy.freeboard.io/fetch/", // WORKING - Move to first position
-  "https://api.codetabs.com/v1/proxy?quest=", // Keep as backup
-  "https://api.allorigins.win/raw?url=", // Keep as backup
-  "https://corsproxy.io/?", // Keep as backup
-  "https://cors-anywhere.herokuapp.com/", // Keep as backup
-]
+// Categories available on vegamovies-nl
+const CATEGORIES = {
+  home: "https://www.vegamovies-nl.bike/",
+  bollywood: "https://www.vegamovies-nl.bike/category/bollywood/",
+  "south-movies": "https://www.vegamovies-nl.bike/category/south-movies/",
+  "dual-audio-movies": "https://www.vegamovies-nl.bike/dual-audio/dual-audio-movies/",
+  "dual-audio-series": "https://www.vegamovies-nl.bike/dual-audio/dual-audio-series/",
+  "hindi-dubbed": "https://www.vegamovies-nl.bike/category/hindi-dubbed/",
+  animation: "https://www.vegamovies-nl.bike/category/animation/",
+  horror: "https://www.vegamovies-nl.bike/category/horror/",
+  "sci-fi": "https://www.vegamovies-nl.bike/category/sci-fi/",
+}
 
 interface Movie {
   title: string
@@ -24,218 +29,158 @@ interface ParsedMovieData {
   movies: Movie[]
   categories: string[]
   totalMovies: number
+  hasMore?: boolean
 }
 
-// Enhanced user agents that are more likely to bypass Cloudflare
-const USER_AGENTS = [
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/120.0",
-]
-
-// Get random user agent
-function getRandomUserAgent(): string {
-  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
-}
-
-// Enhanced headers to mimic real browser
-function getBrowserHeaders(): Record<string, string> {
-  return {
-    "User-Agent": getRandomUserAgent(),
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Accept-Charset": "utf-8",
-    DNT: "1",
-    Connection: "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-    "Cache-Control": "max-age=0",
-    Pragma: "no-cache",
-    "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-  }
-}
-
-async function fetchWithProxy(url: string, proxyIndex = 0): Promise<string> {
-  if (proxyIndex >= CORS_PROXIES.length) {
-    // Try direct fetch as last resort
-    try {
-      const response = await fetch(url, {
-        headers: getBrowserHeaders(),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      return await response.text()
-    } catch (error) {
-      throw new Error(`All proxy attempts failed. Last error: ${error}`)
-    }
-  }
-
-  const proxy = CORS_PROXIES[proxyIndex]
-  const proxyUrl = proxy + encodeURIComponent(url)
+// Fetch HTML from vegamovies-nl using the scraping API
+async function fetchVegaMoviesHTML(url: string): Promise<string> {
+  const apiUrl = `${SCRAPING_API}?url=${encodeURIComponent(url)}`
 
   try {
-    console.log(`Trying proxy ${proxyIndex + 1}/${CORS_PROXIES.length}: ${proxy}`)
-
-    // Add small delay for the working proxy
-    if (proxyIndex === 0) {
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(apiUrl, {
       method: "GET",
-      headers: getBrowserHeaders(),
       signal: AbortSignal.timeout(30000),
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    const html = await response.text()
+    const htmlSource = await response.text()
 
-    // Check if we got Cloudflare challenge page
-    if (html.includes("Just a moment...") || html.includes("cf-browser-verification") || html.includes("_cf_chl_opt")) {
-      console.log(`Proxy ${proxyIndex + 1} returned Cloudflare challenge page`)
-      throw new Error("Cloudflare challenge detected")
+    // Basic validation
+    if (!htmlSource || htmlSource.length < 100) {
+      throw new Error("Invalid HTML response - too short")
     }
 
-    // Basic validation to ensure we got actual HTML content
-    if (!html.includes("<html") && !html.includes("<!DOCTYPE")) {
-      throw new Error("Invalid HTML response")
-    }
-
-    console.log(`Successfully fetched with proxy ${proxyIndex + 1}`)
-    return html
+    return htmlSource
   } catch (error) {
-    console.log(`Proxy ${proxyIndex + 1} failed:`, error)
-    return fetchWithProxy(url, proxyIndex + 1)
+    console.error("Error fetching from scraping API:", error)
+    throw error
   }
 }
 
-function parseMovieData(html: string): ParsedMovieData {
+// Parse vegamovies-nl HTML to extract movie data
+function parseVegaMoviesData(html: string): ParsedMovieData {
   const $ = cheerio.load(html)
   const movies: Movie[] = []
   const categories = new Set<string>()
 
-  // Parse movie items from the grid
-  $(".thumb.col-md-2.col-sm-4.col-xs-6").each((index, element) => {
+  // Parse movie items - vegamovies-nl uses article.post-item
+  $("article.post-item").each((index, element) => {
     const $element = $(element)
 
-    // Extract movie details
-    const $link = $element.find("a").first()
-    const $img = $element.find("img").first()
-    const $title = $element.find("figcaption p").first()
+    // Extract title and link
+    const $titleElement = $element.find("h3.post-title > a, h2.entry-title > a").first()
+    const title = ($titleElement.attr("title") || $titleElement.text() || "").trim()
+    const link = $titleElement.attr("href") || ""
 
-    const title = $title.text().trim() || $img.attr("alt") || "Unknown Title"
-    const link = $link.attr("href") || ""
-    const image = $img.attr("src") || ""
-    const description = $title.text().trim() || ""
+    // Extract image - Use HIGH QUALITY version (remove resolution suffix)
+    const $imageElement = $element.find("div.blog-pic img.blog-picture, img.blog-picture").first()
+    let image = $imageElement.attr("src") || ""
+    
+    // Convert to high-res by removing resolution suffix like -300x450
+    // Pattern: image-300x450.jpg -> image.jpg
+    if (image) {
+      image = image.replace(/-\d+x\d+(\.(jpg|jpeg|png|webp))$/i, "$1")
+    }
 
-    // Try to extract category from title or description
+    if (!title || !link) return
+
+    // Detect category from title or class
     let category = "General"
     const titleLower = title.toLowerCase()
+    const elementClass = $element.attr("class") || ""
 
-    if (titleLower.includes("bollywood") || titleLower.includes("hindi")) {
+    if (titleLower.includes("bollywood") || titleLower.includes("hindi") || elementClass.includes("bollywood")) {
       category = "Bollywood"
     } else if (titleLower.includes("hollywood") || titleLower.includes("english")) {
       category = "Hollywood"
-    } else if (titleLower.includes("south") || titleLower.includes("tamil") || titleLower.includes("telugu")) {
+    } else if (
+      titleLower.includes("south") ||
+      titleLower.includes("tamil") ||
+      titleLower.includes("telugu") ||
+      titleLower.includes("malayalam")
+    ) {
       category = "South Indian"
-    } else if (titleLower.includes("web") || titleLower.includes("series")) {
+    } else if (
+      titleLower.includes("web") ||
+      titleLower.includes("series") ||
+      elementClass.includes("web-series") ||
+      elementClass.includes("dual-audio-series")
+    ) {
       category = "Web Series"
     } else if (titleLower.includes("season")) {
       category = "TV Shows"
+    } else if (titleLower.includes("dual audio") || elementClass.includes("dual-audio")) {
+      category = "Dual Audio"
+    } else if (titleLower.includes("dubbed") || elementClass.includes("hindi-dubbed")) {
+      category = "Hindi Dubbed"
+    } else if (titleLower.includes("animation")) {
+      category = "Animation"
+    } else if (titleLower.includes("horror")) {
+      category = "Horror"
+    } else if (titleLower.includes("sci-fi") || titleLower.includes("science fiction")) {
+      category = "Sci-Fi"
     }
 
-    if (title && title !== "Unknown Title") {
-      const fullLink = link.startsWith("http") ? link : `https://hdhub4u.cologne${link}`
+    movies.push({
+      title,
+      image,
+      link,
+      description: title,
+      category,
+    })
 
-      movies.push({
-        title,
-        image,
-        link: fullLink,
-        description,
-        category,
-      })
-
-      categories.add(category)
-    }
-  })
-
-  // Also try to parse from other possible selectors
-  $(".recent-movies li, .thumbnail-wrapper figure").each((index, element) => {
-    const $element = $(element)
-
-    const $link = $element.find("a").first()
-    const $img = $element.find("img").first()
-    const $caption = $element.find("figcaption, .caption, .title").first()
-
-    const title = $caption.text().trim() || $img.attr("alt") || $img.attr("title") || ""
-    const link = $link.attr("href") || ""
-    const image = $img.attr("src") || $img.attr("data-src") || ""
-    const description = $caption.text().trim() || ""
-
-    if (title && !movies.some((movie) => movie.title === title)) {
-      let category = "General"
-      const titleLower = title.toLowerCase()
-
-      if (titleLower.includes("bollywood") || titleLower.includes("hindi")) {
-        category = "Bollywood"
-      } else if (titleLower.includes("hollywood")) {
-        category = "Hollywood"
-      } else if (titleLower.includes("south")) {
-        category = "South Indian"
-      } else if (titleLower.includes("web") || titleLower.includes("series")) {
-        category = "Web Series"
-      }
-
-      const fullLink = link.startsWith("http") ? link : `https://hdhub4u.cologne${link}`
-
-      movies.push({
-        title,
-        image,
-        link: fullLink,
-        description,
-        category,
-      })
-
-      categories.add(category)
-    }
+    categories.add(category)
   })
 
   return {
     movies,
     categories: Array.from(categories).sort(),
     totalMovies: movies.length,
+    hasMore: movies.length > 0, // If we got movies, there might be more pages
   }
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const searchTerm = searchParams.get("s") || ""
-  const searchURL = searchTerm ? `${TARGET_URL}?s=${encodeURIComponent(searchTerm)}` : TARGET_URL
+  const category = searchParams.get("category") || "home"
+  const page = Number.parseInt(searchParams.get("page") || "1", 10)
 
   try {
-    console.log("Starting to fetch HTML from:", searchURL)
+    let targetUrl = ""
 
-    const html = await fetchWithProxy(searchURL)
-    console.log("HTML fetched successfully using proxy, length:", html.length)
+    // Handle search
+    if (searchTerm) {
+      // vegamovies-nl search format
+      targetUrl = `${BASE_URL}?s=${encodeURIComponent(searchTerm)}`
+      if (page > 1) {
+        targetUrl += `&page=${page}`
+      }
+    } else {
+      // Handle category browsing
+      const categoryUrl = CATEGORIES[category as keyof typeof CATEGORIES] || BASE_URL
 
-    const parsedData = parseMovieData(html)
+      if (page > 1) {
+        // Add pagination - vegamovies-nl uses /page/N/ format
+        targetUrl = `${categoryUrl}page/${page}/`
+      } else {
+        targetUrl = categoryUrl
+      }
+    }
+
+    console.log("Fetching vegamovies-nl from:", targetUrl)
+
+    const html = await fetchVegaMoviesHTML(targetUrl)
+    console.log("HTML fetched successfully, length:", html.length)
+
+    const parsedData = parseVegaMoviesData(html)
     console.log("Parsed data:", {
       moviesCount: parsedData.movies.length,
       categoriesCount: parsedData.categories.length,
+      page,
     })
 
     return NextResponse.json(parsedData)
@@ -248,13 +193,14 @@ export async function GET(request: NextRequest) {
         movies: [],
         categories: [],
         totalMovies: 0,
+        hasMore: false,
       },
       { status: 500 },
     )
   }
 }
 
-// POST endpoint for general URL scraping (used by VCloud page)
+// POST endpoint for general URL scraping (used by VCloud page for backward compatibility)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -264,9 +210,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 })
     }
 
-    console.log("Fetching URL:", url)
+    console.log("Fetching URL via POST:", url)
 
-    const html = await fetchWithProxy(url)
+    const html = await fetchVegaMoviesHTML(url)
     console.log("HTML fetched successfully, length:", html.length)
 
     // Extract title from HTML
