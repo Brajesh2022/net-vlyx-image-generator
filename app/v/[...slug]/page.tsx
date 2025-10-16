@@ -160,6 +160,8 @@ export default function VegaMoviePage() {
   const [showTmdbGallery, setShowTmdbGallery] = useState(false) // Track if TMDB gallery should be shown
   const [imageZoom, setImageZoom] = useState<number>(1) // Track image zoom level
   const [imagePosition, setImagePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 }) // Track image position when zoomed
+  const [playerSelection, setPlayerSelection] = useState<"playHere" | "externalPlayer" | null>(null) // Player selection for watch mode
+  const [showPlayHereWarning, setShowPlayHereWarning] = useState(false) // Warning modal for Play Here option
 
   // Touch handling for mobile swipe
   const touchStartX = useRef<number>(0)
@@ -362,6 +364,26 @@ export default function VegaMoviePage() {
       handleZoomIn()
     } else {
       handleZoomOut()
+    }
+  }
+
+  // Extract IMDb ID from IMDb link
+  const getImdbId = (): string | null => {
+    if (!movieDetails?.imdbLink) return null
+    const match = movieDetails.imdbLink.match(/tt\d+/)
+    return match ? match[0] : null
+  }
+
+  // Handle Play Here button click
+  const handlePlayHere = () => {
+    setShowPlayHereWarning(true)
+  }
+
+  // Handle Continue from warning modal
+  const handleContinuePlayHere = () => {
+    const imdbId = getImdbId()
+    if (imdbId) {
+      window.location.href = `/play-here?id=${imdbId}`
     }
   }
 
@@ -1080,8 +1102,57 @@ export default function VegaMoviePage() {
             )
           })()}
 
+          {/* Step 2.5: Player Selection (for watch mode with IMDb ID) */}
+          {selectedMode === "watch" && !playerSelection && getImdbId() && (
+            <div className="mb-12 md:mb-16 animate-fade-in">
+              <button
+                onClick={() => setSelectedMode(null)}
+                className="mb-6 md:mb-8 text-sm md:text-base text-gray-400 hover:text-white transition-colors flex items-center gap-2 mx-auto"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back to mode selection
+              </button>
+              <h3 className="text-xl md:text-2xl font-semibold mb-6 md:mb-8 text-center">Choose Your Player</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-3xl mx-auto">
+                {/* Play Here Option */}
+                <button
+                  onClick={handlePlayHere}
+                  className="group relative p-6 md:p-8 rounded-xl md:rounded-2xl bg-gradient-to-br from-orange-600/20 to-red-600/20 border-2 border-orange-500/30 hover:border-orange-400 hover:from-orange-600/30 hover:to-red-600/30 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
+                >
+                  <PlayCircle className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 text-orange-400 group-hover:text-orange-300 transition-colors" />
+                  <h4 className="text-xl md:text-2xl font-bold text-white mb-2 md:mb-3">Play Here</h4>
+                  <div className="flex items-center justify-center gap-1 text-xs text-yellow-500 bg-yellow-500/10 rounded-full px-3 py-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <span>May contain ads</span>
+                  </div>
+                </button>
+
+                {/* Play on External Player Option */}
+                <button
+                  onClick={() => setPlayerSelection("externalPlayer")}
+                  className="group relative p-6 md:p-8 rounded-xl md:rounded-2xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 border-2 border-blue-500/30 hover:border-blue-400 hover:from-blue-600/30 hover:to-purple-600/30 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
+                >
+                  <div className="flex items-center justify-center gap-3 mb-3 md:mb-4">
+                    <img 
+                      src="https://i.ibb.co/0VfBwckX/vlc-logo.png" 
+                      alt="VLC" 
+                      className="h-12 w-12 md:h-16 md:w-16 object-contain"
+                    />
+                    <img 
+                      src="https://i.ibb.co/kVhq9tcq/mx-player.png" 
+                      alt="MX Player" 
+                      className="h-12 w-12 md:h-16 md:w-16 object-contain"
+                    />
+                  </div>
+                  <h4 className="text-xl md:text-2xl font-bold text-white mb-1 md:mb-2">Play on External Player</h4>
+                  <p className="text-sm md:text-base text-gray-400">Better experience, ad-free</p>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Step 3: Quality Selection */}
-          {((selectedMode === "watch") || (selectedMode === "download" && downloadType)) && (() => {
+          {((selectedMode === "watch" && (playerSelection === "externalPlayer" || !getImdbId())) || (selectedMode === "download" && downloadType)) && (() => {
             const availableQualities = getAvailableQualities()
 
             return availableQualities.length > 0 ? (
@@ -1089,7 +1160,13 @@ export default function VegaMoviePage() {
                 <button
                   onClick={() => {
                     setDownloadType(null)
-                    if (selectedMode === "watch") setSelectedMode(null)
+                    if (selectedMode === "watch") {
+                      if (getImdbId()) {
+                        setPlayerSelection(null)
+                      } else {
+                        setSelectedMode(null)
+                      }
+                    }
                   }}
                   className="mb-6 md:mb-8 text-sm md:text-base text-gray-400 hover:text-white transition-colors flex items-center gap-2 mx-auto"
                 >
@@ -1539,7 +1616,7 @@ export default function VegaMoviePage() {
                                 >
                                   <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                                   {isNCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
-                                  Download Complete
+                                  {selectedMode === "watch" ? "Watch Complete" : "Download Complete"}
                                 </Button>
                               </div>
                             </div>
@@ -1572,7 +1649,10 @@ export default function VegaMoviePage() {
                                     </h4>
                                     <p className="text-sm sm:text-base text-gray-400 break-words">
                                       {item.download.quality} • {item.download.size} •{" "}
-                                      {tmdbDetails?.contentType === "movie" ? "Movie Download" : "Episode Download"}
+                                      {selectedMode === "watch" 
+                                        ? (tmdbDetails?.contentType === "movie" ? "Movie Stream" : "Episode Stream")
+                                        : (tmdbDetails?.contentType === "movie" ? "Movie Download" : "Episode Download")
+                                      }
                                       {item.season && (
                                         <span className="text-blue-400 ml-2">• Season {item.season}</span>
                                       )}
@@ -1616,8 +1696,11 @@ export default function VegaMoviePage() {
                     {displayOtherBatchDownloads.length > 0 && (
                       <div className={displayOtherEpisodeDownloads.length > 0 ? "mt-6" : "mt-6 pt-6 border-t border-gray-700"}>
                         <h4 className="text-xl font-semibold text-blue-400 mb-4 text-center flex items-center justify-center gap-2">
-                          <Download className="h-5 w-5" />
-                          {displayOtherEpisodeDownloads.length > 0 ? "Other Bulk Downloads" : "Other Options - Bulk"}
+                          {selectedMode === "watch" ? <Eye className="h-5 w-5" /> : <Download className="h-5 w-5" />}
+                          {selectedMode === "watch" 
+                            ? (displayOtherEpisodeDownloads.length > 0 ? "Other Bulk Streams" : "Other Options - Bulk")
+                            : (displayOtherEpisodeDownloads.length > 0 ? "Other Bulk Downloads" : "Other Options - Bulk")
+                          }
                         </h4>
                         <div className="space-y-3">
                           {displayOtherBatchDownloads.map((item, index) => (
@@ -1628,7 +1711,11 @@ export default function VegaMoviePage() {
                               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                 <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                                   <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                                    <Download className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                                    {selectedMode === "watch" ? (
+                                      <Eye className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                                    ) : (
+                                      <Download className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                                    )}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-lg sm:text-xl text-white break-words">
@@ -1641,7 +1728,9 @@ export default function VegaMoviePage() {
                                       )}
                                     </p>
                                     <div className="flex gap-2 mt-2">
-                                      <Badge className="bg-blue-600 text-white text-xs">Bulk Download</Badge>
+                                      <Badge className="bg-blue-600 text-white text-xs">
+                                        {selectedMode === "watch" ? "Bulk Stream" : "Bulk Download"}
+                                      </Badge>
                                       {item.season && (
                                         <Badge className="bg-blue-600 text-white text-xs">Season {item.season}</Badge>
                                       )}
@@ -1661,7 +1750,7 @@ export default function VegaMoviePage() {
                                   disabled={!item.link.url || item.link.url === "#"}
                                 >
                                   <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                                  Download Complete
+                                  {selectedMode === "watch" ? "Watch Complete" : "Download Complete"}
                                 </Button>
                               </div>
                             </div>
@@ -1707,7 +1796,11 @@ export default function VegaMoviePage() {
                                           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                             <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                                               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                                                <Download className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                                                {selectedMode === "watch" ? (
+                                                  <Eye className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                                                ) : (
+                                                  <Download className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                                                )}
                                               </div>
                                               <div className="flex-1 min-w-0">
                                                 <h4 className="font-bold text-lg sm:text-xl text-white break-words">
@@ -1717,7 +1810,7 @@ export default function VegaMoviePage() {
                                                   {download.quality} • {download.size} • High Quality
                                                 </p>
                                                 <Badge className="mt-2 bg-blue-600 text-white text-xs">
-                                                  Ready to Download
+                                                  {selectedMode === "watch" ? "Ready to Watch" : "Ready to Download"}
                                                 </Badge>
                                               </div>
                                             </div>
@@ -1734,7 +1827,7 @@ export default function VegaMoviePage() {
                                               disabled={!isValidDownloadLink(link?.url)}
                                             >
                                               <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                                              Download Now
+                                              {selectedMode === "watch" ? "Watch Now" : "Download Now"}
                                             </Button>
                                           </div>
                                         </div>
@@ -1754,12 +1847,64 @@ export default function VegaMoviePage() {
         </DialogContent>
       </Dialog>
 
+      {/* Play Here Warning Modal */}
+      <Dialog open={showPlayHereWarning} onOpenChange={setShowPlayHereWarning}>
+        <DialogContent className="max-w-md bg-gray-900 border-gray-700 p-4 md:p-6">
+          <div className="text-center">
+            <div className="mx-auto mb-3 md:mb-4 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+              <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white" />
+            </div>
+            <DialogHeader>
+              <DialogTitle className="text-xl md:text-2xl font-bold text-white mb-2">
+                Warning: Ads May Appear
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="mt-3 md:mt-4 space-y-3 md:space-y-4 text-left">
+              <p className="text-gray-300 text-sm md:text-base text-center">
+                This may contain ads. For a better experience, play on external players like VLC or MX Player.
+              </p>
+              
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 md:p-4">
+                <p className="text-yellow-500 text-xs md:text-sm text-center">
+                  ⚠️ We recommend using external players for an ad-free experience
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 md:mt-6 space-y-2 md:space-y-3">
+              <Button
+                onClick={handleContinuePlayHere}
+                className="w-full px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm md:text-base font-bold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                <PlayCircle className="h-4 w-4 md:h-5 md:w-5 mr-2" />
+                Continue Anyway
+              </Button>
+              
+              <button
+                onClick={() => {
+                  setShowPlayHereWarning(false)
+                  setPlayerSelection("externalPlayer")
+                }}
+                className="w-full text-xs md:text-sm text-gray-400 hover:text-white transition-colors py-2"
+              >
+                Use External Player Instead
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* N-Cloud Confirmation Modal */}
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent className="max-w-md bg-gray-900 border-gray-700 p-4 md:p-6">
           <div className="text-center">
             <div className="mx-auto mb-3 md:mb-4 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
-              <Download className="h-6 w-6 md:h-8 md:w-8 text-white" />
+              {selectedMode === "watch" ? (
+                <Eye className="h-6 w-6 md:h-8 md:w-8 text-white" />
+              ) : (
+                <Download className="h-6 w-6 md:h-8 md:w-8 text-white" />
+              )}
             </div>
             <DialogHeader>
               <DialogTitle className="text-xl md:text-2xl font-bold text-white mb-2">
@@ -1793,7 +1938,9 @@ export default function VegaMoviePage() {
                   {downloadType === "bulk" && (
                     <div className="flex items-center gap-2">
                       <span className="text-gray-400 text-xs md:text-sm">Type:</span>
-                      <Badge className="bg-purple-600 text-white text-xs">Bulk Download</Badge>
+                      <Badge className="bg-purple-600 text-white text-xs">
+                        {selectedMode === "watch" ? "Bulk Stream" : "Bulk Download"}
+                      </Badge>
                     </div>
                   )}
                 </div>
@@ -1815,6 +1962,7 @@ export default function VegaMoviePage() {
                     setSelectedMode(null)
                     setDownloadType(null)
                     setSelectedQuality("")
+                    setPlayerSelection(null)
                   }
                 }}
                 className="w-full px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white text-sm md:text-base font-bold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
