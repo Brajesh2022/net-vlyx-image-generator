@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
+import { decodeMovieUrl } from "@/lib/utils"
 import {
   Star,
   Download,
@@ -80,8 +81,26 @@ const VegaDebugPopup = dynamic(() => import("@/components/vega-debug-popup"), { 
 export default function VegaMoviePage() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const srcHost = searchParams.get("src") || "https://vegamovise.biz"
-  const slug = Array.isArray(params?.slug) ? params.slug.join("/") : (params?.slug as string) || ""
+  
+  // Extract encoded slug from params
+  const encodedSlug = Array.isArray(params?.slug) ? params.slug.join("/") : (params?.slug as string) || ""
+  
+  // Try to decode the URL first (new format)
+  let slug = encodedSlug
+  let srcHost = searchParams.get("src") || "https://vegamovise.biz"
+  
+  const decodedUrl = decodeMovieUrl(encodedSlug)
+  if (decodedUrl) {
+    // Successfully decoded - use decoded values
+    slug = decodedUrl.slug
+    srcHost = decodedUrl.sourceUrl
+  } else if (searchParams.get("src")) {
+    // Fallback to old format if src parameter exists
+    slug = encodedSlug
+    srcHost = searchParams.get("src") || "https://vegamovise.biz"
+  }
+  // If neither works, use defaults (already set above)
+  
   const debugMode = searchParams.get("debug") === "1" // enable debug panel when ?debug=1
 
   // Build URL respecting .html endings (no trailing slash when .html)

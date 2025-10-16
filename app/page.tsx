@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useWishlist } from "@/hooks/useWishlist"
 import { WishlistModal } from "@/components/wishlist-modal"
 import { FeedbackReview } from "@/components/feedback-review"
+import { encodeMovieUrl } from "@/lib/utils"
 
 interface Movie {
   title: string
@@ -282,8 +283,9 @@ export default function Home() {
         }
       }
       
-      // ALWAYS use /vega/ page
-      const movieUrl = `/vega/${slug}?src=${encodeURIComponent(sourceUrl)}`
+      // ALWAYS use /vega/ page with encoded URL for privacy
+      const encodedUrl = encodeMovieUrl(slug, sourceUrl)
+      const movieUrl = `/vega/${encodedUrl}`
       
       return {
         title: movie.title,
@@ -703,7 +705,9 @@ export default function Home() {
                 }
                 
                 // ALWAYS construct /vega/ URL - NEVER /movie/
-                const movieUrl = `/vega/${slug}?src=${encodeURIComponent(sourceUrl)}`
+                // Encode slug and src for privacy
+                const encodedUrl = encodeMovieUrl(slug, sourceUrl)
+                const movieUrl = `/vega/${encodedUrl}`
 
                 // Use high-quality images directly for browsing (vegamovies-nl)
                 // Use image proxy for search to avoid CORS issues
