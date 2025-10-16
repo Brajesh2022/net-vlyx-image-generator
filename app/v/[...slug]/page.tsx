@@ -156,20 +156,38 @@ export default function VegaMoviePage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [selectedDownload, setSelectedDownload] = useState<any>(null)
   const [showOtherOptions, setShowOtherOptions] = useState(false) // For showing non-N-Cloud options in modal
+  const [showTmdbGallery, setShowTmdbGallery] = useState(false) // Track if TMDB gallery should be shown
+  const [imageZoom, setImageZoom] = useState<number>(1) // Track image zoom level
+  const [imagePosition, setImagePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 }) // Track image position when zoomed
 
   // Touch handling for mobile swipe
   const touchStartX = useRef<number>(0)
   const touchEndX = useRef<number>(0)
+  const touchStartDistance = useRef<number>(0) // For pinch zoom
+  const isPinching = useRef<boolean>(false)
 
-  // Use TMDb poster if available, otherwise fall back to scraped poster
+  // Get Vegamovies collage image (the poster from Vegamovies which is a collage of all screenshots)
+  const vegaCollageImage = movieDetails?.poster || null
+  
+  // Use TMDb poster if available, otherwise fall back to Vegamovies poster
   const displayPoster =
     tmdbDetails?.poster ||
     movieDetails?.poster ||
     "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=900"
   const displayBackdrop = tmdbDetails?.backdrop || displayPoster
   const displayOverview = tmdbDetails?.overview || movieDetails?.plot || ""
-  const displayImages =
-    tmdbDetails?.images && tmdbDetails.images.length > 0 ? tmdbDetails.images : movieDetails?.screenshots || []
+  
+  // Determine which images to display
+  const hasTmdbImages = tmdbDetails?.images && tmdbDetails.images.length > 0
+  const hasVegaCollage = !!vegaCollageImage
+  
+  // TMDB gallery images (separate from Vega collage)
+  const tmdbGalleryImages = hasTmdbImages ? tmdbDetails.images : []
+  
+  // Display images for the modal (all images including Vega collage)
+  const displayImages = hasVegaCollage 
+    ? (showTmdbGallery && hasTmdbImages ? [vegaCollageImage, ...tmdbDetails.images] : [vegaCollageImage])
+    : (hasTmdbImages ? tmdbDetails.images : movieDetails?.screenshots || [])
 
   // Scroll to download section function
   const scrollToDownloadSection = () => {
@@ -221,29 +239,86 @@ export default function VegaMoviePage() {
     }
   }
 
-  // Touch handlers for swipe navigation
+  // Zoom handlers
+  const handleZoomIn = () => {
+    setImageZoom((prev) => Math.min(prev + 0.5, 3))
+  }
+
+  const handleZoomOut = () => {
+    setImageZoom((prev) => Math.max(prev - 0.5, 1))
+  }
+
+  const handleResetZoom = () => {
+    setImageZoom(1)
+    setImagePosition({ x: 0, y: 0 })
+  }
+
+  // Get distance between two touch points
+  const getTouchDistance = (touches: React.TouchList) => {
+    if (touches.length < 2) return 0
+    const touch1 = touches[0]
+    const touch2 = touches[1]
+    return Math.sqrt(
+      Math.pow(touch2.clientX - touch1.clientX, 2) + 
+      Math.pow(touch2.clientY - touch1.clientY, 2)
+    )
+  }
+
+  // Touch handlers for swipe navigation and pinch zoom
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.targetTouches[0].clientX
+    if (e.touches.length === 2) {
+      // Pinch zoom start
+      isPinching.current = true
+      touchStartDistance.current = getTouchDistance(e.touches)
+    } else if (e.touches.length === 1) {
+      touchStartX.current = e.targetTouches[0].clientX
+      isPinching.current = false
+    }
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.targetTouches[0].clientX
+    if (e.touches.length === 2 && isPinching.current) {
+      // Pinch zoom
+      const currentDistance = getTouchDistance(e.touches)
+      const zoomDelta = (currentDistance - touchStartDistance.current) / 100
+      setImageZoom((prev) => Math.max(1, Math.min(3, prev + zoomDelta)))
+      touchStartDistance.current = currentDistance
+    } else if (e.touches.length === 1 && !isPinching.current) {
+      touchEndX.current = e.targetTouches[0].clientX
+    }
   }
 
   const handleTouchEnd = () => {
+    if (isPinching.current) {
+      isPinching.current = false
+      return
+    }
+
     if (!displayImages || displayImages.length === 0) return
 
     const swipeThreshold = 50
     const swipeDistance = touchStartX.current - touchEndX.current
 
-    if (Math.abs(swipeDistance) > swipeThreshold) {
+    if (Math.abs(swipeDistance) > swipeThreshold && imageZoom === 1) {
       if (swipeDistance > 0) {
         // Swipe left - next image
         setSelectedScreenshot((prev) => (prev === displayImages.length - 1 ? 0 : prev + 1))
+        handleResetZoom()
       } else {
         // Swipe right - previous image
         setSelectedScreenshot((prev) => (prev === 0 ? displayImages.length - 1 : prev - 1))
+        handleResetZoom()
       }
+    }
+  }
+
+  // Mouse wheel zoom for desktop
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
+    if (e.deltaY < 0) {
+      handleZoomIn()
+    } else {
+      handleZoomOut()
     }
   }
 
@@ -355,10 +430,19 @@ export default function VegaMoviePage() {
 
       if (e.key === "ArrowLeft") {
         setSelectedScreenshot((prev) => (prev === 0 ? displayImages.length - 1 : prev - 1))
+        handleResetZoom()
       } else if (e.key === "ArrowRight") {
         setSelectedScreenshot((prev) => (prev === displayImages.length - 1 ? 0 : prev + 1))
+        handleResetZoom()
       } else if (e.key === "Escape") {
         setShowScreenshotModal(false)
+        handleResetZoom()
+      } else if (e.key === "+") {
+        handleZoomIn()
+      } else if (e.key === "-") {
+        handleZoomOut()
+      } else if (e.key === "0") {
+        handleResetZoom()
       }
     }
 
@@ -669,61 +753,168 @@ export default function VegaMoviePage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold mb-4">Gallery</h2>
-              <p className="text-gray-400 text-lg">High quality images and scenes from the movie</p>
+              <p className="text-gray-400 text-lg">
+                {hasVegaCollage 
+                  ? "Screenshot collage and high quality images from the movie"
+                  : "High quality images and scenes from the movie"}
+              </p>
             </div>
 
-            {/* Image Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-              {displayImages.map((image, index) => (
-                <div
-                  key={index}
-                  className="group relative aspect-video overflow-hidden rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 hover:z-10"
+            {/* Show Vegamovies collage as single full-width/full-height image when available */}
+            {hasVegaCollage && (
+              <div className="mb-8">
+                <div 
+                  className="relative w-full overflow-hidden rounded-2xl cursor-pointer transform transition-all duration-300 hover:scale-[1.01] shadow-2xl group"
                   onClick={() => {
-                    setSelectedScreenshot(index)
+                    setSelectedScreenshot(0)
                     setShowScreenshotModal(true)
                   }}
                 >
                   <img
-                    src={image || "/placeholder.svg"}
-                    alt={`Movie Image ${index + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    src={vegaCollageImage || "/placeholder.svg"}
+                    alt="Movie Screenshot Collage"
+                    className="w-full h-auto object-contain"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = displayPoster
                     }}
                   />
-
-                  {/* Overlay */}
+                  
+                  {/* Overlay on hover */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                  {/* Play/View Icon */}
+                  
+                  {/* View icon */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="w-12 h-12 bg-blue-600/80 backdrop-blur-sm rounded-full flex items-center justify-center">
-                      <Eye className="h-6 w-6 text-white" />
+                    <div className="w-16 h-16 bg-blue-600/80 backdrop-blur-sm rounded-full flex items-center justify-center">
+                      <Eye className="h-8 w-8 text-white" />
                     </div>
                   </div>
-
-                  {/* Image Number */}
-                  <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm rounded-full px-2 py-1">
-                    <span className="text-white text-xs font-medium">{index + 1}</span>
-                  </div>
                 </div>
-              ))}
-            </div>
 
-            {/* View All Button */}
-            <div className="text-center">
-              <Button
-                onClick={() => {
-                  setSelectedScreenshot(0)
-                  setShowScreenshotModal(true)
-                }}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border border-blue-500 hover:border-purple-400 rounded-full font-semibold transition-all duration-300 hover:scale-105"
-              >
-                <Eye className="h-5 w-5 mr-2" />
-                View All Images
-              </Button>
-            </div>
+                {/* View More Images Button - Only show if TMDB has images and not yet shown */}
+                {hasTmdbImages && !showTmdbGallery && (
+                  <div className="text-center mt-8">
+                    <Button
+                      onClick={() => setShowTmdbGallery(true)}
+                      className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border border-blue-500 hover:border-purple-400 rounded-full font-semibold transition-all duration-300 hover:scale-105"
+                    >
+                      <Eye className="h-5 w-5 mr-2" />
+                      View More Images
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TMDB Image Grid - Show when button is clicked or when no Vega collage */}
+            {(showTmdbGallery || !hasVegaCollage) && tmdbGalleryImages.length > 0 && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  {tmdbGalleryImages.map((image, index) => (
+                    <div
+                      key={index}
+                      className="group relative aspect-video overflow-hidden rounded-lg sm:rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 hover:z-10"
+                      onClick={() => {
+                        setSelectedScreenshot(hasVegaCollage ? index + 1 : index)
+                        setShowScreenshotModal(true)
+                      }}
+                    >
+                      <img
+                        src={image || "/placeholder.svg"}
+                        alt={`Movie Image ${index + 1}`}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = displayPoster
+                        }}
+                      />
+
+                      {/* Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                      {/* Play/View Icon */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600/80 backdrop-blur-sm rounded-full flex items-center justify-center">
+                          <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                        </div>
+                      </div>
+
+                      {/* Image Number */}
+                      <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 bg-black/70 backdrop-blur-sm rounded-full px-2 py-1">
+                        <span className="text-white text-xs font-medium">{index + 1}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* View All Button */}
+                <div className="text-center">
+                  <Button
+                    onClick={() => {
+                      setSelectedScreenshot(hasVegaCollage ? 1 : 0)
+                      setShowScreenshotModal(true)
+                    }}
+                    className="px-6 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border border-blue-500 hover:border-purple-400 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base"
+                  >
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                    View All Images
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {/* Fallback: Show screenshots if no Vega collage and no TMDB images */}
+            {!hasVegaCollage && !hasTmdbImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0 && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  {movieDetails.screenshots.map((image, index) => (
+                    <div
+                      key={index}
+                      className="group relative aspect-video overflow-hidden rounded-lg sm:rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 hover:z-10"
+                      onClick={() => {
+                        setSelectedScreenshot(index)
+                        setShowScreenshotModal(true)
+                      }}
+                    >
+                      <img
+                        src={image || "/placeholder.svg"}
+                        alt={`Movie Image ${index + 1}`}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = displayPoster
+                        }}
+                      />
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600/80 backdrop-blur-sm rounded-full flex items-center justify-center">
+                          <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                        </div>
+                      </div>
+
+                      <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 bg-black/70 backdrop-blur-sm rounded-full px-2 py-1">
+                        <span className="text-white text-xs font-medium">{index + 1}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-center">
+                  <Button
+                    onClick={() => {
+                      setSelectedScreenshot(0)
+                      setShowScreenshotModal(true)
+                    }}
+                    className="px-6 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border border-blue-500 hover:border-purple-400 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base"
+                  >
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                    View All Images
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </section>
       )}
@@ -897,54 +1088,105 @@ export default function VegaMoviePage() {
 
       {/* Image Modal */}
       {showScreenshotModal && displayImages && displayImages.length > 0 && (
-        <Dialog open={showScreenshotModal} onOpenChange={setShowScreenshotModal}>
+        <Dialog open={showScreenshotModal} onOpenChange={(open) => {
+          setShowScreenshotModal(open)
+          if (!open) handleResetZoom()
+        }}>
           <DialogContent className="max-w-[95vw] max-h-[95vh] bg-black/95 border-gray-700 p-2">
             <div className="relative">
               {/* Close Button */}
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
-                onClick={() => setShowScreenshotModal(false)}
+                className="absolute top-2 right-2 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+                onClick={() => {
+                  setShowScreenshotModal(false)
+                  handleResetZoom()
+                }}
               >
                 <X className="h-4 w-4" />
               </Button>
 
+              {/* Zoom Controls */}
+              <div className="absolute top-2 left-2 z-20 flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+                  onClick={handleZoomOut}
+                  disabled={imageZoom <= 1}
+                >
+                  <span className="text-lg font-bold">−</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-2"
+                  onClick={handleResetZoom}
+                >
+                  <span className="text-xs font-medium">{Math.round(imageZoom * 100)}%</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+                  onClick={handleZoomIn}
+                  disabled={imageZoom >= 3}
+                >
+                  <span className="text-lg font-bold">+</span>
+                </Button>
+              </div>
+
               {/* Image Display */}
               <div
-                className="relative aspect-video w-full max-h-[80vh] overflow-hidden rounded-lg"
+                className="relative aspect-video w-full max-h-[80vh] overflow-auto rounded-lg"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
+                onWheel={handleWheel}
               >
                 <img
                   src={displayImages[selectedScreenshot] || "/placeholder.svg"}
                   alt={`Movie Image ${selectedScreenshot + 1}`}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain transition-transform duration-200"
+                  style={{
+                    transform: `scale(${imageZoom}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                    cursor: imageZoom > 1 ? 'move' : 'default'
+                  }}
                 />
 
-                {/* Navigation Arrows */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3"
-                  onClick={() => setSelectedScreenshot((prev) => (prev === 0 ? displayImages.length - 1 : prev - 1))}
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3"
-                  onClick={() => setSelectedScreenshot((prev) => (prev === displayImages.length - 1 ? 0 : prev + 1))}
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </Button>
+                {/* Navigation Arrows - Only show when not zoomed */}
+                {imageZoom === 1 && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 sm:p-3"
+                      onClick={() => {
+                        setSelectedScreenshot((prev) => (prev === 0 ? displayImages.length - 1 : prev - 1))
+                        handleResetZoom()
+                      }}
+                    >
+                      <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 sm:p-3"
+                      onClick={() => {
+                        setSelectedScreenshot((prev) => (prev === displayImages.length - 1 ? 0 : prev + 1))
+                        handleResetZoom()
+                      }}
+                    >
+                      <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6" />
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Image Counter */}
               <div className="text-center mt-4">
-                <span className="text-gray-400">
+                <span className="text-gray-400 text-sm sm:text-base">
                   {selectedScreenshot + 1} of {displayImages.length}
                 </span>
               </div>
@@ -954,8 +1196,11 @@ export default function VegaMoviePage() {
                 {displayImages.map((image, index) => (
                   <button
                     key={index}
-                    onClick={() => setSelectedScreenshot(index)}
-                    className={`flex-shrink-0 w-16 h-12 rounded overflow-hidden border-2 transition-all ${
+                    onClick={() => {
+                      setSelectedScreenshot(index)
+                      handleResetZoom()
+                    }}
+                    className={`flex-shrink-0 w-12 h-9 sm:w-16 sm:h-12 rounded overflow-hidden border-2 transition-all ${
                       index === selectedScreenshot ? "border-blue-500" : "border-transparent hover:border-gray-500"
                     }`}
                   >
@@ -966,6 +1211,13 @@ export default function VegaMoviePage() {
                     />
                   </button>
                 ))}
+              </div>
+
+              {/* Zoom Help Text */}
+              <div className="text-center mt-2">
+                <p className="text-xs text-gray-500">
+                  <span className="hidden sm:inline">Use mouse wheel or </span>+/- to zoom • Pinch on mobile
+                </p>
               </div>
             </div>
           </DialogContent>
