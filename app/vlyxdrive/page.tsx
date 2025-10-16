@@ -690,13 +690,13 @@ export default function VlyxDrivePage() {
 
               <div className="max-w-2xl mx-auto">
                 {(() => {
-                  const hasN-Cloud = nextDriveData.movie?.servers.some(s => isNCloudServer(s.name))
+                  const hasNCloud = nextDriveData.movie?.servers.some(s => isNCloudServer(s.name))
                   
-                  return hasN-Cloud ? (
+                  return hasNCloud ? (
                     <div className="text-center space-y-4">
                       <Button
                         className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
-                        onClick={handleMovieN-CloudClick}
+                        onClick={handleMovieNCloudClick}
                       >
                         <Eye className="h-5 w-5 mr-2" />
                         ⚡ Continue with N-Cloud
@@ -734,7 +734,7 @@ export default function VlyxDrivePage() {
       </section>
 
       {/* N-Cloud Confirmation Modal */}
-      <Dialog open={showN-CloudConfirm} onOpenChange={setShowN-CloudConfirm}>
+      <Dialog open={showNCloudConfirm} onOpenChange={setShowNCloudConfirm}>
         <DialogContent className="max-w-md bg-gray-900 border-gray-700 p-4 md:p-6">
           <div className="text-center">
             <div className="mx-auto mb-3 md:mb-4 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
@@ -746,7 +746,7 @@ export default function VlyxDrivePage() {
               </DialogTitle>
             </DialogHeader>
             
-            {selectedN-CloudServer && (
+            {selectedNCloudServer && (
               <div className="mt-3 md:mt-4 space-y-2 md:space-y-3 text-left">
                 <div className="bg-gray-800/50 rounded-lg p-3 md:p-4 space-y-1.5 md:space-y-2">
                   <div className="flex items-center gap-2">
@@ -774,9 +774,9 @@ export default function VlyxDrivePage() {
             <div className="mt-5 md:mt-6 space-y-2 md:space-y-3">
               <Button
                 onClick={() => {
-                  if (selectedN-CloudServer) {
-                    handleServerClick(selectedN-CloudServer.url)
-                    setShowN-CloudConfirm(false)
+                  if (selectedNCloudServer) {
+                    handleServerClick(selectedNCloudServer.url)
+                    setShowNCloudConfirm(false)
                   }
                 }}
                 className="w-full px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white text-sm md:text-base font-bold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
@@ -787,7 +787,7 @@ export default function VlyxDrivePage() {
               
               <button
                 onClick={() => {
-                  setShowN-CloudConfirm(false)
+                  setShowNCloudConfirm(false)
                   setShowDownloadModal(true)
                 }}
                 className="w-full text-xs md:text-sm text-gray-400 hover:text-white transition-colors py-2"

@@ -309,13 +309,13 @@ export default function VegaMoviePage() {
   }
 
   // Function to sort downloads with v-cloud priority
-  const sortDownloadsWithN-CloudPriority = (downloads: any[]): any[] => {
+  const sortDownloadsWithNCloudPriority = (downloads: any[]): any[] => {
     return downloads.sort((a, b) => {
-      const aIsN-Cloud = isNCloudLink(a.link.label)
-      const bIsN-Cloud = isNCloudLink(b.link.label)
+      const aIsNCloud = isNCloudLink(a.link.label)
+      const bIsNCloud = isNCloudLink(b.link.label)
 
-      if (aIsN-Cloud && !bIsN-Cloud) return -1
-      if (!aIsN-Cloud && bIsN-Cloud) return 1
+      if (aIsNCloud && !bIsNCloud) return -1
+      if (!aIsNCloud && bIsNCloud) return 1
       return 0
     })
   }
@@ -1043,9 +1043,9 @@ export default function VegaMoviePage() {
                 const otherBatchDownloads = qualityBatchDownloads.filter((item) => !isNCloudLink(item.link.label))
 
                 // Determine what to show
-                const hasN-CloudOptions = ncloudEpisodeDownloads.length > 0 || ncloudBatchDownloads.length > 0
+                const hasNCloudOptions = ncloudEpisodeDownloads.length > 0 || ncloudBatchDownloads.length > 0
                 const hasOtherOptions = otherEpisodeDownloads.length > 0 || otherBatchDownloads.length > 0
-                const hasMixedOptions = hasN-CloudOptions && hasOtherOptions
+                const hasMixedOptions = hasNCloudOptions && hasOtherOptions
 
                 // Determine what to display
                 // For mixed options: always show N-Cloud first, then other options if toggled

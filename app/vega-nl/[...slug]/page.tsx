@@ -235,13 +235,13 @@ export default function LuxMoviePage() {
   }
 
   // Function to sort downloads with v-cloud priority
-  const sortDownloadsWithN-CloudPriority = (downloads: any[]): any[] => {
+  const sortDownloadsWithNCloudPriority = (downloads: any[]): any[] => {
     return downloads.sort((a, b) => {
-      const aIsN-Cloud = isNCloudLink(a.link.label)
-      const bIsN-Cloud = isNCloudLink(b.link.label)
+      const aIsNCloud = isNCloudLink(a.link.label)
+      const bIsNCloud = isNCloudLink(b.link.label)
 
-      if (aIsN-Cloud && !bIsN-Cloud) return -1
-      if (!aIsN-Cloud && bIsN-Cloud) return 1
+      if (aIsNCloud && !bIsNCloud) return -1
+      if (!aIsNCloud && bIsNCloud) return 1
       return 0
     })
   }
@@ -379,8 +379,8 @@ export default function LuxMoviePage() {
     })
 
     // Sort both arrays with v-cloud priority
-    const sortedEpisodeDownloads = sortDownloadsWithN-CloudPriority(episodeDownloads)
-    const sortedBatchDownloads = sortDownloadsWithN-CloudPriority(batchDownloads)
+    const sortedEpisodeDownloads = sortDownloadsWithNCloudPriority(episodeDownloads)
+    const sortedBatchDownloads = sortDownloadsWithNCloudPriority(batchDownloads)
 
     return { episodeDownloads: sortedEpisodeDownloads, batchDownloads: sortedBatchDownloads }
   }
