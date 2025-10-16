@@ -254,7 +254,7 @@ export default function LuxMoviePage() {
       const tmdbIdWithType = `${tmdbType}${movieDetails?.imdbLink?.match(/tt(\d+)/)?.[1] || ""}`
       const serverName = extractServerName(label)
       const seasonNumber = sectionSeason || extractSeasonFromTitle(movieDetails?.title || "")
-      let nextdriveUrl = `/nextdrive/?link=${encodeURIComponent(url)}&tmdbid=${encodeURIComponent(tmdbIdWithType)}`
+      let nextdriveUrl = `/vlyxdrive?link=${encodeURIComponent(url)}&tmdbid=${encodeURIComponent(tmdbIdWithType)}`
       if (seasonNumber) nextdriveUrl += `&season=${encodeURIComponent(seasonNumber)}`
       if (serverName) nextdriveUrl += `&server=${encodeURIComponent(serverName)}`
       return nextdriveUrl
@@ -267,7 +267,7 @@ export default function LuxMoviePage() {
       const tmdbIdWithType = `${tmdbType}${movieDetails?.imdbLink?.match(/tt(\d+)/)?.[1] || ""}`
       const serverName = extractServerName(label)
       const seasonNumber = sectionSeason || extractSeasonFromTitle(movieDetails?.title || "")
-      let nextdriveUrl = `/nextdrive/?driveid=${encodeURIComponent(driveId)}&tmdbid=${encodeURIComponent(tmdbIdWithType)}`
+      let nextdriveUrl = `/vlyxdrive?driveid=${encodeURIComponent(driveId)}&tmdbid=${encodeURIComponent(tmdbIdWithType)}`
       if (seasonNumber) nextdriveUrl += `&season=${encodeURIComponent(seasonNumber)}`
       if (serverName) nextdriveUrl += `&server=${encodeURIComponent(serverName)}`
       return nextdriveUrl

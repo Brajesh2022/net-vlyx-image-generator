@@ -19,7 +19,7 @@ interface ProcessLog {
   timestamp: Date
 }
 
-export default function VCloudPage() {
+export default function NCloudPage() {
   const searchParams = useSearchParams()
   const id = searchParams.get("id")
   const title = searchParams.get("title") || "Unknown Title"

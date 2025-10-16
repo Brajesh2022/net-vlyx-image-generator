@@ -69,7 +69,7 @@ interface TMDbDetails {
   contentType?: "movie" | "tv"
 }
 
-export default function NextDrivePage() {
+export default function VlyxDrivePage() {
   const searchParams = useSearchParams()
   const driveid = searchParams.get("driveid")
   const tmdbid = searchParams.get("tmdbid")
@@ -287,7 +287,7 @@ export default function NextDrivePage() {
       ...(posterUrl && { poster: posterUrl })
     })
 
-    window.location.href = `/vcloud?${params.toString()}`
+    window.location.href = `/ncloud?${params.toString()}`
   }
 
   // Function to handle server click (checks for vcloud.lol)
