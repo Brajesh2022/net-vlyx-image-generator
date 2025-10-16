@@ -283,9 +283,9 @@ export default function Home() {
         }
       }
       
-      // ALWAYS use /vega/ page with encoded URL for privacy
+      // ALWAYS use /v/ page with encoded URL for privacy
       const encodedUrl = encodeMovieUrl(slug, sourceUrl)
-      const movieUrl = `/vega/${encodedUrl}`
+      const movieUrl = `/v/${encodedUrl}`
       
       return {
         title: movie.title,
@@ -704,10 +704,10 @@ export default function Home() {
                   }
                 }
                 
-                // ALWAYS construct /vega/ URL - NEVER /movie/
+                // ALWAYS construct /v/ URL - NEVER /movie/
                 // Encode slug and src for privacy
                 const encodedUrl = encodeMovieUrl(slug, sourceUrl)
-                const movieUrl = `/vega/${encodedUrl}`
+                const movieUrl = `/v/${encodedUrl}`
 
                 // Use high-quality images directly for browsing (vegamovies-nl)
                 // Use image proxy for search to avoid CORS issues
