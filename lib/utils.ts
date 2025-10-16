@@ -156,3 +156,46 @@ export function decodeNCloudParams(key: string): {
     return null
   }
 }
+
+/**
+ * Replaces VCloud variations with N-Cloud in any text
+ */
+export function replaceVCloudText(text: string): string {
+  if (!text) return text
+  
+  return text
+    .replace(/\bV-Cloud\b/g, 'N-Cloud')
+    .replace(/\bVCloud\b/g, 'N-Cloud')
+    .replace(/\bvCloud\b/g, 'N-Cloud')
+    .replace(/\bv-cloud\b/gi, 'N-Cloud')
+    .replace(/\bV cloud\b/g, 'N cloud')
+    .replace(/\bv cloud\b/g, 'n cloud')
+}
+
+/**
+ * Replaces NextDrive variations with Vlyx-Drive in any text
+ */
+export function replaceNextDriveText(text: string): string {
+  if (!text) return text
+  
+  return text
+    .replace(/\bNext-Drive\b/g, 'Vlyx-Drive')
+    .replace(/\bNextDrive\b/g, 'Vlyx-Drive')
+    .replace(/\bNext-drive\b/g, 'Vlyx-Drive')
+    .replace(/\bnext-drive\b/gi, 'vlyx-drive')
+    .replace(/\bNext drive\b/g, 'Vlyx drive')
+    .replace(/\bnext drive\b/g, 'vlyx drive')
+    .replace(/\bNextdrive\b/g, 'Vlyxdrive')
+}
+
+/**
+ * Replaces all branding text (VCloud and NextDrive)
+ */
+export function replaceBrandingText(text: string): string {
+  if (!text) return text
+  
+  let result = replaceVCloudText(text)
+  result = replaceNextDriveText(result)
+  
+  return result
+}

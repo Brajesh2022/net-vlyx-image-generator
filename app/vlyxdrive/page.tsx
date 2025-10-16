@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { VlyxDriveDebugPopup } from "@/components/vlyxdrive-debug-popup"
+import { decodeVlyxDriveParams, encodeNCloudParams, replaceBrandingText } from "@/lib/utils"
 
 interface EpisodeDownload {
   episodeNumber: number
@@ -71,16 +72,23 @@ interface TMDbDetails {
 
 export default function VlyxDrivePage() {
   const searchParams = useSearchParams()
-  const driveid = searchParams.get("driveid")
-  const tmdbid = searchParams.get("tmdbid")
-  const server = searchParams.get("server")
-  const season = searchParams.get("season") // Get season from URL parameter
-  const link = searchParams.get("link") // support new 'link' param pattern (e.g., nexdrive.ink/.biz)
+  const key = searchParams.get("key")
+  
+  // Decode parameters from key (backward compatible)
+  const params = key ? decodeVlyxDriveParams(key) : {
+    driveid: searchParams.get("driveid") || undefined,
+    link: searchParams.get("link") || undefined,
+    tmdbid: searchParams.get("tmdbid") || undefined,
+    season: searchParams.get("season") || undefined,
+    server: searchParams.get("server") || undefined,
+  }
+  
+  const { driveid, link, tmdbid, season, server } = params
 
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeDownload | null>(null)
   const [showDownloadModal, setShowDownloadModal] = useState(false)
-  const [showVCloudConfirm, setShowVCloudConfirm] = useState(false)
-  const [selectedVCloudServer, setSelectedVCloudServer] = useState<{name: string, url: string} | null>(null)
+  const [showNCloudConfirm, setShowNCloudConfirm] = useState(false)
+  const [selectedNCloudServer, setSelectedNCloudServer] = useState<{name: string, url: string} | null>(null)
 
   // Extract IMDb ID and type from the URL parameter
   const extractImdbInfo = (tmdbid: string | null) => {
@@ -160,35 +168,35 @@ export default function VlyxDrivePage() {
     enabled: !!tmdbId && contentType === "tv" && nextDriveData?.type === "episode",
   })
 
-  // Check if a server is VCloud
-  const isVCloudServer = (serverName: string): boolean => {
+  // Check if a server is N-Cloud (formerly N-Cloud)
+  const isNCloudServer = (serverName: string): boolean => {
     const normalizedServerName = serverName.toLowerCase().replace(/[-\s[\]]/g, "")
-    return normalizedServerName.includes("vcloud") || normalizedServerName.includes("v-cloud")
+    return normalizedServerName.includes("vcloud") || normalizedServerName.includes("v-cloud") || normalizedServerName.includes("ncloud") || normalizedServerName.includes("n-cloud")
   }
 
   const handleEpisodeClick = (episode: EpisodeDownload) => {
     setSelectedEpisode(episode)
     
-    // Check for VCloud servers
-    const vcloudServers = episode.servers.filter(s => isVCloudServer(s.name))
+    // Check for N-Cloud servers
+    const ncloudServers = episode.servers.filter(s => isNCloudServer(s.name))
     
-    if (vcloudServers.length > 0) {
-      // If there's VCloud, show confirmation modal
-      setSelectedVCloudServer(vcloudServers[0]) // Use first VCloud server
-      setShowVCloudConfirm(true)
+    if (ncloudServers.length > 0) {
+      // If there's N-Cloud, show confirmation modal
+      setSelectedNCloudServer(ncloudServers[0]) // Use first N-Cloud server
+      setShowNCloudConfirm(true)
     } else {
-      // No VCloud, show server selection modal
+      // No N-Cloud, show server selection modal
       setShowDownloadModal(true)
     }
   }
 
-  const handleMovieVCloudClick = () => {
+  const handleMovieNCloudClick = () => {
     if (!nextDriveData?.movie) return
     
-    const vcloudServers = nextDriveData.movie.servers.filter(s => isVCloudServer(s.name))
-    if (vcloudServers.length > 0) {
-      // Directly go to VCloud page for movies (no confirmation popup)
-      handleServerClick(vcloudServers[0].url)
+    const ncloudServers = nextDriveData.movie.servers.filter(s => isNCloudServer(s.name))
+    if (ncloudServers.length > 0) {
+      // Directly go to N-Cloud page for movies (no confirmation popup)
+      handleServerClick(ncloudServers[0].url)
     }
   }
 
@@ -235,7 +243,8 @@ export default function VlyxDrivePage() {
     // Special cases for common server name variations
     const serverMappings = {
       gdirect: ["gdirect", "instant", "direct"],
-      vcloud: ["vcloud", "cloud"],
+      ncloud: ["vcloud", "ncloud", "cloud"],
+      vcloud: ["vcloud", "ncloud", "cloud"],
       gdrive: ["gdrive", "gdtot", "drive"],
       gdtot: ["gdtot", "gdrive", "drive"],
     }
@@ -249,14 +258,14 @@ export default function VlyxDrivePage() {
     return false
   }
 
-  // Function to check if a URL is a vcloud link (any vcloud domain)
-  const isVCloudLolLink = (url: string): boolean => {
+  // Function to check if a URL is an N-Cloud link (any vcloud domain)
+  const isNCloudLink = (url: string): boolean => {
     // Check for vcloud in the URL hostname (matches vcloud.lol, vcloud.zip, vcloud.*, etc.)
     return /vcloud\./i.test(url)
   }
 
-  // Function to extract vcloud ID from URL
-  const extractVCloudId = (url: string): string | null => {
+  // Function to extract N-Cloud ID from URL
+  const extractNCloudId = (url: string): string | null => {
     try {
       const urlObj = new URL(url)
       const pathParts = urlObj.pathname.split('/').filter(Boolean)
@@ -266,10 +275,10 @@ export default function VlyxDrivePage() {
     }
   }
 
-  // Function to handle vcloud link click
-  const handleVCloudClick = (url: string) => {
-    const vcloudId = extractVCloudId(url)
-    if (!vcloudId) {
+  // Function to handle N-Cloud link click
+  const handleNCloudClick = (url: string) => {
+    const ncloudId = extractNCloudId(url)
+    if (!ncloudId) {
       window.open(url, "_blank")
       return
     }
@@ -281,19 +290,19 @@ export default function VlyxDrivePage() {
         : `https://image.tmdb.org/t/p/w500${displayPoster}`
       : ""
 
-    const params = new URLSearchParams({
-      id: vcloudId,
+    const encodedKey = encodeNCloudParams({
+      id: ncloudId,
       title: displayTitle,
       ...(posterUrl && { poster: posterUrl })
     })
 
-    window.location.href = `/ncloud?${params.toString()}`
+    window.location.href = `/ncloud?key=${encodedKey}`
   }
 
-  // Function to handle server click (checks for vcloud.lol)
+  // Function to handle server click (checks for N-Cloud links)
   const handleServerClick = (url: string) => {
-    if (isVCloudLolLink(url)) {
-      handleVCloudClick(url)
+    if (isNCloudLink(url)) {
+      handleNCloudClick(url)
     } else {
       window.open(url, "_blank")
     }
@@ -303,8 +312,8 @@ export default function VlyxDrivePage() {
   const getEnhancedServerStyle = (serverName: string, isHighlighted: boolean) => {
     const baseStyle = "px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
 
-    // V-Cloud gets special treatment with yellow/orange gradient and lightning icon
-    if (isVCloudServer(serverName)) {
+    // N-Cloud gets special treatment with yellow/orange gradient and lightning icon
+    if (isNCloudServer(serverName)) {
       return `${baseStyle} bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-yellow-400`
     }
 
@@ -332,7 +341,7 @@ export default function VlyxDrivePage() {
         <div className="text-center">
           <AlertCircle className="h-24 w-24 text-red-500 mx-auto mb-6" />
           <h1 className="text-2xl font-bold mb-4">Invalid URL</h1>
-          <p className="text-gray-400 mb-6">Missing required parameters (link or driveid) and tmdbid</p>
+          <p className="text-gray-400 mb-6">Missing required parameters (link or driveid) and tmdbid. Please access through a movie page.</p>
           <Link href="/">
             <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
               <ChevronLeft className="h-4 w-4 mr-2" />
@@ -366,7 +375,7 @@ export default function VlyxDrivePage() {
     )
   }
 
-  const displayTitle = tmdbDetails?.title || tmdbDetails?.name || nextDriveData.title || "Unknown Title"
+  const displayTitle = replaceBrandingText(tmdbDetails?.title || tmdbDetails?.name || nextDriveData.title || "Unknown Title")
   const hasTmdbData = tmdbDetails && !tmdbError && !tmdbLoading
   const displayPoster = hasTmdbData ? tmdbDetails.poster : null
   const displayBackdrop = hasTmdbData ? tmdbDetails.backdrop : null
@@ -429,9 +438,9 @@ export default function VlyxDrivePage() {
                             onClick={() => handleServerClick(server.url)}
                           >
                             <Download className="h-4 w-4 mr-2" />
-                            {isVCloudServer(server.name) && <span className="mr-1">⚡</span>}
-                            {server.name}
-                            {isVCloudServer(server.name) && (
+                            {isNCloudServer(server.name) && <span className="mr-1">⚡</span>}
+                            {cleanServerName(server.name)}
+                            {isNCloudServer(server.name) && (
                               <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
                             )}
                             <ExternalLink className="h-4 w-4 ml-2" />
@@ -463,9 +472,9 @@ export default function VlyxDrivePage() {
                           onClick={() => handleServerClick(server.url)}
                         >
                           <Download className="h-4 w-4 mr-2" />
-                          {isVCloudServer(server.name) && <span className="mr-1">⚡</span>}
-                          {server.name}
-                          {isVCloudServer(server.name) && (
+                          {isNCloudServer(server.name) && <span className="mr-1">⚡</span>}
+                          {cleanServerName(server.name)}
+                          {isNCloudServer(server.name) && (
                             <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
                           )}
                           <ExternalLink className="h-4 w-4 ml-2" />
@@ -681,16 +690,16 @@ export default function VlyxDrivePage() {
 
               <div className="max-w-2xl mx-auto">
                 {(() => {
-                  const hasVCloud = nextDriveData.movie?.servers.some(s => isVCloudServer(s.name))
+                  const hasN-Cloud = nextDriveData.movie?.servers.some(s => isNCloudServer(s.name))
                   
-                  return hasVCloud ? (
+                  return hasN-Cloud ? (
                     <div className="text-center space-y-4">
                       <Button
                         className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
-                        onClick={handleMovieVCloudClick}
+                        onClick={handleMovieN-CloudClick}
                       >
                         <Eye className="h-5 w-5 mr-2" />
-                        ⚡ Continue with VCloud
+                        ⚡ Continue with N-Cloud
                       </Button>
                       <button
                         onClick={() => setShowDownloadModal(true)}
@@ -710,7 +719,7 @@ export default function VlyxDrivePage() {
                             onClick={() => handleServerClick(server.url)}
                           >
                             <Eye className="h-4 w-4 mr-2" />
-                            {server.name}
+                            {cleanServerName(server.name)}
                             <ExternalLink className="h-4 w-4 ml-2" />
                           </Button>
                         ))}
@@ -724,8 +733,8 @@ export default function VlyxDrivePage() {
         </div>
       </section>
 
-      {/* VCloud Confirmation Modal */}
-      <Dialog open={showVCloudConfirm} onOpenChange={setShowVCloudConfirm}>
+      {/* N-Cloud Confirmation Modal */}
+      <Dialog open={showN-CloudConfirm} onOpenChange={setShowN-CloudConfirm}>
         <DialogContent className="max-w-md bg-gray-900 border-gray-700 p-4 md:p-6">
           <div className="text-center">
             <div className="mx-auto mb-3 md:mb-4 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
@@ -737,13 +746,13 @@ export default function VlyxDrivePage() {
               </DialogTitle>
             </DialogHeader>
             
-            {selectedVCloudServer && (
+            {selectedN-CloudServer && (
               <div className="mt-3 md:mt-4 space-y-2 md:space-y-3 text-left">
                 <div className="bg-gray-800/50 rounded-lg p-3 md:p-4 space-y-1.5 md:space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400 text-xs md:text-sm">Server:</span>
                     <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs">
-                      ⚡ VCloud (Preferred)
+                      ⚡ N-Cloud (Preferred)
                     </Badge>
                   </div>
                   {selectedEpisode && (
@@ -765,20 +774,20 @@ export default function VlyxDrivePage() {
             <div className="mt-5 md:mt-6 space-y-2 md:space-y-3">
               <Button
                 onClick={() => {
-                  if (selectedVCloudServer) {
-                    handleServerClick(selectedVCloudServer.url)
-                    setShowVCloudConfirm(false)
+                  if (selectedN-CloudServer) {
+                    handleServerClick(selectedN-CloudServer.url)
+                    setShowN-CloudConfirm(false)
                   }
                 }}
                 className="w-full px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white text-sm md:text-base font-bold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 <ExternalLink className="h-4 w-4 md:h-5 md:w-5 mr-2" />
-                Continue with VCloud
+                Continue with N-Cloud
               </Button>
               
               <button
                 onClick={() => {
-                  setShowVCloudConfirm(false)
+                  setShowN-CloudConfirm(false)
                   setShowDownloadModal(true)
                 }}
                 className="w-full text-xs md:text-sm text-gray-400 hover:text-white transition-colors py-2"
@@ -814,15 +823,15 @@ export default function VlyxDrivePage() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-3 h-3 rounded-full ${isVCloudServer(server.name) ? "bg-yellow-500" : "bg-green-500"}`}
+                      className={`w-3 h-3 rounded-full ${isNCloudServer(server.name) ? "bg-yellow-500" : "bg-green-500"}`}
                     />
-                    <span className="text-white font-medium">{server.name}</span>
-                    {isVCloudServer(server.name) && (
+                    <span className="text-white font-medium">{cleanServerName(server.name)}</span>
+                    {isNCloudServer(server.name) && (
                       <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold shadow-lg">
                         ⚡ Preferred
                       </Badge>
                     )}
-                    {isServerHighlighted(server.name) && !isVCloudServer(server.name) && (
+                    {isServerHighlighted(server.name) && !isNCloudServer(server.name) && (
                       <Badge className="bg-green-600/20 text-green-400 border-green-600/50">Recommended</Badge>
                     )}
                   </div>

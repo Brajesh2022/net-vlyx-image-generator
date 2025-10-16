@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { decodeMovieUrl } from "@/lib/utils"
+import { decodeMovieUrl, encodeVlyxDriveParams, replaceBrandingText } from "@/lib/utils"
 import {
   Star,
   Download,
@@ -156,7 +156,7 @@ export default function VegaMoviePage() {
   const [downloadType, setDownloadType] = useState<"episode" | "bulk" | null>(null) // Episode-wise or Bulk
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [selectedDownload, setSelectedDownload] = useState<any>(null)
-  const [showOtherOptions, setShowOtherOptions] = useState(false) // For showing non-VCloud options in modal
+  const [showOtherOptions, setShowOtherOptions] = useState(false) // For showing non-N-Cloud options in modal
 
   // Touch handling for mobile swipe
   const touchStartX = useRef<number>(0)
@@ -183,7 +183,7 @@ export default function VegaMoviePage() {
     }
   }
 
-  // Handle quality selection with VCloud auto-selection logic
+  // Handle quality selection with N-Cloud auto-selection logic
   const handleQualitySelect = (quality: string) => {
     setSelectedQuality(quality)
     setShowOtherOptions(false) // Reset other options toggle
@@ -209,15 +209,15 @@ export default function VegaMoviePage() {
       }
     }
 
-    // Check for VCloud links
-    const vcloudLinks = filteredDownloads.filter((item) => isVCloudLink(item.link.label))
+    // Check for N-Cloud links
+    const ncloudLinks = filteredDownloads.filter((item) => isNCloudLink(item.link.label))
 
-    if (vcloudLinks.length === 1) {
-      // Auto-select the single VCloud option and show confirmation
-      setSelectedDownload(vcloudLinks[0])
+    if (ncloudLinks.length === 1) {
+      // Auto-select the single N-Cloud option and show confirmation
+      setSelectedDownload(ncloudLinks[0])
       setShowConfirmModal(true)
     } else {
-      // Show all options (either no VCloud or multiple VCloud options)
+      // Show all options (either no N-Cloud or multiple N-Cloud options)
       setShowDownloadModal(true)
     }
   }
@@ -297,28 +297,33 @@ export default function VegaMoviePage() {
     return ""
   }
 
-  // Function to check if a link is v-cloud
-  const isVCloudLink = (label: string): boolean => {
+  // Function to check if a link is N-Cloud (formerly v-cloud)
+  const isNCloudLink = (label: string): boolean => {
     const lowerLabel = label.toLowerCase()
-    return lowerLabel.includes("v-cloud") || lowerLabel.includes("vcloud")
+    return lowerLabel.includes("v-cloud") || lowerLabel.includes("vcloud") || lowerLabel.includes("n-cloud") || lowerLabel.includes("ncloud")
+  }
+  
+  // Clean server/link names with branding replacement
+  const cleanServerName = (name: string): string => {
+    return replaceBrandingText(name)
   }
 
   // Function to sort downloads with v-cloud priority
-  const sortDownloadsWithVCloudPriority = (downloads: any[]): any[] => {
+  const sortDownloadsWithN-CloudPriority = (downloads: any[]): any[] => {
     return downloads.sort((a, b) => {
-      const aIsVCloud = isVCloudLink(a.link.label)
-      const bIsVCloud = isVCloudLink(b.link.label)
+      const aIsN-Cloud = isNCloudLink(a.link.label)
+      const bIsN-Cloud = isNCloudLink(b.link.label)
 
-      if (aIsVCloud && !bIsVCloud) return -1
-      if (!aIsVCloud && bIsVCloud) return 1
+      if (aIsN-Cloud && !bIsN-Cloud) return -1
+      if (!aIsN-Cloud && bIsN-Cloud) return 1
       return 0
     })
   }
 
-  // Enhanced nextdrive URL generation function with season support
-  const generateNextdriveUrl = (url: string, label: string, sectionSeason?: string | null): string => {
+  // Enhanced Vlyx-Drive URL generation function with encoding
+  const generateVlyxDriveUrl = (url: string, label: string, sectionSeason?: string | null): string => {
     // Check if it's ANY nextdrive URL (broader pattern to catch all nextdrive domains)
-    const isNextDrive = /nexdrive/i.test(url)
+    const isNextDrive = /nex?drive/i.test(url)
     
     if (isNextDrive) {
       const tmdbType = tmdbDetails?.contentType === "tv" ? "tv" : "movie"
@@ -328,10 +333,16 @@ export default function VegaMoviePage() {
       if (!seasonNumber) {
         seasonNumber = extractSeasonFromTitle(movieDetails?.title || "")
       }
-      let nextdriveUrl = `/vlyxdrive?link=${encodeURIComponent(url)}&tmdbid=${encodeURIComponent(tmdbIdWithType)}`
-      if (seasonNumber) nextdriveUrl += `&season=${encodeURIComponent(seasonNumber)}`
-      if (serverName) nextdriveUrl += `&server=${encodeURIComponent(serverName)}`
-      return nextdriveUrl
+      
+      // Use encoding for security
+      const encodedKey = encodeVlyxDriveParams({
+        link: url,
+        tmdbid: tmdbIdWithType,
+        ...(seasonNumber && { season: seasonNumber }),
+        ...(serverName && { server: serverName })
+      })
+      
+      return `/vlyxdrive?key=${encodedKey}`
     }
     
     // For non-nextdrive links, return original URL
@@ -1023,30 +1034,30 @@ export default function VegaMoviePage() {
                   )
                 }
 
-                // Smart VCloud filtering logic
-                // Separate VCloud and non-VCloud links
-                const vcloudEpisodeDownloads = qualityEpisodeDownloads.filter((item) => isVCloudLink(item.link.label))
-                const otherEpisodeDownloads = qualityEpisodeDownloads.filter((item) => !isVCloudLink(item.link.label))
+                // Smart N-Cloud filtering logic
+                // Separate N-Cloud and non-N-Cloud links
+                const ncloudEpisodeDownloads = qualityEpisodeDownloads.filter((item) => isNCloudLink(item.link.label))
+                const otherEpisodeDownloads = qualityEpisodeDownloads.filter((item) => !isNCloudLink(item.link.label))
                 
-                const vcloudBatchDownloads = qualityBatchDownloads.filter((item) => isVCloudLink(item.link.label))
-                const otherBatchDownloads = qualityBatchDownloads.filter((item) => !isVCloudLink(item.link.label))
+                const ncloudBatchDownloads = qualityBatchDownloads.filter((item) => isNCloudLink(item.link.label))
+                const otherBatchDownloads = qualityBatchDownloads.filter((item) => !isNCloudLink(item.link.label))
 
                 // Determine what to show
-                const hasVCloudOptions = vcloudEpisodeDownloads.length > 0 || vcloudBatchDownloads.length > 0
+                const hasN-CloudOptions = ncloudEpisodeDownloads.length > 0 || ncloudBatchDownloads.length > 0
                 const hasOtherOptions = otherEpisodeDownloads.length > 0 || otherBatchDownloads.length > 0
-                const hasMixedOptions = hasVCloudOptions && hasOtherOptions
+                const hasMixedOptions = hasN-CloudOptions && hasOtherOptions
 
                 // Determine what to display
-                // For mixed options: always show VCloud first, then other options if toggled
-                let displayVCloudEpisodeDownloads = []
+                // For mixed options: always show N-Cloud first, then other options if toggled
+                let displayNCloudEpisodeDownloads = []
                 let displayOtherEpisodeDownloads = []
-                let displayVCloudBatchDownloads = []
+                let displayNCloudBatchDownloads = []
                 let displayOtherBatchDownloads = []
 
                 if (hasMixedOptions) {
-                  // Always show VCloud
-                  displayVCloudEpisodeDownloads = vcloudEpisodeDownloads
-                  displayVCloudBatchDownloads = vcloudBatchDownloads
+                  // Always show N-Cloud
+                  displayNCloudEpisodeDownloads = ncloudEpisodeDownloads
+                  displayNCloudBatchDownloads = ncloudBatchDownloads
                   // Show other options only if toggled
                   if (showOtherOptions) {
                     displayOtherEpisodeDownloads = otherEpisodeDownloads
@@ -1054,21 +1065,21 @@ export default function VegaMoviePage() {
                   }
                 } else {
                   // Not mixed, show everything as before
-                  displayVCloudEpisodeDownloads = qualityEpisodeDownloads
-                  displayVCloudBatchDownloads = qualityBatchDownloads
+                  displayNCloudEpisodeDownloads = qualityEpisodeDownloads
+                  displayNCloudBatchDownloads = qualityBatchDownloads
                 }
 
                 return (
                   <>
-                    {/* VCloud Episode-wise Downloads */}
-                    {displayVCloudEpisodeDownloads.length > 0 && (
+                    {/* N-Cloud Episode-wise Downloads */}
+                    {displayNCloudEpisodeDownloads.length > 0 && (
                       <div>
                         <h4 className="text-xl font-semibold text-green-400 mb-4 text-center flex items-center justify-center gap-2">
                           <PlayCircle className="h-5 w-5" />
                           {tmdbDetails?.contentType === "movie" ? "Download Movie" : "Episode-wise Downloads"}
                         </h4>
                         <div className="space-y-3">
-                          {displayVCloudEpisodeDownloads.map((item, index) => (
+                          {displayNCloudEpisodeDownloads.map((item, index) => (
                             <div
                               key={index}
                               className="bg-gray-800 rounded-xl p-4 sm:p-6 hover:bg-gray-750 transition-colors border border-gray-700"
@@ -1080,7 +1091,7 @@ export default function VegaMoviePage() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-lg sm:text-xl text-white break-words">
-                                      {item.link.label}
+                                      {cleanServerName(item.link.label)}
                                     </h4>
                                     <p className="text-sm sm:text-base text-gray-400 break-words">
                                       {item.download.quality} • {item.download.size} •{" "}
@@ -1096,7 +1107,7 @@ export default function VegaMoviePage() {
                                       {item.season && (
                                         <Badge className="bg-blue-600 text-white text-xs">Season {item.season}</Badge>
                                       )}
-                                      {isVCloudLink(item.link.label) && (
+                                      {isNCloudLink(item.link.label) && (
                                         <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-semibold shadow-lg">
                                           ⚡ Preferred
                                         </Badge>
@@ -1106,13 +1117,13 @@ export default function VegaMoviePage() {
                                 </div>
                                 <Button
                                   className={`w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base ${
-                                    isVCloudLink(item.link.label)
+                                    isNCloudLink(item.link.label)
                                       ? "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 border-2 border-yellow-400"
                                       : "bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
                                   }`}
                                   onClick={() => {
                                     // Use enhanced nextdrive URL generation
-                                    const nextdriveUrl = generateNextdriveUrl(
+                                    const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
@@ -1122,7 +1133,7 @@ export default function VegaMoviePage() {
                                   disabled={!item.link.url || item.link.url === "#"}
                                 >
                                   <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                                  {isVCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
+                                  {isNCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
                                   {selectedMode === "watch" 
                                     ? (tmdbDetails?.contentType === "movie" ? "Watch Movie" : "Watch Episode")
                                     : (tmdbDetails?.contentType === "movie" ? "Download Movie" : "Download Episode")
@@ -1135,15 +1146,15 @@ export default function VegaMoviePage() {
                       </div>
                     )}
 
-                    {/* VCloud Batch/Complete Downloads */}
-                    {displayVCloudBatchDownloads.length > 0 && (
+                    {/* N-Cloud Batch/Complete Downloads */}
+                    {displayNCloudBatchDownloads.length > 0 && (
                       <div>
                         <h4 className="text-xl font-semibold text-purple-400 mb-4 text-center flex items-center justify-center gap-2">
                           <Download className="h-5 w-5" />
                           Batch/Complete Downloads
                         </h4>
                         <div className="space-y-3">
-                          {displayVCloudBatchDownloads.map((item, index) => (
+                          {displayNCloudBatchDownloads.map((item, index) => (
                             <div
                               key={index}
                               className="bg-gray-800 rounded-xl p-4 sm:p-6 hover:bg-gray-750 transition-colors border border-gray-700"
@@ -1155,7 +1166,7 @@ export default function VegaMoviePage() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-lg sm:text-xl text-white break-words">
-                                      {item.link.label}
+                                      {cleanServerName(item.link.label)}
                                     </h4>
                                     <p className="text-sm sm:text-base text-gray-400 break-words">
                                       {item.download.quality} • {item.download.size} • Complete Package
@@ -1168,7 +1179,7 @@ export default function VegaMoviePage() {
                                       {item.season && (
                                         <Badge className="bg-blue-600 text-white text-xs">Season {item.season}</Badge>
                                       )}
-                                      {isVCloudLink(item.link.label) && (
+                                      {isNCloudLink(item.link.label) && (
                                         <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-semibold shadow-lg">
                                           ⚡ Preferred
                                         </Badge>
@@ -1178,13 +1189,13 @@ export default function VegaMoviePage() {
                                 </div>
                                 <Button
                                   className={`w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base ${
-                                    isVCloudLink(item.link.label)
+                                    isNCloudLink(item.link.label)
                                       ? "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 border-2 border-yellow-400"
                                       : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                                   }`}
                                   onClick={() => {
                                     // Use enhanced nextdrive URL generation
-                                    const nextdriveUrl = generateNextdriveUrl(
+                                    const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
@@ -1194,7 +1205,7 @@ export default function VegaMoviePage() {
                                   disabled={!item.link.url || item.link.url === "#"}
                                 >
                                   <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                                  {isVCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
+                                  {isNCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
                                   Download Complete
                                 </Button>
                               </div>
@@ -1204,7 +1215,7 @@ export default function VegaMoviePage() {
                       </div>
                     )}
 
-                    {/* Other (non-VCloud) Episode-wise Downloads */}
+                    {/* Other (non-N-Cloud) Episode-wise Downloads */}
                     {displayOtherEpisodeDownloads.length > 0 && (
                       <div className="mt-6 pt-6 border-t border-gray-700">
                         <h4 className="text-xl font-semibold text-blue-400 mb-4 text-center flex items-center justify-center gap-2">
@@ -1224,7 +1235,7 @@ export default function VegaMoviePage() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-lg sm:text-xl text-white break-words">
-                                      {item.link.label}
+                                      {cleanServerName(item.link.label)}
                                     </h4>
                                     <p className="text-sm sm:text-base text-gray-400 break-words">
                                       {item.download.quality} • {item.download.size} •{" "}
@@ -1246,7 +1257,7 @@ export default function VegaMoviePage() {
                                 <Button
                                   className="w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                                   onClick={() => {
-                                    const nextdriveUrl = generateNextdriveUrl(
+                                    const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
@@ -1268,7 +1279,7 @@ export default function VegaMoviePage() {
                       </div>
                     )}
 
-                    {/* Other (non-VCloud) Batch Downloads */}
+                    {/* Other (non-N-Cloud) Batch Downloads */}
                     {displayOtherBatchDownloads.length > 0 && (
                       <div className={displayOtherEpisodeDownloads.length > 0 ? "mt-6" : "mt-6 pt-6 border-t border-gray-700"}>
                         <h4 className="text-xl font-semibold text-blue-400 mb-4 text-center flex items-center justify-center gap-2">
@@ -1288,7 +1299,7 @@ export default function VegaMoviePage() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-lg sm:text-xl text-white break-words">
-                                      {item.link.label}
+                                      {cleanServerName(item.link.label)}
                                     </h4>
                                     <p className="text-sm sm:text-base text-gray-400 break-words">
                                       {item.download.quality} • {item.download.size} • Complete Package
@@ -1307,7 +1318,7 @@ export default function VegaMoviePage() {
                                 <Button
                                   className="w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                                   onClick={() => {
-                                    const nextdriveUrl = generateNextdriveUrl(
+                                    const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
@@ -1326,7 +1337,7 @@ export default function VegaMoviePage() {
                       </div>
                     )}
 
-                    {/* Show other options button when VCloud and other options are mixed */}
+                    {/* Show other options button when N-Cloud and other options are mixed */}
                     {hasMixedOptions && !showOtherOptions && (otherEpisodeDownloads.length + otherBatchDownloads.length > 0) && (
                       <div className="text-center pt-4 md:pt-6">
                         <button
@@ -1339,7 +1350,7 @@ export default function VegaMoviePage() {
                     )}
 
                     {/* If no downloads found, show all downloads */}
-                    {displayVCloudEpisodeDownloads.length === 0 && displayVCloudBatchDownloads.length === 0 && displayOtherEpisodeDownloads.length === 0 && displayOtherBatchDownloads.length === 0 && (
+                    {displayNCloudEpisodeDownloads.length === 0 && displayNCloudBatchDownloads.length === 0 && displayOtherEpisodeDownloads.length === 0 && displayOtherBatchDownloads.length === 0 && (
                       <div>
                         {movieDetails.downloadSections
                           .filter((section) =>
@@ -1380,7 +1391,7 @@ export default function VegaMoviePage() {
                                             <Button
                                               className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base"
                                               onClick={() => {
-                                                const nextdriveUrl = generateNextdriveUrl(
+                                                const nextdriveUrl = generateVlyxDriveUrl(
                                                   link.url,
                                                   link.label,
                                                   link.season,
@@ -1410,7 +1421,7 @@ export default function VegaMoviePage() {
         </DialogContent>
       </Dialog>
 
-      {/* VCloud Confirmation Modal */}
+      {/* N-Cloud Confirmation Modal */}
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent className="max-w-md bg-gray-900 border-gray-700 p-4 md:p-6">
           <div className="text-center">
@@ -1429,7 +1440,7 @@ export default function VegaMoviePage() {
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400 text-xs md:text-sm">Server:</span>
                     <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs">
-                      ⚡ VCloud (Preferred)
+                      ⚡ N-Cloud (Preferred)
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1460,7 +1471,7 @@ export default function VegaMoviePage() {
               <Button
                 onClick={() => {
                   if (selectedDownload) {
-                    const nextdriveUrl = generateNextdriveUrl(
+                    const nextdriveUrl = generateVlyxDriveUrl(
                       selectedDownload.link.url,
                       selectedDownload.link.label,
                       selectedDownload.season

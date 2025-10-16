@@ -229,48 +229,45 @@ export default function LuxMoviePage() {
   }
 
   // Function to check if a link is v-cloud
-  const isVCloudLink = (label: string): boolean => {
+  const isNCloudLink = (label: string): boolean => {
     const lowerLabel = label.toLowerCase()
     return lowerLabel.includes("v-cloud") || lowerLabel.includes("vcloud")
   }
 
   // Function to sort downloads with v-cloud priority
-  const sortDownloadsWithVCloudPriority = (downloads: any[]): any[] => {
+  const sortDownloadsWithN-CloudPriority = (downloads: any[]): any[] => {
     return downloads.sort((a, b) => {
-      const aIsVCloud = isVCloudLink(a.link.label)
-      const bIsVCloud = isVCloudLink(b.link.label)
+      const aIsN-Cloud = isNCloudLink(a.link.label)
+      const bIsN-Cloud = isNCloudLink(b.link.label)
 
-      if (aIsVCloud && !bIsVCloud) return -1
-      if (!aIsVCloud && bIsVCloud) return 1
+      if (aIsN-Cloud && !bIsN-Cloud) return -1
+      if (!aIsN-Cloud && bIsN-Cloud) return 1
       return 0
     })
   }
 
-  // Enhanced nextdrive URL generation function with season support
-  const generateNextdriveUrl = (url: string, label: string, sectionSeason?: string | null): string => {
-    const isNextDrive = /nexdrive\.(?:pro|biz|ink)\//i.test(url) || /nexdrive\//i.test(url)
+  // Enhanced Vlyx-Drive URL generation function with encoding
+  const generateVlyxDriveUrl = (url: string, label: string, sectionSeason?: string | null): string => {
+    const isNextDrive = /nex?drive/i.test(url)
+    
     if (isNextDrive) {
       const tmdbType = tmdbDetails?.contentType === "tv" ? "tv" : "movie"
       const tmdbIdWithType = `${tmdbType}${movieDetails?.imdbLink?.match(/tt(\d+)/)?.[1] || ""}`
       const serverName = extractServerName(label)
-      const seasonNumber = sectionSeason || extractSeasonFromTitle(movieDetails?.title || "")
-      let nextdriveUrl = `/vlyxdrive?link=${encodeURIComponent(url)}&tmdbid=${encodeURIComponent(tmdbIdWithType)}`
-      if (seasonNumber) nextdriveUrl += `&season=${encodeURIComponent(seasonNumber)}`
-      if (serverName) nextdriveUrl += `&server=${encodeURIComponent(serverName)}`
-      return nextdriveUrl
-    }
-    // legacy support
-    const idMatch = url.match(/nexdrive\.pro\/([^/]+)/i)
-    if (idMatch) {
-      const driveId = idMatch[1]
-      const tmdbType = tmdbDetails?.contentType === "tv" ? "tv" : "movie"
-      const tmdbIdWithType = `${tmdbType}${movieDetails?.imdbLink?.match(/tt(\d+)/)?.[1] || ""}`
-      const serverName = extractServerName(label)
-      const seasonNumber = sectionSeason || extractSeasonFromTitle(movieDetails?.title || "")
-      let nextdriveUrl = `/vlyxdrive?driveid=${encodeURIComponent(driveId)}&tmdbid=${encodeURIComponent(tmdbIdWithType)}`
-      if (seasonNumber) nextdriveUrl += `&season=${encodeURIComponent(seasonNumber)}`
-      if (serverName) nextdriveUrl += `&server=${encodeURIComponent(serverName)}`
-      return nextdriveUrl
+      let seasonNumber = sectionSeason
+      if (!seasonNumber) {
+        seasonNumber = extractSeasonFromTitle(movieDetails?.title || "")
+      }
+      
+      // Use encoding for security
+      const encodedKey = encodeVlyxDriveParams({
+        link: url,
+        tmdbid: tmdbIdWithType,
+        ...(seasonNumber && { season: seasonNumber }),
+        ...(serverName && { server: serverName })
+      })
+      
+      return `/vlyxdrive?key=${encodedKey}`
     }
     return url
   }
@@ -382,8 +379,8 @@ export default function LuxMoviePage() {
     })
 
     // Sort both arrays with v-cloud priority
-    const sortedEpisodeDownloads = sortDownloadsWithVCloudPriority(episodeDownloads)
-    const sortedBatchDownloads = sortDownloadsWithVCloudPriority(batchDownloads)
+    const sortedEpisodeDownloads = sortDownloadsWithN-CloudPriority(episodeDownloads)
+    const sortedBatchDownloads = sortDownloadsWithN-CloudPriority(batchDownloads)
 
     return { episodeDownloads: sortedEpisodeDownloads, batchDownloads: sortedBatchDownloads }
   }
@@ -844,7 +841,7 @@ export default function LuxMoviePage() {
                                       {item.season && (
                                         <Badge className="bg-blue-600 text-white text-xs">Season {item.season}</Badge>
                                       )}
-                                      {isVCloudLink(item.link.label) && (
+                                      {isNCloudLink(item.link.label) && (
                                         <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-semibold shadow-lg">
                                           ⚡ Preferred
                                         </Badge>
@@ -854,13 +851,13 @@ export default function LuxMoviePage() {
                                 </div>
                                 <Button
                                   className={`w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base ${
-                                    isVCloudLink(item.link.label)
+                                    isNCloudLink(item.link.label)
                                       ? "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 border-2 border-yellow-400"
                                       : "bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
                                   }`}
                                   onClick={() => {
                                     // Use enhanced nextdrive URL generation
-                                    const nextdriveUrl = generateNextdriveUrl(
+                                    const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
@@ -870,7 +867,7 @@ export default function LuxMoviePage() {
                                   disabled={!item.link.url || item.link.url === "#"}
                                 >
                                   <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                                  {isVCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
+                                  {isNCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
                                   {tmdbDetails?.contentType === "movie" ? "Download Movie" : "Download Episode"}
                                 </Button>
                               </div>
@@ -913,7 +910,7 @@ export default function LuxMoviePage() {
                                       {item.season && (
                                         <Badge className="bg-blue-600 text-white text-xs">Season {item.season}</Badge>
                                       )}
-                                      {isVCloudLink(item.link.label) && (
+                                      {isNCloudLink(item.link.label) && (
                                         <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-semibold shadow-lg">
                                           ⚡ Preferred
                                         </Badge>
@@ -923,13 +920,13 @@ export default function LuxMoviePage() {
                                 </div>
                                 <Button
                                   className={`w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base ${
-                                    isVCloudLink(item.link.label)
+                                    isNCloudLink(item.link.label)
                                       ? "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 border-2 border-yellow-400"
                                       : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                                   }`}
                                   onClick={() => {
                                     // Use enhanced nextdrive URL generation
-                                    const nextdriveUrl = generateNextdriveUrl(
+                                    const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
@@ -939,7 +936,7 @@ export default function LuxMoviePage() {
                                   disabled={!item.link.url || item.link.url === "#"}
                                 >
                                   <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                                  {isVCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
+                                  {isNCloudLink(item.link.label) && <span className="mr-1">⚡</span>}
                                   Download Complete
                                 </Button>
                               </div>
@@ -989,7 +986,7 @@ export default function LuxMoviePage() {
                                             className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base"
                                             onClick={() => {
                                               // Use enhanced nextdrive URL generation
-                                              const nextdriveUrl = generateNextdriveUrl(link.url, link.label, null) // No specific season for this
+                                              const nextdriveUrl = generateVlyxDriveUrl(link.url, link.label, null) // No specific season for this
                                               window.open(nextdriveUrl, "_blank")
                                             }}
                                             disabled={!link.url || link.url === "#"}

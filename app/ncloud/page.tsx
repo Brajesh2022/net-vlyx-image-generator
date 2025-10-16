@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
+import { decodeNCloudParams, replaceBrandingText } from "@/lib/utils"
 import { ChevronLeft, Download, Play, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -21,9 +22,19 @@ interface ProcessLog {
 
 export default function NCloudPage() {
   const searchParams = useSearchParams()
-  const id = searchParams.get("id")
-  const title = searchParams.get("title") || "Unknown Title"
-  const poster = searchParams.get("poster") || "/placeholder.svg"
+  const key = searchParams.get("key")
+  
+  // Decode parameters from key (backward compatible)
+  const params = key ? decodeNCloudParams(key) : {
+    id: searchParams.get("id") || "",
+    title: searchParams.get("title") || "Unknown Title",
+    poster: searchParams.get("poster") || "/placeholder.svg",
+  }
+  
+  const { id, title, poster } = params
+  
+  // Apply branding replacement to title
+  const displayTitle = replaceBrandingText(title)
 
   const [logs, setLogs] = useState<ProcessLog[]>([])
   const [downloadLinks, setDownloadLinks] = useState<DownloadLink[]>([])
@@ -58,34 +69,34 @@ export default function NCloudPage() {
     }, 100)
   }
 
-  const processVCloudLink = async () => {
+  const processNCloudLink = async () => {
     if (!id) {
-      setError("Missing VCloud ID")
+      setError("Missing N-Cloud ID")
       setIsProcessing(false)
       return
     }
 
     try {
       setIsProcessing(true)
-      addLog("Starting VCloud link processing...")
+      addLog("Starting N-Cloud link processing...")
       
-      // Step 1: Extract Vcloud ID
-      addLog(`Step 1: Processing VCloud ID: ${id}`)
+      // Step 1: Extract N-Cloud ID
+      addLog(`Step 1: Processing N-Cloud ID: ${id}`)
 
       // Step 2: Fetch the intermediate page
-      const vcloudZipUrl = `https://vcloud.zip/${id}`
-      addLog(`Step 2: Fetching token page from ${vcloudZipUrl}...`)
+      const ncloudZipUrl = `https://vcloud.zip/${id}`
+      addLog(`Step 2: Fetching token page from ${ncloudZipUrl}...`)
 
       const response1 = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: vcloudZipUrl }),
+        body: JSON.stringify({ url: ncloudZipUrl }),
       })
 
-      if (!response1.ok) throw new Error("Failed to fetch VCloud page")
+      if (!response1.ok) throw new Error("Failed to fetch N-Cloud page")
 
       const data1 = await response1.json()
-      addLog("Received response from VCloud page")
+      addLog("Received response from N-Cloud page")
 
       // Extract the tokenized final URL
       const urlRegex = /var\s+url\s*=\s*'(.*?)'/
@@ -139,16 +150,16 @@ export default function NCloudPage() {
         const url = linkElement.href
         const hostMatch = trustedPatterns.find((p) => p.regex.test(url))
 
-        // Extract label from text
-        const bracketMatch = linkText.match(/\[(.*?)\]/)
-        const shortText = bracketMatch && bracketMatch[1] ? bracketMatch[1].trim() : linkText.replace(/\s+/g, " ")
+      // Extract label from text
+      const bracketMatch = linkText.match(/\[(.*?)\]/)
+      const shortText = bracketMatch && bracketMatch[1] ? bracketMatch[1].trim() : linkText.replace(/\s+/g, " ")
 
-        links.push({
-          url,
-          label: shortText,
-          isTrusted: !!hostMatch,
-          originalText: linkText,
-        })
+      links.push({
+        url,
+        label: replaceBrandingText(shortText),
+        isTrusted: !!hostMatch,
+        originalText: linkText,
+      })
       })
 
       if (links.length === 0) {
@@ -174,7 +185,7 @@ export default function NCloudPage() {
 
   useEffect(() => {
     if (id) {
-      processVCloudLink()
+      processN-CloudLink()
     }
   }, [id])
 
@@ -211,7 +222,7 @@ export default function NCloudPage() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Invalid URL</h1>
-          <p className="text-gray-400 mb-6">Missing VCloud ID parameter</p>
+          <p className="text-gray-400 mb-6">Missing N-Cloud ID parameter</p>
           <Link href="/">
             <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
               <ChevronLeft className="h-4 w-4 mr-2" />
@@ -257,7 +268,7 @@ export default function NCloudPage() {
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl blur-xl opacity-50 group-hover:opacity-75 transition-all duration-500 animate-pulse" />
                 <img
                   src={poster}
-                  alt={title}
+                  alt={displayTitle}
                   className="relative w-40 sm:w-48 lg:w-56 h-auto rounded-xl shadow-2xl ring-1 ring-white/10"
                 />
               </div>
@@ -266,7 +277,7 @@ export default function NCloudPage() {
             {/* Title and Status */}
             <div className="flex-1 text-center lg:text-left">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent leading-tight">
-                {title}
+                {displayTitle}
               </h1>
               
               {/* Status Indicator */}
