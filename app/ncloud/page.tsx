@@ -185,7 +185,7 @@ export default function NCloudPage() {
 
   useEffect(() => {
     if (id) {
-      processN-CloudLink()
+      processNCloudLink()
     }
   }, [id])
 
