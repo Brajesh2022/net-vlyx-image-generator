@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
+import { protectApiRoute } from "@/lib/api-protection"
 
 const TARGET_URL = "https://luxmovies.food"
 
@@ -215,6 +216,12 @@ function parseMovieData(html: string): ParsedMovieData {
 }
 
 export async function GET(request: NextRequest) {
+  // Protect API route - only allow requests from same origin
+  const protectionError = protectApiRoute(request)
+  if (protectionError) {
+    return protectionError
+  }
+
   const { searchParams } = new URL(request.url)
   const searchTerm = searchParams.get("s") || ""
   const searchURL = searchTerm ? `${TARGET_URL}/search/${encodeURIComponent(searchTerm)}` : TARGET_URL

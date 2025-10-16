@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
+import { protectApiRoute } from "@/lib/api-protection"
 
 interface MovieDetails {
   title: string
@@ -441,6 +442,12 @@ function parseMovieDetails(html: string): MovieDetails {
 }
 
 export async function GET(request: NextRequest) {
+  // Protect API route - only allow requests from same origin
+  const protectionError = protectApiRoute(request)
+  if (protectionError) {
+    return protectionError
+  }
+
   const { searchParams } = new URL(request.url)
   const movieUrl = searchParams.get("url")
 

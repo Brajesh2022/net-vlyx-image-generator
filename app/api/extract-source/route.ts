@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { protectApiRoute } from "@/lib/api-protection"
 
 interface ExtractionResult {
   success: boolean
@@ -477,6 +478,12 @@ async function fetchWithCurlHeaders(url: string): Promise<ExtractionResult> {
 }
 
 export async function POST(request: NextRequest) {
+  // Protect API route - only allow requests from same origin
+  const protectionError = protectApiRoute(request)
+  if (protectionError) {
+    return protectionError
+  }
+
   try {
     const { url } = await request.json()
 

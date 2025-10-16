@@ -6,6 +6,7 @@ import QueryProvider from "@/components/query-provider"
 import { BugReport } from "@/components/bug-report"
 import { DonationPopup } from "@/components/donation-popup"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
+import { SecurityProtection } from "@/components/security-protection"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -72,6 +73,7 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/icon-192x192.png" />
       </head>
       <body className={inter.className}>
+        <SecurityProtection />
         <QueryProvider>
           {children}
           <BugReport />

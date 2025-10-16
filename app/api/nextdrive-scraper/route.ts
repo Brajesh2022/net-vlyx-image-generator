@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
+import { protectApiRoute } from "@/lib/api-protection"
 
 // CORS proxies to bypass restrictions
 const CORS_PROXIES = [
@@ -471,6 +472,12 @@ function parseNextDriveContentWithFallback(html: string): NextDriveData {
 }
 
 export async function GET(request: NextRequest) {
+  // Protect API route - only allow requests from same origin
+  const protectionError = protectApiRoute(request)
+  if (protectionError) {
+    return protectionError
+  }
+
   const { searchParams } = new URL(request.url)
   const driveid = searchParams.get("driveid")
   const link = searchParams.get("link")
