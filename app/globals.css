@@ -55,20 +55,11 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    /* Disable text selection */
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    /* Disable touch callout on iOS */
+    /* Disable touch callout on iOS (for links and images) */
     -webkit-touch-callout: none;
-    /* Disable image dragging */
-    -webkit-user-drag: none;
-    -moz-user-drag: none;
-    user-drag: none;
   }
 
-  /* Prevent image dragging and selection */
+  /* Prevent image dragging and long-press save */
   img {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -77,24 +68,19 @@
     -webkit-user-drag: none;
     -moz-user-drag: none;
     user-drag: none;
-    pointer-events: none;
-  }
-
-  /* Prevent link copying on mobile */
-  a {
     -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+    /* Allow pointer events so buttons with images work */
+    pointer-events: auto;
   }
 
-  /* Allow selection for input fields and textareas */
-  input, textarea, [contenteditable="true"] {
+  /* Allow buttons and interactive elements to work normally */
+  button, a, input, textarea, select, [role="button"], [contenteditable="true"] {
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
     user-select: text;
+    -webkit-touch-callout: default;
+    pointer-events: auto;
   }
 }
 

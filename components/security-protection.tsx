@@ -10,20 +10,43 @@ export function SecurityProtection() {
       return false
     }
 
-    // Disable long press on mobile devices
-    const disableLongPress = (e: TouchEvent) => {
+    // Track long press on mobile (only on images and links)
+    let pressTimer: NodeJS.Timeout | null = null
+    
+    const handleTouchStart = (e: TouchEvent) => {
       const target = e.target as HTMLElement
-      // Prevent long press context menu on images and links
-      if (target.tagName === "IMG" || target.tagName === "A" || target.closest("a")) {
-        e.preventDefault()
-        return false
+      // Only prevent long press on images and links, not on buttons or interactive elements
+      if (target.tagName === "IMG" || (target.tagName === "A" && !target.closest("button"))) {
+        pressTimer = setTimeout(() => {
+          // This prevents the context menu after long press
+          e.preventDefault()
+        }, 500) // 500ms = long press threshold
+      }
+    }
+
+    const handleTouchEnd = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer)
+        pressTimer = null
+      }
+    }
+
+    const handleTouchMove = () => {
+      // Cancel long press if user scrolls
+      if (pressTimer) {
+        clearTimeout(pressTimer)
+        pressTimer = null
       }
     }
 
     // Prevent drag start (prevents dragging images)
     const preventDragStart = (e: DragEvent) => {
-      e.preventDefault()
-      return false
+      const target = e.target as HTMLElement
+      // Only prevent dragging images, not other elements
+      if (target.tagName === "IMG") {
+        e.preventDefault()
+        return false
+      }
     }
 
     // Detect dev tools opening
@@ -86,54 +109,84 @@ export function SecurityProtection() {
       }
     }
 
-    // Disable text selection and copy
+    // Disable copy (but allow in input fields and textareas)
     const disableCopy = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement
+      // Allow copy in input fields, textareas, and contenteditable elements
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return true
+      }
       e.preventDefault()
       return false
     }
 
+    // Disable text selection (but allow in input fields)
     const disableSelectStart = (e: Event) => {
+      const target = e.target as HTMLElement
+      // Allow selection in input fields, textareas, and contenteditable elements
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return true
+      }
       e.preventDefault()
       return false
     }
 
     // Add event listeners
     document.addEventListener("contextmenu", disableRightClick)
-    document.addEventListener("touchstart", disableLongPress, { passive: false })
-    document.addEventListener("touchend", disableLongPress, { passive: false })
+    document.addEventListener("touchstart", handleTouchStart, { passive: false })
+    document.addEventListener("touchend", handleTouchEnd, { passive: true })
+    document.addEventListener("touchmove", handleTouchMove, { passive: true })
     document.addEventListener("dragstart", preventDragStart)
     document.addEventListener("keydown", disableDevToolsShortcuts)
     document.addEventListener("copy", disableCopy)
     document.addEventListener("cut", disableCopy)
     document.addEventListener("selectstart", disableSelectStart)
 
-    // Check for dev tools periodically
-    const devToolsInterval = setInterval(detectDevTools, 1000)
+    // Check for dev tools periodically (only on desktop, not mobile)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    
+    let devToolsInterval: NodeJS.Timeout | null = null
+    let debuggerCheck: NodeJS.Timeout | null = null
+    
+    if (!isMobile) {
+      // Only check on desktop to avoid performance issues on mobile
+      devToolsInterval = setInterval(detectDevTools, 1000)
 
-    // Detect debugger
-    const debuggerCheck = setInterval(() => {
-      const start = new Date().getTime()
-      // eslint-disable-next-line no-debugger
-      debugger
-      const end = new Date().getTime()
-      if (end - start > 100) {
-        // Debugger detected
-        document.body.innerHTML = "<div style='display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#000;color:#fff;'><h1>Access Denied</h1></div>"
-      }
-    }, 1000)
+      // Detect debugger (less aggressive)
+      debuggerCheck = setInterval(() => {
+        const start = new Date().getTime()
+        // eslint-disable-next-line no-debugger
+        debugger
+        const end = new Date().getTime()
+        if (end - start > 100) {
+          // Debugger detected
+          document.body.innerHTML = "<div style='display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#000;color:#fff;'><h1>Access Denied</h1></div>"
+        }
+      }, 1000)
+    }
 
     // Cleanup
     return () => {
       document.removeEventListener("contextmenu", disableRightClick)
-      document.removeEventListener("touchstart", disableLongPress)
-      document.removeEventListener("touchend", disableLongPress)
+      document.removeEventListener("touchstart", handleTouchStart)
+      document.removeEventListener("touchend", handleTouchEnd)
+      document.removeEventListener("touchmove", handleTouchMove)
       document.removeEventListener("dragstart", preventDragStart)
       document.removeEventListener("keydown", disableDevToolsShortcuts)
       document.removeEventListener("copy", disableCopy)
       document.removeEventListener("cut", disableCopy)
       document.removeEventListener("selectstart", disableSelectStart)
-      clearInterval(devToolsInterval)
-      clearInterval(debuggerCheck)
+      if (devToolsInterval) clearInterval(devToolsInterval)
+      if (debuggerCheck) clearInterval(debuggerCheck)
+      if (pressTimer) clearTimeout(pressTimer)
     }
   }, [])
 
