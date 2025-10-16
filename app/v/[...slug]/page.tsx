@@ -56,6 +56,7 @@ interface MovieDetails {
       }[]
     }[]
   }[]
+  hasBloggerImages: boolean
 }
 
 interface TMDbDetails {
@@ -180,14 +181,37 @@ export default function VegaMoviePage() {
   // Determine which images to display
   const hasTmdbImages = tmdbDetails?.images && tmdbDetails.images.length > 0
   const hasVegaCollage = !!vegaCollageImage
+  const hasBloggerImages = movieDetails?.hasBloggerImages || false
   
   // TMDB gallery images (separate from Vega collage)
   const tmdbGalleryImages = hasTmdbImages ? tmdbDetails.images : []
   
-  // Display images for the modal (all images including Vega collage)
-  const displayImages = hasVegaCollage 
-    ? (showTmdbGallery && hasTmdbImages ? [vegaCollageImage, ...tmdbDetails.images] : [vegaCollageImage])
-    : (hasTmdbImages ? tmdbDetails.images : movieDetails?.screenshots || [])
+  // Display images for the modal - combine blogger image with TMDB gallery
+  const displayImages = (() => {
+    const images = []
+    
+    // Add blogger image first if available
+    if (hasBloggerImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0) {
+      images.push(movieDetails.screenshots[0])
+    }
+    
+    // Add TMDB images if available
+    if (hasTmdbImages) {
+      images.push(...tmdbDetails.images)
+    }
+    
+    // If no blogger images, add Vega collage if available
+    if (!hasBloggerImages && hasVegaCollage) {
+      images.unshift(vegaCollageImage)
+    }
+    
+    // Last resort: use vegamovies screenshots (non-blogger)
+    if (images.length === 0 && movieDetails?.screenshots) {
+      images.push(...movieDetails.screenshots)
+    }
+    
+    return images
+  })()
 
   // Scroll to download section function
   const scrollToDownloadSection = () => {
@@ -199,6 +223,25 @@ export default function VegaMoviePage() {
       })
     }
   }
+
+  // Consolidated gallery button logic
+  const getGalleryButtonConfig = () => {
+    // If we have any images to show in modal, show "View All Images"
+    if (displayImages.length > 0) {
+      return {
+        text: "View All Images",
+        onClick: () => {
+          setSelectedScreenshot(0)
+          setShowScreenshotModal(true)
+        },
+        showIcon: true
+      }
+    }
+    
+    return null
+  }
+
+  const galleryButtonConfig = getGalleryButtonConfig()
 
   // Handle quality selection with N-Cloud auto-selection logic
   const handleQualitySelect = (quality: string) => {
@@ -754,14 +797,54 @@ export default function VegaMoviePage() {
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold mb-4">Gallery</h2>
               <p className="text-gray-400 text-lg">
-                {hasVegaCollage 
-                  ? "Screenshot collage and high quality images from the movie"
-                  : "High quality images and scenes from the movie"}
+                {hasBloggerImages 
+                  ? "High quality screenshots from the movie"
+                  : hasVegaCollage 
+                    ? "Screenshot collage and high quality images from the movie"
+                    : "High quality images and scenes from the movie"}
               </p>
             </div>
 
-            {/* Show Vegamovies collage as single full-width/full-height image when available */}
-            {hasVegaCollage && (
+            {/* Show Blogger image from Vegamovies in full width/height when available */}
+            {hasBloggerImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0 && (
+              <div className="mb-8">
+                <div 
+                  className="relative w-full overflow-hidden rounded-2xl cursor-pointer transform transition-all duration-300 hover:scale-[1.01] shadow-2xl group"
+                  onClick={() => {
+                    setSelectedScreenshot(0)
+                    setShowScreenshotModal(true)
+                  }}
+                >
+                  <img
+                    src={movieDetails.screenshots[0]}
+                    alt="Movie Screenshot"
+                    className="w-full h-auto max-h-[70vh] object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center">
+                      <Eye className="h-12 w-12 sm:h-16 sm:w-16 text-white mx-auto mb-2" />
+                      <p className="text-white text-sm sm:text-base font-medium">Click to view full size</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Show More button only when TMDB gallery is not visible */}
+                {hasTmdbImages && !showTmdbGallery && (
+                  <div className="text-center mt-6">
+                    <Button
+                      onClick={() => setShowTmdbGallery(true)}
+                      className="px-6 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border border-blue-500 hover:border-purple-400 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base"
+                    >
+                      Show More Images
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Show Vegamovies collage as single full-width/full-height image when available (fallback) */}
+            {!hasBloggerImages && hasVegaCollage && (
               <div className="mb-8">
                 <div 
                   className="relative w-full overflow-hidden rounded-2xl cursor-pointer transform transition-all duration-300 hover:scale-[1.01] shadow-2xl group"
@@ -806,16 +889,17 @@ export default function VegaMoviePage() {
               </div>
             )}
 
-            {/* TMDB Image Grid - Show when button is clicked or when no Vega collage */}
-            {(showTmdbGallery || !hasVegaCollage) && tmdbGalleryImages.length > 0 && (
+            {/* TMDB Image Grid - Show when button is clicked or when no blogger images and no Vega collage */}
+            {(showTmdbGallery || (!hasBloggerImages && !hasVegaCollage)) && tmdbGalleryImages.length > 0 && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 mb-6 sm:mb-8">
                   {tmdbGalleryImages.map((image, index) => (
                     <div
                       key={index}
                       className="group relative aspect-video overflow-hidden rounded-lg sm:rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 hover:z-10"
                       onClick={() => {
-                        setSelectedScreenshot(hasVegaCollage ? index + 1 : index)
+                        const screenshotIndex = hasBloggerImages ? index + 1 : (hasVegaCollage ? index + 1 : index)
+                        setSelectedScreenshot(screenshotIndex)
                         setShowScreenshotModal(true)
                       }}
                     >
@@ -847,24 +931,22 @@ export default function VegaMoviePage() {
                   ))}
                 </div>
 
-                {/* View All Button */}
-                <div className="text-center">
-                  <Button
-                    onClick={() => {
-                      setSelectedScreenshot(hasVegaCollage ? 1 : 0)
-                      setShowScreenshotModal(true)
-                    }}
-                    className="px-6 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border border-blue-500 hover:border-purple-400 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base"
-                  >
-                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                    View All Images
-                  </Button>
-                </div>
+                {/* Hide Images button - only show when TMDB gallery is visible and we have blogger images */}
+                {showTmdbGallery && hasBloggerImages && (
+                  <div className="text-center">
+                    <Button
+                      onClick={() => setShowTmdbGallery(false)}
+                      className="px-6 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white border border-gray-500 hover:border-gray-400 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base"
+                    >
+                      Hide Images
+                    </Button>
+                  </div>
+                )}
               </>
             )}
 
-            {/* Fallback: Show screenshots if no Vega collage and no TMDB images */}
-            {!hasVegaCollage && !hasTmdbImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0 && (
+            {/* Fallback: Show screenshots if no blogger images, no Vega collage and no TMDB images */}
+            {!hasBloggerImages && !hasVegaCollage && !hasTmdbImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0 && (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                   {movieDetails.screenshots.map((image, index) => (
@@ -901,18 +983,18 @@ export default function VegaMoviePage() {
                   ))}
                 </div>
 
-                <div className="text-center">
-                  <Button
-                    onClick={() => {
-                      setSelectedScreenshot(0)
-                      setShowScreenshotModal(true)
-                    }}
-                    className="px-6 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border border-blue-500 hover:border-purple-400 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base"
-                  >
-                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                    View All Images
-                  </Button>
-                </div>
+                {/* Consolidated Gallery Button for fallback */}
+                {galleryButtonConfig && (
+                  <div className="text-center">
+                    <Button
+                      onClick={galleryButtonConfig.onClick}
+                      className="px-6 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border border-blue-500 hover:border-purple-400 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base"
+                    >
+                      {galleryButtonConfig.showIcon && <Eye className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />}
+                      {galleryButtonConfig.text}
+                    </Button>
+                  </div>
+                )}
               </>
             )}
           </div>

@@ -35,6 +35,7 @@ interface MovieDetails {
     }[]
     season: string | null
   }[]
+  hasBloggerImages: boolean
 }
 
 const CORS_PROXIES = [
@@ -180,57 +181,56 @@ function parseMovieDetails(html: string): MovieDetails {
   const plotMatch = infoText.match(/(?:Movie-SYNOPSIS\/PLOT:|Series-SYNOPSIS\/PLOT:)\s*([^]+?)(?=Screenshots:|$)/)
   const plot = plotMatch ? plotMatch[1].replace(/\s+/g, " ").trim() : ""
 
-  // Extract screenshots
+  // Extract screenshots - prioritize blogger.googleusercontent.com images
   const screenshots: string[] = []
+  const bloggerImages: string[] = []
+  const otherImages: string[] = []
 
-  // Include .single-service-content in screenshot selectors
-  const screenshotSelectors = [
-    ".entry-inner img[src*='imgbb.top']",
-    ".entry-content img[src*='imgbb.top']",
-    ".single-service-content img[src*='imgbb.top']",
-    ".entry-inner img[src*='screenshot']",
-    ".entry-content img[src*='screenshot']",
-    ".single-service-content img[src*='screenshot']",
+  // First, collect all images and categorize them
+  const allImageSelectors = [
+    ".entry-inner img",
+    ".entry-content img", 
+    ".single-service-content img",
+    "img[src*='imgbb.top']",
     "img[src*='imageban.ru']",
     "img[src*='imgbox.com']",
     "img[src*='fastpic.ru']",
     "img[src*='postimg.cc']",
   ]
 
-  screenshotSelectors.forEach((selector) => {
+  allImageSelectors.forEach((selector) => {
     $(selector).each((i, el) => {
       const src = $(el).attr("src") || $(el).attr("data-src")
-      if (src && !screenshots.includes(src) && src !== poster) {
+      if (src && src !== poster) {
         // Clean up screenshot URLs
         let cleanSrc = src
         if (cleanSrc.startsWith("//")) {
           cleanSrc = "https:" + cleanSrc
         }
-        screenshots.push(cleanSrc)
+        
+        // Categorize images based on source
+        if (cleanSrc.includes("blogger.googleusercontent.com")) {
+          if (!bloggerImages.includes(cleanSrc)) {
+            bloggerImages.push(cleanSrc)
+          }
+        } else if (
+          cleanSrc.includes("imgbb.top") || 
+          cleanSrc.includes("screenshot") || 
+          cleanSrc.includes("image") ||
+          cleanSrc.includes("imageban.ru") ||
+          cleanSrc.includes("imgbox.com") ||
+          cleanSrc.includes("fastpic.ru") ||
+          cleanSrc.includes("postimg.cc")
+        ) {
+          if (!otherImages.includes(cleanSrc)) {
+            otherImages.push(cleanSrc)
+          }
+        }
       }
     })
   })
 
-  // Also derive screenshot text from unified scope
-  const screenshotText = $(CONTENT_SCOPE).text()
-  if (screenshotText.toLowerCase().includes("screenshot")) {
-    $(`${CONTENT_SCOPE} img`).each((i, el) => {
-      const src = $(el).attr("src") || $(el).attr("data-src")
-      if (
-        src &&
-        (src.includes("imgbb.top") || src.includes("screenshot") || src.includes("image")) &&
-        !screenshots.includes(src)
-      ) {
-        let cleanSrc = src
-        if (cleanSrc.startsWith("//")) {
-          cleanSrc = "https:" + cleanSrc
-        }
-        screenshots.push(cleanSrc)
-      }
-    })
-  }
-
-  // Synopsis content from unified scope
+  // Also check synopsis content for images
   const content = $(CONTENT_SCOPE).html() || ""
   const synopsisMatch = content.match(/<h3[^>]*>.*?SYNOPSIS.*?<\/h3>(.*?)(?=<h[345]|<hr|$)/gi)
   if (synopsisMatch) {
@@ -239,16 +239,31 @@ function parseMovieDetails(html: string): MovieDetails {
       if (imgMatches) {
         imgMatches.forEach((imgTag: string) => {
           const srcMatch = imgTag.match(/src=["']([^"']+)["']/i)
-          if (srcMatch && srcMatch[1] && !screenshots.includes(srcMatch[1])) {
+          if (srcMatch && srcMatch[1]) {
             let cleanSrc = srcMatch[1]
             if (cleanSrc.startsWith("//")) {
               cleanSrc = "https:" + cleanSrc
             }
-            screenshots.push(cleanSrc)
+            
+            if (cleanSrc.includes("blogger.googleusercontent.com")) {
+              if (!bloggerImages.includes(cleanSrc)) {
+                bloggerImages.push(cleanSrc)
+              }
+            } else if (!otherImages.includes(cleanSrc)) {
+              otherImages.push(cleanSrc)
+            }
           }
         })
       }
     })
+  }
+
+  // Prioritize blogger.googleusercontent.com images
+  if (bloggerImages.length > 0) {
+    screenshots.push(...bloggerImages)
+  } else {
+    // Fallback to other images if no blogger images found
+    screenshots.push(...otherImages)
   }
 
   // Enhanced function to extract season from text
@@ -642,6 +657,7 @@ function parseMovieDetails(html: string): MovieDetails {
     plot,
     screenshots,
     downloadSections,
+    hasBloggerImages: bloggerImages.length > 0,
   }
 }
 
