@@ -29,7 +29,7 @@ type DebugData = {
   htmlLength?: number
 }
 
-export function NextdriveDebugPopup({
+export function VlyxDriveDebugPopup({
   debugFetcher,
 }: {
   debugFetcher: () => Promise<DebugData>

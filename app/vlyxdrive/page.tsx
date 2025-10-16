@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { NextdriveDebugPopup } from "@/components/nextdrive-debug-popup"
+import { VlyxDriveDebugPopup } from "@/components/vlyxdrive-debug-popup"
 
 interface EpisodeDownload {
   episodeNumber: number
@@ -504,7 +504,7 @@ export default function VlyxDrivePage() {
           </div>
         </section>
 
-        <NextdriveDebugPopup debugFetcher={() => runNextdriveDiagnostics(driveid, link)} />
+        <VlyxDriveDebugPopup debugFetcher={() => runVlyxDriveDiagnostics(driveid, link)} />
       </div>
     )
   }
@@ -840,7 +840,7 @@ export default function VlyxDrivePage() {
         </DialogContent>
       </Dialog>
 
-      <NextdriveDebugPopup debugFetcher={() => runNextdriveDiagnostics(driveid, link)} />
+      <VlyxDriveDebugPopup debugFetcher={() => runVlyxDriveDiagnostics(driveid, link)} />
     </div>
   )
 }
@@ -907,7 +907,7 @@ function NextDrivePageSkeleton() {
 }
 
 // Debug fetcher that calls API with debug=1 and returns only the debug payload
-async function runNextdriveDiagnostics(driveid: string | null, link: string | null) {
+async function runVlyxDriveDiagnostics(driveid: string | null, link: string | null) {
   if (!driveid && !link) throw new Error("Drive ID or link is required for debug")
   const qs = driveid ? `driveid=${encodeURIComponent(driveid)}` : `link=${encodeURIComponent(link as string)}`
   const res = await fetch(`/api/nextdrive-scraper?${qs}&debug=1`, { cache: "no-store" })
