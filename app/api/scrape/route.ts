@@ -178,10 +178,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log("Fetching vegamovies-nl from:", targetUrl)
+    console.log("Fetching content...")
 
     const html = await fetchVegaMoviesHTML(targetUrl)
-    console.log("HTML fetched successfully, length:", html.length)
+    console.log("Successfully fetched content")
 
     const parsedData = parseVegaMoviesData(html)
     console.log("Parsed data:", {
@@ -223,10 +223,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 })
     }
 
-    console.log("Fetching URL via POST:", url)
+    console.log("Fetching content...")
 
     const html = await fetchVegaMoviesHTML(url)
-    console.log("HTML fetched successfully, length:", html.length)
+    console.log("Successfully fetched content")
 
     // Extract title from HTML
     const $ = cheerio.load(html)

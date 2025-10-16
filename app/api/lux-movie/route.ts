@@ -456,7 +456,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log("Fetching LuxMovies page:", movieUrl)
+    console.log("Fetching movie page...")
     const html = await fetchWithProxy(movieUrl)
     const movieDetails = parseMovieDetails(html)
     

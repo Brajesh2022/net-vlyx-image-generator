@@ -23,12 +23,54 @@ interface ProcessLog {
 export default function NCloudPage() {
   const searchParams = useSearchParams()
   const key = searchParams.get("key")
+  const directUrl = searchParams.get("url")
   
-  // Decode parameters from key (backward compatible)
-  const params = key ? decodeNCloudParams(key) : {
-    id: searchParams.get("id") || "",
-    title: searchParams.get("title") || "Unknown Title",
-    poster: searchParams.get("poster") || "/placeholder.svg",
+  // Helper function to extract NCloud ID from URL
+  const extractNCloudIdFromUrl = (url: string): string | null => {
+    try {
+      const urlObj = new URL(url)
+      const pathParts = urlObj.pathname.split('/').filter(Boolean)
+      return pathParts[pathParts.length - 1] || null
+    } catch {
+      return null
+    }
+  }
+  
+  // Decode parameters from key (backward compatible) or use direct URL
+  let params: { id: string; title: string; poster: string }
+  
+  if (directUrl) {
+    // Direct URL fallback method
+    const extractedId = extractNCloudIdFromUrl(directUrl)
+    params = {
+      id: extractedId || "",
+      title: "N-Cloud Download",
+      poster: "/placeholder.svg",
+    }
+  } else if (key) {
+    // Try to decode the key
+    const decoded = decodeNCloudParams(key)
+    if (decoded && decoded.id) {
+      params = {
+        id: decoded.id,
+        title: decoded.title || "Unknown Title",
+        poster: decoded.poster || "/placeholder.svg",
+      }
+    } else {
+      // If decoding fails, fallback to empty
+      params = {
+        id: "",
+        title: "Unknown Title",
+        poster: "/placeholder.svg",
+      }
+    }
+  } else {
+    // Legacy direct parameters
+    params = {
+      id: searchParams.get("id") || "",
+      title: searchParams.get("title") || "Unknown Title",
+      poster: searchParams.get("poster") || "/placeholder.svg",
+    }
   }
   
   const { id, title, poster } = params

@@ -137,7 +137,7 @@ async function searchMovies(searchStrategies: string[]) {
           
           if (detailsResponse.ok) {
             const details = await detailsResponse.json()
-            console.log(`Successfully fetched movie details for "${searchTerm}"`)
+            console.log("Successfully fetched movie details")
             return details
           }
         }
@@ -176,7 +176,7 @@ async function searchTVShows(searchStrategies: string[]) {
           
           if (detailsResponse.ok) {
             const details = await detailsResponse.json()
-            console.log(`Successfully fetched TV details for "${searchTerm}"`)
+            console.log("Successfully fetched TV details")
             return details
           }
         }
@@ -239,7 +239,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(`Fetching TMDb details for ${type} ID:`, query)
+    console.log("Fetching content details...")
 
     // Fetch details directly by ID
     const response = await fetch(

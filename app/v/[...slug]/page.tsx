@@ -114,15 +114,14 @@ export default function VegaMoviePage() {
     queryKey: ["vega-movie", vegaUrl, debugMode], // include debug in cache key
     queryFn: async () => {
       const url = `/api/vega-movie?url=${encodeURIComponent(vegaUrl)}${debugMode ? "&debug=1" : ""}` // pass debug flag
-      console.log("[v0] Vega fetch URL:", url) // debug log
       const response = await fetch(url)
       if (!response.ok) {
         const text = await response.text().catch(() => "")
-        console.log("[v0] Vega fetch failed:", response.status, response.statusText, text) // debug log
+        console.log("Failed to fetch content")
         throw new Error("Failed to fetch movie details")
       }
       const json = await response.json()
-      console.log("[v0] Vega fetch ok. parsedSections:", json?.downloadSections?.length ?? 0) // debug log
+      console.log("Successfully fetched content")
       return json
     },
     enabled: !!slug,
@@ -1570,7 +1569,7 @@ export default function VegaMoviePage() {
           const debugObj = anyDetails?.debug || null
           return <VegaDebugPopup defaultOpen={debugMode} debug={debugObj} />
         } catch (e) {
-          console.log("[v0] Vega Debug Popup render error:", (e as any)?.message || e)
+          console.log("Debug popup render error:", (e as any)?.message || e)
           return null
         }
       })()}

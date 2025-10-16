@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(`Fetching episodes for TV ID: ${id}, Season: ${season}`)
+    console.log("Fetching episodes...")
 
     // Fetch season details with episodes
     const response = await fetch(

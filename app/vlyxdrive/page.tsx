@@ -295,13 +295,25 @@ export default function VlyxDrivePage() {
         : `https://image.tmdb.org/t/p/w500${displayPoster}`
       : ""
 
-    const encodedKey = encodeNCloudParams({
-      id: ncloudId,
-      title: displayTitle,
-      ...(posterUrl && { poster: posterUrl })
-    })
+    try {
+      const encodedKey = encodeNCloudParams({
+        id: ncloudId,
+        title: displayTitle,
+        ...(posterUrl && { poster: posterUrl })
+      })
 
-    window.location.href = `/ncloud?key=${encodedKey}`
+      // Check if encoding succeeded
+      if (encodedKey && encodedKey.trim() !== '') {
+        window.location.href = `/ncloud?key=${encodedKey}`
+      } else {
+        // Fallback to direct URL method if encoding fails
+        window.location.href = `/ncloud?url=${encodeURIComponent(url)}`
+      }
+    } catch (error) {
+      // If encoding throws an error, use fallback method
+      console.error('Error encoding NCloud params, using fallback:', error)
+      window.location.href = `/ncloud?url=${encodeURIComponent(url)}`
+    }
   }
 
   // Function to handle server click (checks for N-Cloud links)

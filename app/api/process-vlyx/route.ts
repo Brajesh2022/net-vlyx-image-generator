@@ -281,11 +281,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "URL cannot be empty" }, { status: 400 })
     }
 
-    console.log(`Processing Vlyx URL: ${url}`)
+    console.log("Processing content...")
 
     // Fetch the page content
     const html = await fetchWithProxy(url)
-    console.log(`HTML fetched successfully, length: ${html.length}`)
+    console.log("Successfully fetched content")
 
     // Parse the page
     const result = parseVlyxPage(html, url)

@@ -227,10 +227,10 @@ export async function GET(request: NextRequest) {
   const searchURL = searchTerm ? `${TARGET_URL}/search/${encodeURIComponent(searchTerm)}` : TARGET_URL
 
   try {
-    console.log("Starting to fetch HTML from LuxMovies:", searchURL)
+    console.log("Fetching content...")
 
     const html = await fetchWithProxy(searchURL)
-    console.log("HTML fetched successfully using proxy, length:", html.length)
+    console.log("Successfully fetched content")
 
     const parsedData = parseMovieData(html)
     console.log("Parsed LuxMovies data:", {

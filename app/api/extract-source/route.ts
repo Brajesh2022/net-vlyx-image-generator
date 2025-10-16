@@ -508,7 +508,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`Starting source extraction for: ${url}`)
+    console.log("Starting source extraction...")
 
     // Array of extraction methods to try in order (most likely to succeed first)
     const extractionMethods = [
@@ -557,7 +557,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If all methods failed
-    console.log(`🚫 All extraction methods failed for: ${url}`)
+    console.log("All extraction methods failed")
     return NextResponse.json(
       { 
         success: false, 

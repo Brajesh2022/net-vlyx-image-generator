@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     const urlObj = new URL(decodedUrl)
     const referer = `${urlObj.protocol}//${urlObj.host}`
 
-    console.log("Proxying image:", decodedUrl)
+    console.log("Proxying image...")
 
     const response = await tryFetchImage(decodedUrl, referer)
 

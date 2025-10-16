@@ -661,9 +661,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log("[v0] Vega GET start url:", movieUrl)
+    console.log("Fetching content...")
     const html = await fetchWithProxy(movieUrl)
-    console.log("[v0] Vega GET html length:", html?.length ?? 0)
+    console.log("Successfully fetched content")
 
     const movieDetails = parseMovieDetails(html)
 

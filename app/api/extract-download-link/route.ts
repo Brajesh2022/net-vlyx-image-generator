@@ -128,7 +128,7 @@ async function extractButtonLink(html: string, buttonText: string, baseUrl: stri
 
         if (href && href !== "#" && !href.startsWith("javascript:")) {
           const fullUrl = href.startsWith("http") ? href : new URL(href, baseUrl).href
-          console.log(`Button href: ${fullUrl}`)
+          console.log("Found button link")
           return fullUrl
         }
 
@@ -136,7 +136,7 @@ async function extractButtonLink(html: string, buttonText: string, baseUrl: stri
           const urlMatch = onclick.match(/(?:window\.open|location\.href|document\.location)\s*=?\s*['"]([^'"]+)['"]/)
           if (urlMatch && urlMatch[1]) {
             const fullUrl = urlMatch[1].startsWith("http") ? urlMatch[1] : new URL(urlMatch[1], baseUrl).href
-            console.log(`Button onclick URL: ${fullUrl}`)
+            console.log("Found onclick link")
             return fullUrl
           }
         }
@@ -147,7 +147,7 @@ async function extractButtonLink(html: string, buttonText: string, baseUrl: stri
           const parentHref = parent.attr("href")
           if (parentHref && parentHref !== "#" && !parentHref.startsWith("javascript:")) {
             const fullUrl = parentHref.startsWith("http") ? parentHref : new URL(parentHref, baseUrl).href
-            console.log(`Parent href: ${fullUrl}`)
+            console.log("Found parent link")
             return fullUrl
           }
           parent = parent.parent()
@@ -161,7 +161,7 @@ async function extractButtonLink(html: string, buttonText: string, baseUrl: stri
 
 // New function to handle HubCloud extraction
 async function extractHubCloudLink(hubCloudUrl: string): Promise<string> {
-  console.log(`Processing HubCloud URL: ${hubCloudUrl}`)
+  console.log("Processing HubCloud URL...")
 
   // Step 1: Fetch HubCloud page and extract "Generate Direct Download Link" button
   console.log("Step 1: Extracting generation link from HubCloud...")
@@ -176,7 +176,7 @@ async function extractHubCloudLink(hubCloudUrl: string): Promise<string> {
   // Try primary button first
   try {
     const finalDownloadUrl = await extractButtonLink(step2Html, "Download [PixelServer : 2]", generationLink)
-    console.log(`Final download link found: ${finalDownloadUrl}`)
+    console.log("Final download link found")
     return finalDownloadUrl
   } catch (primaryError) {
     console.log("Primary button not found, trying fallback...")
@@ -184,7 +184,7 @@ async function extractHubCloudLink(hubCloudUrl: string): Promise<string> {
     // Try fallback button pattern
     try {
       const fallbackDownloadUrl = await extractButtonLink(step2Html, "Download File [", generationLink)
-      console.log(`Fallback download link found: ${fallbackDownloadUrl}`)
+      console.log("Fallback download link found")
       return fallbackDownloadUrl
     } catch (fallbackError) {
       throw new Error("Both primary and fallback download buttons not found")
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
     }
 
-    console.log(`Processing HubDrive URL: ${url}`)
+    console.log("Processing HubDrive URL...")
 
     // Step 1: Fetch original URL and extract server link
     console.log("Step 1: Extracting server link...")
@@ -247,18 +247,18 @@ export async function POST(request: NextRequest) {
     try {
       const step3Html = await fetchWithProxy(downloadGenLink)
       finalDownloadUrl = await extractButtonLink(step3Html, "Download [PixelServer : 2]", downloadGenLink)
-      console.log(`Final download link found: ${finalDownloadUrl}`)
+      console.log("Final download link found")
     } catch (error) {
       console.log("Step 3 failed with primary method, trying Method 2...")
 
       // Method 2: Replace domain with 90fpsconfig.in
       const method2Url = downloadGenLink.replace(/https?:\/\/[^/]+/, "https://90fpsconfig.in")
-      console.log(`Trying Method 2 with URL: ${method2Url}`)
+      console.log("Trying alternative method...")
 
       try {
         const method2Html = await fetchWithProxy(method2Url)
         finalDownloadUrl = await extractButtonLink(method2Html, "Download [PixelServer : 2]", method2Url)
-        console.log(`Final download link found using Method 2: ${finalDownloadUrl}`)
+        console.log("Final download link found using alternative method")
       } catch (method2Error) {
         console.log("Method 2 also failed, trying direct extraction from original step 3...")
 
@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
             const text = $(element).text().trim()
 
             if (href && (href.includes("r2.dev") || href.includes("hubcdn.fans") || href.includes("pixel.hubcdn"))) {
-              console.log(`Found direct download link: ${href}`)
+              console.log("Found direct download link")
               directLink = href
               return false // Break the loop
             }
@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
 
           if (directLink) {
             finalDownloadUrl = directLink
-            console.log(`Direct download link found: ${finalDownloadUrl}`)
+            console.log("Direct download link found")
           } else {
             throw new Error("No direct download links found")
           }

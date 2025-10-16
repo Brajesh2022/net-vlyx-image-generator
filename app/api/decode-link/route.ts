@@ -128,7 +128,7 @@ async function decodeHubcdnPayload(payload: string): Promise<DecodeResult> {
 
 async function decodeLinkMain(protectedUrl: string): Promise<DecodeResult> {
   try {
-    console.log(`Fetching: ${protectedUrl}`)
+    console.log("Fetching protected content...")
 
     const response = await fetch(protectedUrl, {
       headers: getBrowserHeaders(),
@@ -140,7 +140,7 @@ async function decodeLinkMain(protectedUrl: string): Promise<DecodeResult> {
     }
 
     const html = await response.text()
-    console.log(`HTML fetched, length: ${html.length}`)
+    console.log("Successfully fetched content")
 
     // Debug: Log a portion of the HTML to see what we're working with
     console.log("HTML sample (first 1000 chars):", html.substring(0, 1000))
@@ -283,7 +283,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`Processing decode request for: ${url}`)
+    console.log("Processing decode request...")
 
     // Decode the link
     const result = await decodeLinkMain(url)

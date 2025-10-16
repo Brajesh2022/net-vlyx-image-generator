@@ -463,7 +463,7 @@ export default function MovieDetail({ params }: { params: { slug: string } }) {
       setDecodingStatus((prev) => ({ ...prev, [linkKey]: true }))
 
       try {
-        console.log("Attempting to decode Vlyx link for streaming:", link.url)
+        console.log("Decoding link for streaming...")
 
         const response = await fetch("/api/decode-link", {
           method: "POST",
@@ -472,7 +472,7 @@ export default function MovieDetail({ params }: { params: { slug: string } }) {
         })
 
         const data = await response.json()
-        console.log("Decode response:", data)
+        console.log("Successfully decoded link")
 
         if (response.ok && data.success && data.final_url) {
           // For streaming, extract file ID and go to fetch-link
@@ -515,7 +515,7 @@ export default function MovieDetail({ params }: { params: { slug: string } }) {
       setDecodingStatus((prev) => ({ ...prev, [linkKey]: true }))
 
       try {
-        console.log("Attempting to decode VlyJes link:", link.url)
+        console.log("Decoding download link...")
 
         const response = await fetch("/api/decode-link", {
           method: "POST",
@@ -524,7 +524,7 @@ export default function MovieDetail({ params }: { params: { slug: string } }) {
         })
 
         const data = await response.json()
-        console.log("Decode response:", data)
+        console.log("Successfully decoded link")
 
         if (response.ok && data.success && data.final_url) {
           // Open the decoded direct download link
@@ -559,7 +559,7 @@ export default function MovieDetail({ params }: { params: { slug: string } }) {
       setDecodingStatus((prev) => ({ ...prev, [linkKey]: true }))
 
       try {
-        console.log("Attempting to decode Vlyx link:", link.url)
+        console.log("Decoding download link...")
 
         const response = await fetch("/api/decode-link", {
           method: "POST",
@@ -568,7 +568,7 @@ export default function MovieDetail({ params }: { params: { slug: string } }) {
         })
 
         const data = await response.json()
-        console.log("Decode response:", data)
+        console.log("Successfully decoded link")
 
         if (response.ok && data.success && data.final_url) {
           // Now process the decoded URL through our Vlyx processor

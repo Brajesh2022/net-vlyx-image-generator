@@ -1583,10 +1583,10 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
     // Reconstruct the full URL from the slug
     const movieURL = `${TARGET_URL}${slug}/`
 
-    console.log("Fetching movie details from:", movieURL)
+    console.log("Fetching movie details...")
 
     const html = await fetchWithProxy(movieURL)
-    console.log("Movie HTML fetched successfully, length:", html.length)
+    console.log("Successfully fetched movie details")
 
     const movieDetail = parseMovieDetail(html, movieURL)
     console.log("Parsed movie detail:", {

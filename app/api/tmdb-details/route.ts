@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log("Fetching TMDb details for IMDb ID:", imdbId)
+    console.log("Fetching movie details...")
 
     // Step 1: Convert IMDb ID to TMDb ID
     const findResponse = await fetch(

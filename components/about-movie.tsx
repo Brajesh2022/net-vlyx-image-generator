@@ -85,7 +85,7 @@ export default function AboutMovie({ movieTitle, contentType = 'auto' }: AboutMo
       }
 
       try {
-        console.log("Fetching TMDB data for:", movieTitle, "contentType:", contentType)
+        console.log("Fetching movie data...")
         setLoading(true)
         setError(null)
 
@@ -97,14 +97,14 @@ export default function AboutMovie({ movieTitle, contentType = 'auto' }: AboutMo
           body: JSON.stringify({ movieTitle, contentType }),
         })
 
-        console.log("TMDB API response status:", response.status)
+        console.log("Successfully fetched movie data")
 
         if (response.ok) {
           const result = await response.json()
-          console.log("TMDB API result:", result)
+          console.log("Movie data loaded")
           setMovieData(result.data)
         } else {
-          console.log("TMDB API error, hiding component")
+          console.log("No movie data available")
           // If no data found, don't show error - just hide the section
           setMovieData(null)
         }
