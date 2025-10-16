@@ -62,7 +62,7 @@ export function VlyxDriveDebugPopup({
       </DialogTrigger>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>NextDrive Debug</DialogTitle>
+          <DialogTitle>VlyxDrive Debug</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex items-center gap-2">

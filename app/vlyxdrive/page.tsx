@@ -33,7 +33,7 @@ interface MovieDownload {
   }>
 }
 
-interface NextDriveData {
+interface VlyxDriveData {
   type: "episode" | "movie"
   title: string
   episodes?: EpisodeDownload[]
@@ -105,19 +105,24 @@ export default function VlyxDrivePage() {
 
   const { imdbId, type: contentType } = extractImdbInfo(tmdbid)
 
-  // Fetch NextDrive content
+  // Clean server/link names with branding replacement
+  const cleanServerName = (name: string): string => {
+    return replaceBrandingText(name)
+  }
+
+  // Fetch VlyxDrive content
   const {
-    data: nextDriveData,
-    isLoading: nextDriveLoading,
-    error: nextDriveError,
-  } = useQuery<NextDriveData>({
-    queryKey: ["nextdrive", driveid ?? null, link ?? null],
+    data: vlyxDriveData,
+    isLoading: vlyxDriveLoading,
+    error: vlyxDriveError,
+  } = useQuery<VlyxDriveData>({
+    queryKey: ["vlyxdrive", driveid ?? null, link ?? null],
     queryFn: async () => {
       if (!driveid && !link) throw new Error("Drive ID or link is required")
       const qs = driveid ? `driveid=${encodeURIComponent(driveid)}` : `link=${encodeURIComponent(link as string)}`
       const response = await fetch(`/api/nextdrive-scraper?${qs}`)
       if (!response.ok) {
-        throw new Error("Failed to fetch NextDrive data")
+        throw new Error("Failed to fetch VlyxDrive data")
       }
       return await response.json()
     },
@@ -165,7 +170,7 @@ export default function VlyxDrivePage() {
 
       return await response.json()
     },
-    enabled: !!tmdbId && contentType === "tv" && nextDriveData?.type === "episode",
+    enabled: !!tmdbId && contentType === "tv" && vlyxDriveData?.type === "episode",
   })
 
   // Check if a server is N-Cloud (formerly N-Cloud)
@@ -191,9 +196,9 @@ export default function VlyxDrivePage() {
   }
 
   const handleMovieNCloudClick = () => {
-    if (!nextDriveData?.movie) return
+    if (!vlyxDriveData?.movie) return
     
-    const ncloudServers = nextDriveData.movie.servers.filter(s => isNCloudServer(s.name))
+    const ncloudServers = vlyxDriveData.movie.servers.filter(s => isNCloudServer(s.name))
     if (ncloudServers.length > 0) {
       // Directly go to N-Cloud page for movies (no confirmation popup)
       handleServerClick(ncloudServers[0].url)
@@ -353,11 +358,11 @@ export default function VlyxDrivePage() {
     )
   }
 
-  if (nextDriveLoading) {
-    return <NextDrivePageSkeleton />
+  if (vlyxDriveLoading) {
+    return <VlyxDrivePageSkeleton />
   }
 
-  if (nextDriveError || !nextDriveData) {
+  if (vlyxDriveError || !vlyxDriveData) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
@@ -375,7 +380,7 @@ export default function VlyxDrivePage() {
     )
   }
 
-  const displayTitle = replaceBrandingText(tmdbDetails?.title || tmdbDetails?.name || nextDriveData.title || "Unknown Title")
+  const displayTitle = replaceBrandingText(tmdbDetails?.title || tmdbDetails?.name || vlyxDriveData.title || "Unknown Title")
   const hasTmdbData = tmdbDetails && !tmdbError && !tmdbLoading
   const displayPoster = hasTmdbData ? tmdbDetails.poster : null
   const displayBackdrop = hasTmdbData ? tmdbDetails.backdrop : null
@@ -400,7 +405,7 @@ export default function VlyxDrivePage() {
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-white">{displayTitle}</h1>
               <Badge className="bg-blue-600/90 backdrop-blur-sm text-white">
-                {nextDriveData.type === "episode" ? "TV Series" : "Movie"} • NextDrive
+                {vlyxDriveData.type === "episode" ? "TV Series" : "Movie"} • VlyxDrive
                 {season && ` • Season ${season}`}
               </Badge>
             </div>
@@ -410,7 +415,7 @@ export default function VlyxDrivePage() {
         {/* Minimal Content Section */}
         <section className="py-12">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            {nextDriveData.type === "episode" ? (
+            {vlyxDriveData.type === "episode" ? (
               // Minimal Episode Design (Similar to user's HTML example)
               <div>
                 <div className="text-center mb-8">
@@ -422,7 +427,7 @@ export default function VlyxDrivePage() {
                 </div>
 
                 <div className="space-y-8">
-                  {nextDriveData.episodes?.map((episode, index) => (
+                  {vlyxDriveData.episodes?.map((episode, index) => (
                     <div key={index} className="text-center">
                       {/* Episode Header */}
                       <h4 className="text-lg font-bold mb-4 text-purple-400">
@@ -449,7 +454,7 @@ export default function VlyxDrivePage() {
                       </div>
 
                       {/* Separator */}
-                      {index < (nextDriveData.episodes?.length || 0) - 1 && <hr className="border-gray-700 my-6" />}
+                      {index < (vlyxDriveData.episodes?.length || 0) - 1 && <hr className="border-gray-700 my-6" />}
                     </div>
                   ))}
                 </div>
@@ -465,7 +470,7 @@ export default function VlyxDrivePage() {
                 <div className="max-w-2xl mx-auto">
                   <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
                     <div className="flex flex-wrap justify-center gap-3">
-                      {nextDriveData.movie?.servers.map((server, index) => (
+                      {vlyxDriveData.movie?.servers.map((server, index) => (
                         <Button
                           key={index}
                           className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
@@ -482,11 +487,11 @@ export default function VlyxDrivePage() {
                       ))}
                     </div>
 
-                    {nextDriveData.movie?.alternatives && nextDriveData.movie.alternatives.length > 0 && (
+                    {vlyxDriveData.movie?.alternatives && vlyxDriveData.movie.alternatives.length > 0 && (
                       <div className="mt-6 pt-6 border-t border-gray-700">
                         <h4 className="text-lg font-semibold mb-4 text-center text-gray-300">Alternative Sources</h4>
                         <div className="space-y-2">
-                          {nextDriveData.movie.alternatives.map((alt, index) => (
+                          {vlyxDriveData.movie.alternatives.map((alt, index) => (
                             <div
                               key={index}
                               className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
@@ -551,7 +556,7 @@ export default function VlyxDrivePage() {
             <div className="grid lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-8">
                 <Badge className="bg-blue-600/90 backdrop-blur-sm text-white mb-4">
-                  {nextDriveData.type === "episode" ? "TV Series" : "Movie"} • NextDrive
+                  {vlyxDriveData.type === "episode" ? "TV Series" : "Movie"} • VlyxDrive
                   {season && ` • Season ${season}`}
                 </Badge>
 
@@ -595,19 +600,19 @@ export default function VlyxDrivePage() {
       {/* Content Section */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {nextDriveData.type === "episode" ? (
+          {vlyxDriveData.type === "episode" ? (
             // Episode View
             <div>
               <div className="text-center mb-12">
                 <h2 className="text-4xl font-bold mb-4">Episodes</h2>
                 <p className="text-gray-400 text-lg">
-                  {nextDriveData.episodes?.length} episodes available
+                  {vlyxDriveData.episodes?.length} episodes available
                   {season && ` • Season ${season}`}
                 </p>
               </div>
 
               <div className="space-y-6">
-                {nextDriveData.episodes?.map((episode, index) => {
+                {vlyxDriveData.episodes?.map((episode, index) => {
                   const tmdbEpisode = episodeData?.episodes?.find((ep) => ep.episode_number === episode.episodeNumber)
 
                   return (
@@ -690,7 +695,7 @@ export default function VlyxDrivePage() {
 
               <div className="max-w-2xl mx-auto">
                 {(() => {
-                  const hasNCloud = nextDriveData.movie?.servers.some(s => isNCloudServer(s.name))
+                  const hasNCloud = vlyxDriveData.movie?.servers.some(s => isNCloudServer(s.name))
                   
                   return hasNCloud ? (
                     <div className="text-center space-y-4">
@@ -712,7 +717,7 @@ export default function VlyxDrivePage() {
                     <div className="bg-gray-900/50 rounded-2xl p-8 border border-gray-800">
                       <h3 className="text-2xl font-bold mb-6 text-center">Select Server</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {nextDriveData.movie?.servers.map((server, index) => (
+                        {vlyxDriveData.movie?.servers.map((server, index) => (
                           <Button
                             key={index}
                             className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
@@ -816,7 +821,7 @@ export default function VlyxDrivePage() {
             </DialogHeader>
 
             <div className="space-y-4 mt-6">
-              {(selectedEpisode ? selectedEpisode.servers : nextDriveData?.movie?.servers || []).map((server, index) => (
+              {(selectedEpisode ? selectedEpisode.servers : vlyxDriveData?.movie?.servers || []).map((server, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-4 bg-gray-800/50 rounded-xl border border-gray-700"
@@ -854,7 +859,7 @@ export default function VlyxDrivePage() {
   )
 }
 
-function NextDrivePageSkeleton() {
+function VlyxDrivePageSkeleton() {
   return (
     <div className="min-h-screen bg-black text-white">
       <section className="relative min-h-[60vh] overflow-hidden">
