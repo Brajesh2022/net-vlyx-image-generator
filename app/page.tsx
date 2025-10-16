@@ -11,6 +11,7 @@ import { useWishlist } from "@/hooks/useWishlist"
 import { WishlistModal } from "@/components/wishlist-modal"
 import { FeedbackReview } from "@/components/feedback-review"
 import { encodeMovieUrl } from "@/lib/utils"
+import { SecureImage } from "@/components/secure-image"
 
 interface Movie {
   title: string
@@ -709,27 +710,21 @@ export default function Home() {
                 const encodedUrl = encodeMovieUrl(slug, sourceUrl)
                 const movieUrl = `/v/${encodedUrl}`
 
-                // Use high-quality images directly for browsing (vegamovies-nl)
-                // Use image proxy for search to avoid CORS issues
+                // Always use secure image proxy for all images
                 const imgSrc =
-                  movie.image && searchTerm
-                    ? `/api/image-proxy?url=${encodeURIComponent(movie.image)}`
-                    : movie.image ||
-                      "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
+                  movie.image ||
+                  "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
 
                 return (
                   <Link key={`m-${index}-${slug.substring(0, 50)}`} href={movieUrl}>
                     <div className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10">
                       <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900">
-                        <img
+                        <SecureImage
                           src={imgSrc || "/placeholder.svg"}
                           alt={movie.title}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                          onError={(e) => {
-                            const target = e.currentTarget as HTMLImageElement
-                            target.src =
-                              "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
-                          }}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-110"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
