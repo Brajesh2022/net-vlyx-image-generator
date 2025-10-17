@@ -1,6 +1,6 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { decodeNCloudParams, replaceBrandingText } from "@/lib/utils"
@@ -22,6 +22,7 @@ interface ProcessLog {
 
 export default function NCloudPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const key = searchParams.get("key")
   const directUrl = searchParams.get("url")
   
@@ -265,12 +266,13 @@ export default function NCloudPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Invalid URL</h1>
           <p className="text-gray-400 mb-6">Missing N-Cloud ID parameter</p>
-          <Link href="/">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+          <Button 
+            onClick={() => router.back()}
+            className="bg-gradient-to-r from-blue-600 to-purple-600"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
       </div>
     )
@@ -290,15 +292,14 @@ export default function NCloudPage() {
       <div className="relative z-10">
         {/* Header */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          <Link href="/">
-            <Button
-              variant="outline"
-              className="mb-6 bg-white/5 backdrop-blur-xl border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </Link>
+          <Button
+            onClick={() => router.back()}
+            variant="outline"
+            className="mb-6 bg-white/5 backdrop-blur-xl border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
 
         {/* Hero Section */}

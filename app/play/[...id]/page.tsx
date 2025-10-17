@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ChevronLeft, Film, ExternalLink, Info, Play, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,6 +14,7 @@ interface PlayPageProps {
 }
 
 export default function PlayPage({ params }: PlayPageProps) {
+  const router = useRouter()
   const [videoUrl, setVideoUrl] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [showExternalOptions, setShowExternalOptions] = useState(false)
@@ -68,12 +70,13 @@ export default function PlayPage({ params }: PlayPageProps) {
           <Film className="h-24 w-24 text-gray-600 mx-auto mb-6" />
           <h1 className="text-2xl font-bold text-white mb-4">Playback Error</h1>
           <p className="text-gray-400 mb-6">{error}</p>
-          <Link href="/">
-            <Button className="netflix-gradient">
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+          <Button 
+            onClick={() => router.back()}
+            className="netflix-gradient"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
       </div>
     )
@@ -94,16 +97,15 @@ export default function PlayPage({ params }: PlayPageProps) {
     <div className="min-h-screen bg-black">
       {/* Header for mobile/desktop navigation */}
       <div className="absolute top-4 left-4 z-40 md:hidden">
-        <Link href="/">
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-black/50 backdrop-blur-sm border-white/20 text-white hover:bg-black/70"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
-        </Link>
+        <Button
+          onClick={() => router.back()}
+          variant="outline"
+          size="sm"
+          className="bg-black/50 backdrop-blur-sm border-white/20 text-white hover:bg-black/70"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Back
+        </Button>
       </div>
 
       {/* External Player Option Button */}

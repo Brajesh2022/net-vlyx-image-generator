@@ -3,8 +3,10 @@
 import { useState } from "react"
 import { ArrowLeft, Heart, Smartphone, QrCode, IndianRupee, Shield, Zap } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function ContributionPage() {
+  const router = useRouter()
   const [amount, setAmount] = useState("")
   const [showPayment, setShowPayment] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'qr'>('upi')
@@ -51,10 +53,13 @@ export default function ContributionPage() {
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header */}
         <div className="p-4 sm:p-6">
-          <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white transition-all duration-300 hover:scale-105">
+          <button 
+            onClick={() => router.back()}
+            className="inline-flex items-center text-gray-400 hover:text-white transition-all duration-300 hover:scale-105"
+          >
             <ArrowLeft className="h-5 w-5 mr-2" />
             Back
-          </Link>
+          </button>
         </div>
 
         {/* Main Content */}

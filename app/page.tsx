@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { Search, Film, Star, Play, ChevronLeft, ChevronRight, Info, Heart, MessageSquare, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -41,21 +42,31 @@ const VEGA_CATEGORIES = [
 ]
 
 export default function Home() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("home")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Initialize state from URL params for back navigation support
+  const urlSearch = searchParams.get('search') || ''
+  const urlCategory = searchParams.get('category') || 'home'
+  
+  const [searchTerm, setSearchTerm] = useState(urlSearch)
+  const [selectedCategory, setSelectedCategory] = useState(urlCategory)
   const [currentPage, setCurrentPage] = useState(1)
   const [allMovies, setAllMovies] = useState<Movie[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
   const [showWishlistModal, setShowWishlistModal] = useState(false)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
-  const [showSearchBar, setShowSearchBar] = useState(false)
+  const [showSearchBar, setShowSearchBar] = useState(!!urlSearch)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [loadingMovieId, setLoadingMovieId] = useState<string | null>(null)
+  const [isNavigating, setIsNavigating] = useState(false)
   const searchTimeout = useRef<NodeJS.Timeout>()
   const slideInterval = useRef<NodeJS.Timeout>()
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>()
   const containerRef = useRef<HTMLDivElement>(null)
+  const isInitialMount = useRef(true)
 
   // TMDb API Key (used directly for testing as requested)
   const API_KEY = "848d4c9db9d3f19d0229dc95735190d3"
@@ -140,6 +151,16 @@ export default function Home() {
 
   const handleSearchInputChange = (value: string) => {
     setSearchTerm(value)
+    
+    // Update URL with search term
+    const params = new URLSearchParams(window.location.search)
+    if (value) {
+      params.set('search', value)
+    } else {
+      params.delete('search')
+    }
+    router.replace(`/?${params.toString()}`, { scroll: false })
+    
     clearTimeout(searchTimeout.current)
     searchTimeout.current = setTimeout(() => {
       refetch()
@@ -173,6 +194,11 @@ export default function Home() {
     setSuggestions([])
     setShowSuggestions(false)
     setShowSearchBar(false)
+    
+    // Clear search from URL
+    const params = new URLSearchParams(window.location.search)
+    params.delete('search')
+    router.replace(`/?${params.toString()}`, { scroll: false })
   }
 
   // Load more movies function (only for browsing, not search)
@@ -337,6 +363,24 @@ export default function Home() {
       clearTimeout(searchTimeout.current)
     }
   }, [])
+
+  // Reset loading state on route change (backup, in case navigation fails)
+  useEffect(() => {
+    const handleRouteChange = () => {
+      setIsNavigating(false)
+      setLoadingMovieId(null)
+    }
+    
+    // Fallback timeout to reset loading state if navigation takes too long
+    if (isNavigating) {
+      const timeout = setTimeout(() => {
+        setIsNavigating(false)
+        setLoadingMovieId(null)
+      }, 10000) // 10 seconds timeout
+      
+      return () => clearTimeout(timeout)
+    }
+  }, [isNavigating])
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
@@ -569,12 +613,27 @@ export default function Home() {
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                         {heroSlides[currentSlide].movieUrl ? (
-                          <Link href={heroSlides[currentSlide].movieUrl}>
-                            <Button className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base">
-                              <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                              Watch Now
-                            </Button>
-                          </Link>
+                          <Button 
+                            onClick={() => {
+                              setLoadingMovieId('hero-slide')
+                              setIsNavigating(true)
+                              router.push(heroSlides[currentSlide].movieUrl!)
+                            }}
+                            disabled={isNavigating}
+                            className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base disabled:opacity-70 disabled:cursor-not-allowed"
+                          >
+                            {isNavigating && loadingMovieId === 'hero-slide' ? (
+                              <>
+                                <div className="w-4 h-4 sm:w-5 sm:h-5 mr-2 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                                Watch Now
+                              </>
+                            )}
+                          </Button>
                         ) : (
                           <Button className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base">
                             <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
@@ -644,9 +703,19 @@ export default function Home() {
                   <select
                     value={selectedCategory}
                     onChange={(e) => {
-                      setSelectedCategory(e.target.value)
+                      const newCategory = e.target.value
+                      setSelectedCategory(newCategory)
                       setCurrentPage(1)
                       setAllMovies([])
+                      
+                      // Update URL with category
+                      const params = new URLSearchParams(window.location.search)
+                      if (newCategory !== 'home') {
+                        params.set('category', newCategory)
+                      } else {
+                        params.delete('category')
+                      }
+                      router.replace(`/?${params.toString()}`, { scroll: false })
                     }}
                     className="px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-red-500 focus:ring-red-500/20"
                   >
@@ -715,43 +784,63 @@ export default function Home() {
                   movie.image ||
                   "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
 
+                const movieId = `m-${index}-${slug.substring(0, 50)}`
+                const isLoading = loadingMovieId === movieId
+
                 return (
-                  <Link key={`m-${index}-${slug.substring(0, 50)}`} href={movieUrl}>
-                    <div className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10">
-                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900">
-                        <SecureImage
-                          src={imgSrc || "/placeholder.svg"}
-                          alt={movie.title}
-                          fill
-                          className="object-cover transition-transform duration-300 group-hover:scale-110"
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                            <Play className="h-6 w-6 text-white ml-1" />
+                  <div 
+                    key={movieId} 
+                    onClick={() => {
+                      setLoadingMovieId(movieId)
+                      setIsNavigating(true)
+                      router.push(movieUrl)
+                    }}
+                    className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10"
+                  >
+                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900">
+                      <SecureImage
+                        src={imgSrc || "/placeholder.svg"}
+                        alt={movie.title}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-110"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      
+                      {/* Loading overlay */}
+                      {isLoading && (
+                        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in duration-200">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+                            <span className="text-white text-xs font-medium">Loading...</span>
                           </div>
                         </div>
-                        {movie.category && (
-                          <Badge className="absolute top-2 right-2 bg-red-600/90 text-white text-xs">
-                            {movie.category}
-                          </Badge>
-                        )}
-                        <div className="absolute top-2 left-2 flex items-center space-x-1">
-                          <Badge className="bg-yellow-600/90 text-white text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            HD
-                          </Badge>
+                      )}
+                      
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                          <Play className="h-6 w-6 text-white ml-1" />
                         </div>
                       </div>
-                      <div className="mt-3 px-1">
-                        <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover:text-red-400 transition-colors">
-                          {movie.title}
-                        </h4>
-                        <p className="text-gray-400 text-xs mt-1 line-clamp-2">{movie.description}</p>
+                      {movie.category && (
+                        <Badge className="absolute top-2 right-2 bg-red-600/90 text-white text-xs">
+                          {movie.category}
+                        </Badge>
+                      )}
+                      <div className="absolute top-2 left-2 flex items-center space-x-1">
+                        <Badge className="bg-yellow-600/90 text-white text-xs">
+                          <Star className="h-3 w-3 mr-1" />
+                          HD
+                        </Badge>
                       </div>
                     </div>
-                  </Link>
+                    <div className="mt-3 px-1">
+                      <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover:text-red-400 transition-colors">
+                        {movie.title}
+                      </h4>
+                      <p className="text-gray-400 text-xs mt-1 line-clamp-2">{movie.description}</p>
+                    </div>
+                  </div>
                 )
               })}
             </div>
@@ -901,6 +990,27 @@ export default function Home() {
 
       {/* Feedback Review Component */}
       <FeedbackReview isOpen={showFeedbackModal} onOpenChange={setShowFeedbackModal} />
+
+      {/* Global Navigation Loading Overlay */}
+      {isNavigating && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
+          <div className="bg-gray-900/90 backdrop-blur-xl border border-gray-700 rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-sm mx-4">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-red-600/30 rounded-full" />
+              <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin absolute top-0 left-0" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-white font-semibold text-lg mb-1">Loading Movie...</h3>
+              <p className="text-gray-400 text-sm">Please wait while we prepare your content</p>
+            </div>
+            <div className="flex gap-1 mt-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

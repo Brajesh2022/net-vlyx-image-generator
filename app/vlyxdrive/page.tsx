@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import Link from "next/link"
 import { Download, Star, ChevronLeft, ExternalLink, AlertCircle, Eye, Calendar, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -72,6 +71,7 @@ interface TMDbDetails {
 
 export default function VlyxDrivePage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const key = searchParams.get("key")
   
   // Decode parameters from key (backward compatible)
@@ -89,6 +89,30 @@ export default function VlyxDrivePage() {
   const [showDownloadModal, setShowDownloadModal] = useState(false)
   const [showNCloudConfirm, setShowNCloudConfirm] = useState(false)
   const [selectedNCloudServer, setSelectedNCloudServer] = useState<{name: string, url: string} | null>(null)
+
+  // Smart back navigation handler
+  const handleBackNavigation = () => {
+    // Check if page was opened in new tab/window (has window.opener or no history)
+    const isNewTab = window.opener !== null || window.history.length <= 1
+    
+    if (isNewTab) {
+      // If opened in new tab, try to close it, or fallback to going back to movie page
+      if (window.opener) {
+        window.close()
+      } else {
+        // Check if we have a referrer from our own domain
+        const referrer = document.referrer
+        if (referrer && referrer.includes(window.location.hostname)) {
+          window.location.href = referrer
+        } else {
+          router.push('/')
+        }
+      }
+    } else {
+      // Normal navigation - just go back
+      window.history.back()
+    }
+  }
 
   // Extract IMDb ID and type from the URL parameter
   const extractImdbInfo = (tmdbid: string | null) => {
@@ -359,12 +383,13 @@ export default function VlyxDrivePage() {
           <AlertCircle className="h-24 w-24 text-red-500 mx-auto mb-6" />
           <h1 className="text-2xl font-bold mb-4">Invalid URL</h1>
           <p className="text-gray-400 mb-6">Missing required parameters (link or driveid) and tmdbid. Please access through a movie page.</p>
-          <Link href="/">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+          <Button 
+            onClick={handleBackNavigation}
+            className="bg-gradient-to-r from-blue-600 to-purple-600"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
       </div>
     )
@@ -381,12 +406,13 @@ export default function VlyxDrivePage() {
           <AlertCircle className="h-24 w-24 text-red-500 mx-auto mb-6" />
           <h1 className="text-2xl font-bold mb-4">Failed to Load Content</h1>
           <p className="text-gray-400 mb-6">Unable to fetch download information</p>
-          <Link href="/">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+          <Button 
+            onClick={handleBackNavigation}
+            className="bg-gradient-to-r from-blue-600 to-purple-600"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
       </div>
     )
@@ -404,15 +430,14 @@ export default function VlyxDrivePage() {
         {/* Simple Header */}
         <section className="py-8 bg-gradient-to-r from-gray-900 to-gray-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Link href="/">
-              <Button
-                variant="outline"
-                className="mb-6 bg-black/30 backdrop-blur-sm border-white/20 text-white hover:bg-black/50"
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
+            <Button
+              onClick={handleBackNavigation}
+              variant="outline"
+              className="mb-6 bg-black/30 backdrop-blur-sm border-white/20 text-white hover:bg-black/50"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
 
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-white">{displayTitle}</h1>
@@ -551,15 +576,14 @@ export default function VlyxDrivePage() {
 
         <div className="relative z-10 pt-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Link href="/">
-              <Button
-                variant="outline"
-                className="mb-8 bg-black/30 backdrop-blur-sm border-white/20 text-white hover:bg-black/50"
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
+            <Button
+              onClick={handleBackNavigation}
+              variant="outline"
+              className="mb-8 bg-black/30 backdrop-blur-sm border-white/20 text-white hover:bg-black/50"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
           </div>
         </div>
 

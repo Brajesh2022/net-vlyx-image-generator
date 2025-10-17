@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ChevronLeft, Download, Loader2, CheckCircle, X, Film } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -11,6 +12,7 @@ interface DownloadPageProps {
 }
 
 export default function DownloadPage({ params }: DownloadPageProps) {
+  const router = useRouter()
   const [isExtracting, setIsExtracting] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -129,10 +131,13 @@ export default function DownloadPage({ params }: DownloadPageProps) {
       <div className="w-full max-w-md mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white mb-6 transition-colors">
+          <button 
+            onClick={() => router.back()}
+            className="inline-flex items-center text-gray-400 hover:text-white mb-6 transition-colors"
+          >
             <ChevronLeft className="h-4 w-4 mr-1" />
             Back
-          </Link>
+          </button>
           <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <Film className="h-8 w-8 text-white" />
           </div>

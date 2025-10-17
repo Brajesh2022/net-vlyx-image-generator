@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import { useParams, useSearchParams } from "next/navigation"
+import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { decodeMovieUrl, encodeVlyxDriveParams, replaceBrandingText } from "@/lib/utils"
 import {
@@ -82,6 +82,7 @@ const VegaDebugPopup = dynamic(() => import("@/components/vega-debug-popup"), { 
 export default function VegaMoviePage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const router = useRouter()
   
   // Extract encoded slug from params
   const encodedSlug = Array.isArray(params?.slug) ? params.slug.join("/") : (params?.slug as string) || ""
@@ -630,12 +631,13 @@ export default function VegaMoviePage() {
           <p className="text-gray-400 mb-6">
             The movie you're looking for doesn't exist or failed to load from VegaMovies.
           </p>
-          <Link href="/">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+          <Button 
+            onClick={() => router.back()}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
       </div>
     )
@@ -660,15 +662,14 @@ export default function VegaMoviePage() {
         {/* Navigation */}
         <div className="relative z-10 pt-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Link href="/">
-              <Button
-                variant="outline"
-                className="mb-8 bg-black/30 backdrop-blur-sm border-white/20 text-white hover:bg-black/50 transition-all duration-300"
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
+            <Button
+              onClick={() => router.back()}
+              variant="outline"
+              className="mb-8 bg-black/30 backdrop-blur-sm border-white/20 text-white hover:bg-black/50 transition-all duration-300"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
           </div>
         </div>
 
@@ -1538,7 +1539,7 @@ export default function VegaMoviePage() {
                                       item.link.label,
                                       item.season,
                                     )
-                                    window.open(nextdriveUrl, "_blank")
+                                    router.push(nextdriveUrl)
                                   }}
                                   disabled={!item.link.url || item.link.url === "#"}
                                 >
@@ -1610,7 +1611,7 @@ export default function VegaMoviePage() {
                                       item.link.label,
                                       item.season,
                                     )
-                                    window.open(nextdriveUrl, "_blank")
+                                    router.push(nextdriveUrl)
                                   }}
                                   disabled={!item.link.url || item.link.url === "#"}
                                 >

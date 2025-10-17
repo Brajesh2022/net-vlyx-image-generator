@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import { useSearchParams, useParams } from "next/navigation"
+import { useSearchParams, useParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import {
   Star,
@@ -76,6 +76,7 @@ interface TMDbDetails {
 export default function LuxMoviePage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const srcHost = searchParams.get("src") || "https://www.vegamovies-nl.bond/"
   const slug = Array.isArray(params?.slug) ? params.slug.join("/") : (params?.slug as string) || ""
 
@@ -396,12 +397,13 @@ export default function LuxMoviePage() {
           <Film className="h-24 w-24 text-gray-600 mx-auto mb-6" />
           <h1 className="text-2xl font-bold text-white mb-4">Movie Not Found</h1>
           <p className="text-gray-400 mb-6">The movie you're looking for doesn't exist or failed to load.</p>
-          <Link href="/">
-            <Button className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700">
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+          <Button 
+            onClick={() => router.back()}
+            className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
       </div>
     )
@@ -426,15 +428,14 @@ export default function LuxMoviePage() {
         {/* Navigation */}
         <div className="relative z-10 pt-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Link href="/">
-              <Button
-                variant="outline"
-                className="mb-8 bg-black/30 backdrop-blur-sm border-white/20 text-white hover:bg-black/50 transition-all duration-300"
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
+            <Button
+              onClick={() => router.back()}
+              variant="outline"
+              className="mb-8 bg-black/30 backdrop-blur-sm border-white/20 text-white hover:bg-black/50 transition-all duration-300"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
           </div>
         </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ChevronLeft, Download, PlayCircle, Loader2, CheckCircle, X, AlertCircle, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -36,6 +37,7 @@ interface ProcessingState {
 }
 
 export default function VlyxQualityPage() {
+  const router = useRouter()
   const [qualities, setQualities] = useState<VlyxQuality[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>("")
@@ -468,12 +470,13 @@ export default function VlyxQualityPage() {
               </Button>
             </div>
           )}
-          <Link href="/">
-            <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+          <Button 
+            onClick={() => router.back()}
+            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
       </div>
     )
@@ -484,10 +487,13 @@ export default function VlyxQualityPage() {
       <div className="w-full max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white mb-6 transition-colors">
+          <button 
+            onClick={() => router.back()}
+            className="inline-flex items-center text-gray-400 hover:text-white mb-6 transition-colors"
+          >
             <ChevronLeft className="h-4 w-4 mr-1" />
             Back
-          </Link>
+          </button>
           <h1 className="text-2xl font-bold text-white mb-2">Select Quality</h1>
           <p className="text-gray-400">Choose your preferred quality</p>
         </div>
