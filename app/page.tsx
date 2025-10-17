@@ -171,13 +171,13 @@ export default function Home() {
     clearTimeout(searchTimeout.current)
     searchTimeout.current = setTimeout(() => {
       refetch()
-    }, 500)
+    }, 300) // Reduced from 500ms to 300ms for faster search
 
     // TMDb suggestions
     clearTimeout(debounceTimer.current)
     debounceTimer.current = setTimeout(() => {
       fetchSuggestions(value)
-    }, 300)
+    }, 200) // Reduced from 300ms to 200ms for faster suggestions
   }
 
   const handleSearchSubmit = () => {
@@ -189,10 +189,8 @@ export default function Home() {
     setSearchTerm(suggestion)
     setShowSuggestions(false)
     setSuggestions([])
-    // Trigger the internal search
-    setTimeout(() => {
-      refetch()
-    }, 100)
+    // Trigger the internal search immediately
+    refetch()
   }
 
   // Handle closing search bar - clears everything
@@ -418,7 +416,7 @@ export default function Home() {
       const timeout = setTimeout(() => {
         setIsNavigating(false)
         setLoadingMovieId(null)
-      }, 10000) // 10 seconds timeout
+      }, 5000) // 5 seconds timeout (reduced from 10s for faster recovery)
       
       return () => clearTimeout(timeout)
     }

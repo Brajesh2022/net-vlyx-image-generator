@@ -4,8 +4,9 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { decodeNCloudParams, replaceBrandingText } from "@/lib/utils"
-import { ChevronLeft, Download, Play, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { ChevronLeft, Download, Play, Sparkles, Loader2, CheckCircle2, AlertCircle, X, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface DownloadLink {
   url: string
@@ -25,6 +26,7 @@ export default function NCloudPage() {
   const router = useRouter()
   const key = searchParams.get("key")
   const directUrl = searchParams.get("url")
+  const action = searchParams.get("action") as "stream" | "download" | null
   
   // Helper function to extract NCloud ID from URL
   const extractNCloudIdFromUrl = (url: string): string | null => {
@@ -45,7 +47,7 @@ export default function NCloudPage() {
     const extractedId = extractNCloudIdFromUrl(directUrl)
     params = {
       id: extractedId || "",
-      title: "N-Cloud Download",
+      title: action === "stream" ? "N-Cloud Stream" : "N-Cloud Download",
       poster: "/placeholder.svg",
     }
   } else if (key) {
@@ -87,6 +89,12 @@ export default function NCloudPage() {
   const [isZipFile, setIsZipFile] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
   const [showMoreOptions, setShowMoreOptions] = useState(false)
+  const [showStreamingPopup, setShowStreamingPopup] = useState(false)
+  const [streamingUrl, setStreamingUrl] = useState<string>("")
+  const [detectedOS, setDetectedOS] = useState<string>("")
+  const [showMxProModal, setShowMxProModal] = useState(false)
+  const [showDesktopHelpModal, setShowDesktopHelpModal] = useState(false)
+  const [desktopHelpType, setDesktopHelpType] = useState<"windows" | "mac">("windows")
   const statusRef = useRef<HTMLDivElement>(null)
 
   const colorClasses = [
@@ -235,10 +243,57 @@ export default function NCloudPage() {
   const handleLinkClick = (link: DownloadLink) => {
     if (isZipFile) {
       window.open(link.url, "_blank")
+    } else if (action) {
+      // If action parameter is present, automatically perform that action
+      if (action === "stream") {
+        // Show streaming popup instead of direct action
+        setStreamingUrl(link.url)
+        setShowStreamingPopup(true)
+      } else if (action === "download") {
+        handleDownload(link.url)
+      }
     } else {
+      // No action parameter, show the two-option prompt
       setSelectedLink(link)
     }
   }
+
+  // OS Detection function
+  const detectOS = (): string => {
+    if (typeof window === 'undefined') return 'Other'
+    
+    const userAgent = window.navigator.userAgent
+    const platform = window.navigator.platform
+    const macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K']
+    const windowsPlatforms = ['Win32', 'Win64', 'Windows', 'WinCE']
+    const iosPlatforms = ['iPhone', 'iPad', 'iPod']
+
+    if (macosPlatforms.indexOf(platform) !== -1) return 'Mac'
+    if (iosPlatforms.indexOf(platform) !== -1) return 'iOS'
+    if (windowsPlatforms.indexOf(platform) !== -1) return 'Windows'
+    if (/Android/.test(userAgent)) return 'Android'
+    return 'Other'
+  }
+
+  // Download M3U file function
+  const downloadM3u = (url: string) => {
+    const m3uContent = `#EXTM3U\n#EXTINF:-1,Stream\n${url}`
+    const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = 'stream.m3u'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(link.href)
+  }
+
+  // Detect OS when streaming popup opens
+  useEffect(() => {
+    if (showStreamingPopup && !detectedOS) {
+      setDetectedOS(detectOS())
+    }
+  }, [showStreamingPopup, detectedOS])
 
   const handleWatchOnline = (url: string) => {
     const isAndroid = /Android/i.test(navigator.userAgent)
@@ -278,8 +333,26 @@ export default function NCloudPage() {
     )
   }
 
-  const trustedLinks = downloadLinks.filter((l) => l.isTrusted)
-  const otherLinks = downloadLinks.filter((l) => !l.isTrusted)
+  // Blacklist filter - hide specific useless servers
+  const isBlacklistedServer = (link: DownloadLink): boolean => {
+    const blacklistedPatterns = [
+      /10gbps/i,
+      /gpdl2\.hubcdn\.fans/i,
+      /server.*:.*10gbps/i
+    ]
+    
+    return blacklistedPatterns.some(pattern => 
+      pattern.test(link.label) || pattern.test(link.url)
+    )
+  }
+
+  // Filter out blacklisted servers, but keep them if they're the only option
+  const filteredLinks = downloadLinks.length === 1 
+    ? downloadLinks 
+    : downloadLinks.filter(link => !isBlacklistedServer(link))
+
+  const trustedLinks = filteredLinks.filter((l) => l.isTrusted)
+  const otherLinks = filteredLinks.filter((l) => !l.isTrusted)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950 text-white relative overflow-hidden">
@@ -338,7 +411,9 @@ export default function NCloudPage() {
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4 text-green-400" />
-                    <span className="text-sm text-green-300">Ready to download</span>
+                    <span className="text-sm text-green-300">
+                      {action === "stream" ? "Ready to stream" : "Ready to download"}
+                    </span>
                   </>
                 )}
               </div>
@@ -346,7 +421,7 @@ export default function NCloudPage() {
           </div>
         </section>
 
-        {/* Download Options - Appears smoothly after processing */}
+        {/* Server Options - Appears smoothly after processing */}
         {!isProcessing && !error && downloadLinks.length > 0 && (
           <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-up">
             <div className="space-y-6">
@@ -356,7 +431,9 @@ export default function NCloudPage() {
                   {trustedLinks.length > 0 && (
                     <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
                       <Sparkles className="h-4 w-4 text-yellow-400" />
-                      <span>Recommended Servers</span>
+                      <span>
+                        {action === "stream" ? "Recommended Servers • Streaming" : "Recommended Servers"}
+                      </span>
                     </div>
                   )}
                   
@@ -373,14 +450,20 @@ export default function NCloudPage() {
                         <div className="bg-gray-900/90 backdrop-blur-xl rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                              <Download className="h-5 w-5 text-white" />
+                              {action === "stream" ? (
+                                <Play className="h-5 w-5 text-white" />
+                              ) : (
+                                <Download className="h-5 w-5 text-white" />
+                              )}
                             </div>
                             <div className="flex-1 min-w-0 text-left">
                               <p className="text-white font-semibold text-base sm:text-lg truncate">
                                 {link.label}
                               </p>
                               <p className="text-gray-400 text-xs sm:text-sm">
-                                {trustedLinks.length > 0 ? "Trusted • Fast Download" : "Available Server"}
+                                {trustedLinks.length > 0 
+                                  ? (action === "stream" ? "Trusted • Fast Streaming" : "Trusted • Fast Download")
+                                  : (action === "stream" ? "Available Server • Stream" : "Available Server")}
                               </p>
                             </div>
                           </div>
@@ -437,11 +520,17 @@ export default function NCloudPage() {
                             <div className="bg-gray-900/80 backdrop-blur-xl rounded-xl p-4 flex items-center justify-between gap-4">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                                  <span className="text-xs font-bold">{index + 1}</span>
+                                  {action === "stream" ? (
+                                    <Play className="h-4 w-4 text-white" />
+                                  ) : (
+                                    <span className="text-xs font-bold">{index + 1}</span>
+                                  )}
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
                                   <p className="text-white font-medium truncate">{link.label}</p>
-                                  <p className="text-gray-400 text-xs">Alternative Server</p>
+                                  <p className="text-gray-400 text-xs">
+                                    {action === "stream" ? "Alternative Server • Stream" : "Alternative Server"}
+                                  </p>
                                 </div>
                               </div>
                               <ChevronLeft className="h-4 w-4 text-gray-400 rotate-180 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
@@ -527,6 +616,425 @@ export default function NCloudPage() {
         </div>
       </div>
 
+      {/* Streaming Popup Modal - Redesigned Beautiful Version */}
+      {showStreamingPopup && (
+        <Dialog open={showStreamingPopup} onOpenChange={setShowStreamingPopup}>
+          <DialogContent className="max-w-4xl w-full bg-black/95 backdrop-blur-2xl border border-white/10 p-0 gap-0 max-h-[95vh] overflow-hidden shadow-2xl">
+            {/* Animated Background Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20 opacity-50 blur-3xl" />
+            
+            {/* Close Button - Floating */}
+            <button
+              onClick={() => setShowStreamingPopup(false)}
+              className="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 backdrop-blur-xl transition-all duration-300 group"
+            >
+              <X className="h-5 w-5 text-white/70 group-hover:text-red-400 group-hover:rotate-90 transition-all duration-300" />
+            </button>
+
+            {/* Content Container */}
+            <div className="relative z-10">
+              {/* Elegant Header */}
+              <div className="relative px-6 sm:px-8 pt-8 pb-6">
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative mb-4">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur-xl opacity-60 animate-pulse" />
+                    <div className="relative w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-2xl">
+                      <Play className="h-8 w-8 text-white" />
+                    </div>
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                    Choose Your Player
+                  </h2>
+                  <p className="text-gray-400 text-sm sm:text-base">
+                    Select the best option for your device
+                  </p>
+                </div>
+              </div>
+
+              {/* Important Notice Banner */}
+              <div className="mx-6 sm:mx-8 mb-6">
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-amber-500/20 p-4">
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent" />
+                  <div className="relative flex items-center gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                      <AlertCircle className="h-5 w-5 text-amber-400" />
+                    </div>
+                    <p className="text-amber-200 text-sm sm:text-base font-medium">
+                      If playback fails, try selecting a different server from the previous page
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Device Selector - Premium Style */}
+              <div className="mx-6 sm:mx-8 mb-6">
+                <div className="relative">
+                  <select
+                    value={detectedOS}
+                    onChange={(e) => setDetectedOS(e.target.value)}
+                    className="w-full bg-white/5 backdrop-blur-xl border border-white/10 text-white rounded-xl px-4 py-3.5 pr-10 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer hover:bg-white/10 text-base font-medium"
+                  >
+                    <option value="iOS" className="bg-gray-900">📱 iOS (iPhone/iPad)</option>
+                    <option value="Android" className="bg-gray-900">🤖 Android</option>
+                    <option value="Windows" className="bg-gray-900">🪟 Windows</option>
+                    <option value="Mac" className="bg-gray-900">🍎 macOS</option>
+                    <option value="Other" className="bg-gray-900">🐧 Other (Linux, etc)</option>
+                  </select>
+                  <ChevronLeft className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 pointer-events-none rotate-[-90deg]" />
+                </div>
+              </div>
+
+              {/* Player Options - Beautiful Cards */}
+              <div className="px-6 sm:px-8 pb-8 overflow-y-auto max-h-[calc(95vh-320px)] custom-scrollbar">
+                {/* iOS Options */}
+                {detectedOS === 'iOS' && (
+                  <div className="group">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 via-red-500/10 to-pink-500/10 border border-orange-500/20 p-6 sm:p-8 hover:border-orange-500/40 transition-all duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="relative flex flex-col sm:flex-row items-center gap-6">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-orange-500/20 rounded-2xl blur-xl" />
+                          <img src="https://i.ibb.co/0VfBwckX/vlc-logo.png" alt="VLC" className="relative w-20 h-20 sm:w-24 sm:h-24" />
+                        </div>
+                        <div className="flex-1 text-center sm:text-left">
+                          <h3 className="text-2xl font-bold text-white mb-2">VLC Player</h3>
+                          <p className="text-gray-300 mb-1">Best choice for iOS devices</p>
+                          <div className="flex items-center gap-2 justify-center sm:justify-start">
+                            <Star className="h-4 w-4 text-orange-400 fill-orange-400" />
+                            <span className="text-orange-400 text-sm font-medium">Recommended</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-3 w-full sm:w-auto">
+                          <a
+                            href={`vlc://stream?url=${encodeURIComponent(streamingUrl)}`}
+                            className="text-center bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-xl px-8 py-3.5 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-orange-500/50"
+                          >
+                            <Play className="h-5 w-5 inline mr-2" />
+                            Play Now
+                          </a>
+                          <a
+                            href="https://apps.apple.com/us/app/vlc-for-mobile/id650377962"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-center bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-xl px-8 py-3 transition-all duration-300"
+                          >
+                            Install VLC
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Android Options */}
+                {detectedOS === 'Android' && (
+                  <div className="space-y-4">
+                    {/* VLC */}
+                    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 via-red-500/10 to-pink-500/10 border border-orange-500/20 p-5 hover:border-orange-500/40 transition-all duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="relative flex items-center gap-4">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-orange-500/20 rounded-xl blur-lg" />
+                          <img src="https://i.ibb.co/0VfBwckX/vlc-logo.png" alt="VLC" className="relative w-16 h-16" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-xl font-bold text-white mb-1">VLC Player</h4>
+                          <div className="flex items-center gap-2">
+                            <Star className="h-3.5 w-3.5 text-orange-400 fill-orange-400" />
+                            <span className="text-orange-400 text-xs font-medium">Most Reliable</span>
+                          </div>
+                        </div>
+                        <a
+                          href={`intent:${streamingUrl}#Intent;package=org.videolan.vlc;scheme=https;end`}
+                          className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-xl px-6 py-2.5 transition-all duration-300 transform hover:scale-105 shadow-lg flex-shrink-0"
+                        >
+                          <Play className="h-4 w-4 inline mr-1.5" />
+                          Play
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* MX Player */}
+                    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-teal-500/10 border border-blue-500/20 p-5 hover:border-blue-500/40 transition-all duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="relative flex items-center gap-4">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-lg" />
+                          <img src="https://i.ibb.co/kVhq9tcq/mx-player.png" alt="MX Player" className="relative w-16 h-16 rounded-full" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-xl font-bold text-white mb-1">MX Player</h4>
+                          <p className="text-gray-400 text-xs">Popular Android player</p>
+                        </div>
+                        <a
+                          href={`intent:${streamingUrl}#Intent;package=com.mxtech.videoplayer.ad;scheme=https;end`}
+                          className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold rounded-xl px-6 py-2.5 transition-all duration-300 transform hover:scale-105 shadow-lg flex-shrink-0"
+                        >
+                          <Play className="h-4 w-4 inline mr-1.5" />
+                          Play
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Other Players */}
+                    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 via-green-500/10 to-teal-500/10 border border-emerald-500/20 p-5 hover:border-emerald-500/40 transition-all duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="relative space-y-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+                            <Play className="h-8 w-8 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-xl font-bold text-white mb-1">Other Players</h4>
+                            <p className="text-gray-400 text-xs">Choose from your installed apps</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <a
+                            href={`intent:${streamingUrl}#Intent;action=android.intent.action.VIEW;type=video/*;end`}
+                            className="text-center bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-xl px-5 py-3 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                          >
+                            Choose Player
+                          </a>
+                          <button
+                            onClick={() => setShowMxProModal(true)}
+                            className="text-center bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-xl px-5 py-3 transition-all duration-300"
+                          >
+                            Get MX Pro
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Windows Options */}
+                {detectedOS === 'Windows' && (
+                  <div className="space-y-4">
+                    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 via-red-500/10 to-pink-500/10 border border-orange-500/20 p-6 sm:p-8 hover:border-orange-500/40 transition-all duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="relative flex flex-col items-center gap-6">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-orange-500/20 rounded-2xl blur-xl" />
+                          <img src="https://i.ibb.co/0VfBwckX/vlc-logo.png" alt="VLC" className="relative w-24 h-24" />
+                        </div>
+                        <div className="text-center">
+                          <h3 className="text-2xl font-bold text-white mb-2">VLC Media Player</h3>
+                          <p className="text-gray-300">Click below to open in VLC</p>
+                        </div>
+                        <a
+                          href={`vlc://${streamingUrl}`}
+                          className="w-full sm:w-auto text-center bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-xl px-10 py-4 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-orange-500/50"
+                        >
+                          <Play className="h-5 w-5 inline mr-2" />
+                          Launch VLC
+                        </a>
+                        <button
+                          onClick={() => {
+                            downloadM3u(streamingUrl)
+                            setDesktopHelpType('windows')
+                            setShowDesktopHelpModal(true)
+                          }}
+                          className="text-blue-400 hover:text-blue-300 text-sm font-medium underline"
+                        >
+                          Having trouble? Try the .m3u file method
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mac & Other Options */}
+                {(detectedOS === 'Mac' || detectedOS === 'Other') && (
+                  <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 via-red-500/10 to-pink-500/10 border border-orange-500/20 p-6 sm:p-8 hover:border-orange-500/40 transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative flex flex-col items-center gap-6">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-orange-500/20 rounded-2xl blur-xl" />
+                        <img src="https://i.ibb.co/0VfBwckX/vlc-logo.png" alt="VLC" className="relative w-24 h-24" />
+                      </div>
+                      <div className="text-center">
+                        <h3 className="text-2xl font-bold text-white mb-2">VLC Media Player</h3>
+                        <p className="text-gray-300">Download playlist file to play in VLC</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          downloadM3u(streamingUrl)
+                          setDesktopHelpType('mac')
+                          setShowDesktopHelpModal(true)
+                        }}
+                        className="w-full sm:w-auto text-center bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-xl px-10 py-4 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-orange-500/50"
+                      >
+                        <Download className="h-5 w-5 inline mr-2" />
+                        Download .m3u File
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* MX Player Pro Download Modal - Beautiful Design */}
+      <Dialog open={showMxProModal} onOpenChange={setShowMxProModal}>
+        <DialogContent className="max-w-lg bg-black/95 backdrop-blur-2xl border border-white/10 shadow-2xl">
+          <div className="relative">
+            {/* Gradient Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-600/10 to-pink-600/10 rounded-lg" />
+            
+            <div className="relative">
+              <DialogHeader>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Download className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-2xl font-bold text-white">MX Player Pro</DialogTitle>
+                    <p className="text-gray-400 text-sm">Installation Guide</p>
+                  </div>
+                </div>
+              </DialogHeader>
+              
+              <div className="space-y-4 mt-6">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    MX Player Pro has been removed from the Play Store. You can download the APK from trusted third-party sources.
+                  </p>
+                </div>
+                
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-5 space-y-3">
+                  <h4 className="text-white font-semibold mb-3">Installation Steps:</h4>
+                  <ol className="space-y-3 text-gray-300 text-sm">
+                    <li className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 text-xs font-bold">1</span>
+                      <span>Click the button below to visit a trusted source</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 text-xs font-bold">2</span>
+                      <span>Search for "MX Player Pro" on the website</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 text-xs font-bold">3</span>
+                      <span>Download the latest APK file</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 text-xs font-bold">4</span>
+                      <span>Install and allow from unknown sources if prompted</span>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button
+                  onClick={() => setShowMxProModal(false)}
+                  className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white"
+                >
+                  Close
+                </Button>
+                <a
+                  href="https://vlyx-mod.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-center bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-lg px-4 py-2.5 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  Visit Site
+                </a>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Desktop Help Modal - Beautiful Design */}
+      <Dialog open={showDesktopHelpModal} onOpenChange={setShowDesktopHelpModal}>
+        <DialogContent className="max-w-lg bg-black/95 backdrop-blur-2xl border border-white/10 shadow-2xl">
+          <div className="relative">
+            {/* Gradient Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-red-600/10 to-pink-600/10 rounded-lg" />
+            
+            <div className="relative">
+              <DialogHeader>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <CheckCircle2 className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-2xl font-bold text-white">File Downloaded!</DialogTitle>
+                    <p className="text-gray-400 text-sm">How to open stream.m3u</p>
+                  </div>
+                </div>
+              </DialogHeader>
+              
+              <div className="space-y-4 mt-6">
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
+                  <p className="text-gray-300 text-sm">
+                    A file called <code className="bg-black/50 px-2 py-1 rounded text-green-400 font-mono">stream.m3u</code> has been saved to your Downloads folder.
+                  </p>
+                </div>
+                
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-5 space-y-3">
+                  <h4 className="text-white font-semibold mb-3">
+                    {desktopHelpType === 'windows' ? '🪟 Windows Instructions:' : '🍎 macOS Instructions:'}
+                  </h4>
+                  {desktopHelpType === 'windows' ? (
+                    <ol className="space-y-3 text-gray-300 text-sm">
+                      <li className="flex gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">1</span>
+                        <span>Right-click on the downloaded file</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">2</span>
+                        <span>Hover over "Open with"</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">3</span>
+                        <span>If VLC is not listed, click "Choose another app"</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">4</span>
+                        <span>Select "VLC media player" and click "OK"</span>
+                      </li>
+                    </ol>
+                  ) : (
+                    <ol className="space-y-3 text-gray-300 text-sm">
+                      <li className="flex gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">1</span>
+                        <span>Double-click the file (should open in VLC)</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">2</span>
+                        <span>If wrong app opens, right-click the file</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">3</span>
+                        <span>Hover over "Open With"</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">4</span>
+                        <span>Select "VLC" from the applications list</span>
+                      </li>
+                    </ol>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <Button
+                  onClick={() => setShowDesktopHelpModal(false)}
+                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-3 shadow-lg"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Got it, thanks!
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <style jsx>{`
         @keyframes fade-in-up {
           from {
@@ -587,17 +1095,22 @@ export default function NCloudPage() {
         }
 
         .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
+          width: 8px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.2);
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 3px;
+          background: linear-gradient(to bottom, rgba(59, 130, 246, 0.5), rgba(147, 51, 234, 0.5));
+          border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
+          background: linear-gradient(to bottom, rgba(59, 130, 246, 0.7), rgba(147, 51, 234, 0.7));
+        }
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(59, 130, 246, 0.5) rgba(0, 0, 0, 0.3);
         }
       `}</style>
     </div>

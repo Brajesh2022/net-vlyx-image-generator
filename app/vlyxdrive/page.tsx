@@ -73,6 +73,7 @@ export default function VlyxDrivePage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const key = searchParams.get("key")
+  const action = searchParams.get("action") as "stream" | "download" | null
   
   // Decode parameters from key (backward compatible)
   const params = key ? decodeVlyxDriveParams(key) : {
@@ -326,17 +327,21 @@ export default function VlyxDrivePage() {
         ...(posterUrl && { poster: posterUrl })
       })
 
+      // Add action parameter if present
+      const actionParam = action ? `&action=${action}` : ''
+      
       // Check if encoding succeeded
       if (encodedKey && encodedKey.trim() !== '') {
-        window.location.href = `/ncloud?key=${encodedKey}`
+        window.location.href = `/ncloud?key=${encodedKey}${actionParam}`
       } else {
         // Fallback to direct URL method if encoding fails
-        window.location.href = `/ncloud?url=${encodeURIComponent(url)}`
+        window.location.href = `/ncloud?url=${encodeURIComponent(url)}${actionParam}`
       }
     } catch (error) {
       // If encoding throws an error, use fallback method
       console.error('Error encoding NCloud params, using fallback:', error)
-      window.location.href = `/ncloud?url=${encodeURIComponent(url)}`
+      const actionParam = action ? `&action=${action}` : ''
+      window.location.href = `/ncloud?url=${encodeURIComponent(url)}${actionParam}`
     }
   }
 

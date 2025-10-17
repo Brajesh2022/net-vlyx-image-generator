@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { decodeMovieUrl, encodeVlyxDriveParams, replaceBrandingText } from "@/lib/utils"
+import { decodeMovieUrl, encodeVlyxDriveParams, encodeNCloudParams, replaceBrandingText } from "@/lib/utils"
 import {
   Star,
   Download,
@@ -461,7 +461,33 @@ export default function VegaMoviePage() {
   }
 
   // Enhanced Vlyx-Drive URL generation function with encoding
-  const generateVlyxDriveUrl = (url: string, label: string, sectionSeason?: string | null): string => {
+  const generateVlyxDriveUrl = (url: string, label: string, sectionSeason?: string | null, action?: "stream" | "download"): string => {
+    // Check if it's an N-Cloud URL (vcloud.zip)
+    const isNCloudUrl = /vcloud\.zip/i.test(url)
+    
+    if (isNCloudUrl) {
+      // Extract N-Cloud ID from URL
+      try {
+        const urlObj = new URL(url)
+        const pathParts = urlObj.pathname.split('/').filter(Boolean)
+        const ncloudId = pathParts[pathParts.length - 1] || null
+        
+        if (ncloudId) {
+          // Use encodeNCloudParams for security
+          const encodedKey = encodeNCloudParams({
+            id: ncloudId,
+            title: movieDetails?.title,
+            poster: displayPoster
+          })
+          
+          const actionParam = action ? `&action=${action}` : ''
+          return `/ncloud?key=${encodedKey}${actionParam}`
+        }
+      } catch (error) {
+        console.error('Error extracting N-Cloud ID:', error)
+      }
+    }
+    
     // Check if it's ANY nextdrive URL (broader pattern to catch all nextdrive domains)
     const isNextDrive = /nex?drive/i.test(url)
     
@@ -482,7 +508,8 @@ export default function VegaMoviePage() {
         ...(serverName && { server: serverName })
       })
       
-      return `/vlyxdrive?key=${encodedKey}`
+      const actionParam = action ? `&action=${action}` : ''
+      return `/vlyxdrive?key=${encodedKey}${actionParam}`
     }
     
     // For non-nextdrive links, return original URL
@@ -1252,54 +1279,54 @@ export default function VegaMoviePage() {
           setShowScreenshotModal(open)
           if (!open) handleResetZoom()
         }}>
-          <DialogContent className="max-w-[95vw] max-h-[95vh] bg-black/95 border-gray-700 p-2">
-            <div className="relative">
+          <DialogContent className="max-w-full max-h-full w-screen h-screen bg-black border-none p-0 m-0">
+            <div className="relative w-full h-full flex flex-col">
               {/* Close Button */}
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute top-2 right-2 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+                className="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 bg-black/80 hover:bg-red-600 text-white rounded-full p-2 sm:p-3 border-2 border-white/20 shadow-lg transition-all duration-200"
                 onClick={() => {
                   setShowScreenshotModal(false)
                   handleResetZoom()
                 }}
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5 sm:h-6 sm:w-6" />
               </Button>
 
               {/* Zoom Controls */}
-              <div className="absolute top-2 left-2 z-20 flex gap-2">
+              <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-50 flex gap-1 sm:gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+                  className="bg-black/80 hover:bg-black/90 text-white rounded-full p-2 sm:p-3 border border-white/20 sm:border-2 shadow-lg"
                   onClick={handleZoomOut}
                   disabled={imageZoom <= 1}
                 >
-                  <span className="text-lg font-bold">−</span>
+                  <span className="text-base sm:text-lg font-bold">−</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-2"
+                  className="bg-black/80 hover:bg-black/90 text-white rounded-full px-2 py-2 sm:px-4 sm:py-3 border border-white/20 sm:border-2 shadow-lg"
                   onClick={handleResetZoom}
                 >
-                  <span className="text-xs font-medium">{Math.round(imageZoom * 100)}%</span>
+                  <span className="text-xs sm:text-sm font-medium">{Math.round(imageZoom * 100)}%</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+                  className="bg-black/80 hover:bg-black/90 text-white rounded-full p-2 sm:p-3 border border-white/20 sm:border-2 shadow-lg"
                   onClick={handleZoomIn}
                   disabled={imageZoom >= 3}
                 >
-                  <span className="text-lg font-bold">+</span>
+                  <span className="text-base sm:text-lg font-bold">+</span>
                 </Button>
               </div>
 
               {/* Image Display */}
               <div
-                className="relative aspect-video w-full max-h-[80vh] overflow-auto rounded-lg"
+                className="relative flex-1 flex items-center justify-center overflow-auto px-2 py-16 sm:px-4 sm:py-20"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
@@ -1308,7 +1335,7 @@ export default function VegaMoviePage() {
                 <img
                   src={displayImages[selectedScreenshot] || "/placeholder.svg"}
                   alt={`Movie Image ${selectedScreenshot + 1}`}
-                  className="w-full h-full object-contain transition-transform duration-200"
+                  className="w-auto h-auto max-w-full max-h-full object-contain transition-transform duration-200"
                   style={{
                     transform: `scale(${imageZoom}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
                     cursor: imageZoom > 1 ? 'move' : 'default'
@@ -1316,68 +1343,71 @@ export default function VegaMoviePage() {
                 />
 
                 {/* Navigation Arrows - Only show when not zoomed */}
-                {imageZoom === 1 && (
+                {imageZoom === 1 && displayImages.length > 1 && (
                   <>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 sm:p-3"
+                      className="absolute left-1 sm:left-4 top-1/2 transform -translate-y-1/2 bg-black/80 hover:bg-black/90 text-white rounded-full p-2 sm:p-4 border border-white/20 sm:border-2 shadow-lg"
                       onClick={() => {
                         setSelectedScreenshot((prev) => (prev === 0 ? displayImages.length - 1 : prev - 1))
                         handleResetZoom()
                       }}
                     >
-                      <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6" />
+                      <ChevronLeft className="h-5 w-5 sm:h-8 sm:w-8" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 sm:p-3"
+                      className="absolute right-1 sm:right-4 top-1/2 transform -translate-y-1/2 bg-black/80 hover:bg-black/90 text-white rounded-full p-2 sm:p-4 border border-white/20 sm:border-2 shadow-lg"
                       onClick={() => {
                         setSelectedScreenshot((prev) => (prev === displayImages.length - 1 ? 0 : prev + 1))
                         handleResetZoom()
                       }}
                     >
-                      <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6" />
+                      <ChevronRight className="h-5 w-5 sm:h-8 sm:w-8" />
                     </Button>
                   </>
                 )}
               </div>
 
-              {/* Image Counter */}
-              <div className="text-center mt-4">
-                <span className="text-gray-400 text-sm sm:text-base">
-                  {selectedScreenshot + 1} of {displayImages.length}
-                </span>
-              </div>
+              {/* Bottom Controls Bar */}
+              <div className="bg-gradient-to-t from-black/95 via-black/80 to-transparent py-3 px-2 sm:py-6 sm:px-4">
+                {/* Image Counter */}
+                <div className="text-center mb-2 sm:mb-4">
+                  <span className="text-white text-xs sm:text-base font-medium bg-black/50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full">
+                    {selectedScreenshot + 1} of {displayImages.length}
+                  </span>
+                </div>
 
-              {/* Thumbnail Navigation */}
-              <div className="flex gap-2 mt-4 justify-center overflow-x-auto pb-2">
-                {displayImages.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setSelectedScreenshot(index)
-                      handleResetZoom()
-                    }}
-                    className={`flex-shrink-0 w-12 h-9 sm:w-16 sm:h-12 rounded overflow-hidden border-2 transition-all ${
-                      index === selectedScreenshot ? "border-blue-500" : "border-transparent hover:border-gray-500"
-                    }`}
-                  >
-                    <img
-                      src={image || "/placeholder.svg"}
-                      alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
+                {/* Thumbnail Navigation */}
+                <div className="flex gap-1.5 sm:gap-2 justify-start sm:justify-center overflow-x-auto pb-2 px-2 sm:px-4 max-w-4xl mx-auto scrollbar-hide">
+                  {displayImages.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setSelectedScreenshot(index)
+                        handleResetZoom()
+                      }}
+                      className={`flex-shrink-0 w-12 h-9 sm:w-16 sm:h-12 rounded overflow-hidden border-2 transition-all ${
+                        index === selectedScreenshot ? "border-blue-500 ring-1 sm:ring-2 ring-blue-400" : "border-white/30 hover:border-white/60"
+                      }`}
+                    >
+                      <img
+                        src={image || "/placeholder.svg"}
+                        alt={`Thumbnail ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
 
-              {/* Zoom Help Text */}
-              <div className="text-center mt-2">
-                <p className="text-xs text-gray-500">
-                  <span className="hidden sm:inline">Use mouse wheel or </span>+/- to zoom • Pinch on mobile
-                </p>
+                {/* Zoom Help Text */}
+                <div className="text-center mt-2 sm:mt-3">
+                  <p className="text-xs text-gray-400">
+                    <span className="hidden sm:inline">Use mouse wheel or </span>+/- to zoom • Pinch on mobile
+                  </p>
+                </div>
               </div>
             </div>
           </DialogContent>
@@ -1533,11 +1563,13 @@ export default function VegaMoviePage() {
                                       : "bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
                                   }`}
                                   onClick={() => {
-                                    // Use enhanced nextdrive URL generation
+                                    // Use enhanced nextdrive URL generation with action parameter
+                                    const action = selectedMode === "watch" ? "stream" : "download"
                                     const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
+                                      action
                                     )
                                     router.push(nextdriveUrl)
                                   }}
@@ -1605,11 +1637,13 @@ export default function VegaMoviePage() {
                                       : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                                   }`}
                                   onClick={() => {
-                                    // Use enhanced nextdrive URL generation
+                                    // Use enhanced nextdrive URL generation with action parameter
+                                    const action = selectedMode === "watch" ? "stream" : "download"
                                     const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
+                                      action
                                     )
                                     router.push(nextdriveUrl)
                                   }}
@@ -1671,10 +1705,12 @@ export default function VegaMoviePage() {
                                 <Button
                                   className="w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                                   onClick={() => {
+                                    const action = selectedMode === "watch" ? "stream" : "download"
                                     const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
+                                      action
                                     )
                                     window.open(nextdriveUrl, "_blank")
                                   }}
@@ -1741,10 +1777,12 @@ export default function VegaMoviePage() {
                                 <Button
                                   className="w-full sm:w-auto px-6 py-3 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                                   onClick={() => {
+                                    const action = selectedMode === "watch" ? "stream" : "download"
                                     const nextdriveUrl = generateVlyxDriveUrl(
                                       item.link.url,
                                       item.link.label,
                                       item.season,
+                                      action
                                     )
                                     window.open(nextdriveUrl, "_blank")
                                   }}
@@ -1818,10 +1856,12 @@ export default function VegaMoviePage() {
                                             <Button
                                               className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-white font-semibold hover:shadow-xl transition-all duration-300 text-sm sm:text-base"
                                               onClick={() => {
+                                                const action = selectedMode === "watch" ? "stream" : "download"
                                                 const nextdriveUrl = generateVlyxDriveUrl(
                                                   link.url,
                                                   link.label,
                                                   link.season,
+                                                  action
                                                 )
                                                 window.open(nextdriveUrl, "_blank")
                                               }}
@@ -1952,10 +1992,12 @@ export default function VegaMoviePage() {
               <Button
                 onClick={() => {
                   if (selectedDownload) {
+                    const action = selectedMode === "watch" ? "stream" : "download"
                     const nextdriveUrl = generateVlyxDriveUrl(
                       selectedDownload.link.url,
                       selectedDownload.link.label,
-                      selectedDownload.season
+                      selectedDownload.season,
+                      action
                     )
                     window.open(nextdriveUrl, "_blank")
                     setShowConfirmModal(false)
