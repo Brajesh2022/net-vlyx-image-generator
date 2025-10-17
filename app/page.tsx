@@ -63,6 +63,8 @@ export default function Home() {
   const [loadingMovieId, setLoadingMovieId] = useState<string | null>(null)
   const [isNavigating, setIsNavigating] = useState(false)
   const [hasInitialized, setHasInitialized] = useState(false)
+  const [trendingContent, setTrendingContent] = useState<any[]>([])
+  const [isTrendingLoading, setIsTrendingLoading] = useState(false)
   const searchTimeout = useRef<NodeJS.Timeout>()
   const slideInterval = useRef<NodeJS.Timeout>()
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -74,6 +76,25 @@ export default function Home() {
 
   // Wishlist functionality
   const { wishlist, isClient } = useWishlist()
+
+  // Fetch trending content from TMDB for hero section
+  useEffect(() => {
+    const fetchTrending = async () => {
+      setIsTrendingLoading(true)
+      try {
+        const response = await fetch('/api/tmdb-trending?media_type=all&time_window=week')
+        if (response.ok) {
+          const data = await response.json()
+          setTrendingContent(data.results || [])
+        }
+      } catch (error) {
+        console.error('Error fetching trending content:', error)
+      } finally {
+        setIsTrendingLoading(false)
+      }
+    }
+    fetchTrending()
+  }, [])
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: [searchTerm ? "/api/scrape-vega" : "/api/scrape", searchTerm, selectedCategory],
@@ -320,7 +341,7 @@ export default function Home() {
     // Only show slideshow on homepage (not on category pages or search)
     const isHomePage = selectedCategory === "home" && !searchTerm
     
-    if (!isHomePage || !allMovies || allMovies.length === 0) {
+    if (!isHomePage) {
       return [
         {
           title: "Unlimited Entertainment on NetVlyx",
@@ -333,40 +354,35 @@ export default function Home() {
       ]
     }
 
-    // Use first 5 movies for slideshow (like in the HTML example)
-    const trendingMovies = allMovies.slice(0, 5)
+    // Use TMDB trending content for hero slideshow
+    if (trendingContent.length === 0) {
+      return [
+        {
+          title: "Unlimited Entertainment on NetVlyx",
+          description:
+            "Stream and download thousands of movies and TV shows in stunning quality. Experience the future of entertainment with NetVlyx - your premium destination for the latest content.",
+          background:
+            "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+          gradient: "from-black via-black/70 to-transparent",
+        },
+      ]
+    }
 
-    return trendingMovies.map((movie, index) => {
-      const slug = createMovieSlug(movie)
-      
-      // Determine source URL
-      let sourceUrl = "https://www.vegamovies-nl.bike"
-      if (movie.link) {
-        try {
-          const u = new URL(movie.link)
-          sourceUrl = u.origin
-        } catch {
-          sourceUrl = movie.link
-        }
-      }
-      
-      // ALWAYS use /v/ page with encoded URL for privacy
-      const encodedUrl = encodeMovieUrl(slug, sourceUrl)
-      const movieUrl = `/v/${encodedUrl}`
-      
+    // Use first 5 trending items for slideshow
+    const trendingItems = trendingContent.slice(0, 5)
+
+    return trendingItems.map((item) => {
       return {
-        title: movie.title,
-        description:
-          movie.description || "Experience premium entertainment with crystal clear quality and immersive viewing.",
-        background:
-          movie.image ||
-          `https://images.unsplash.com/photo-${1489599517276 + index}?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80`,
+        title: item.title,
+        description: item.overview || "Experience premium entertainment with crystal clear quality and immersive viewing.",
+        background: item.backdrop || item.poster || "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
         gradient: "from-black via-black/70 to-transparent",
-        movieSlug: slug,
-        movieUrl: movieUrl,
+        trendingTitle: item.title, // Store for search
+        mediaType: item.mediaType,
+        rating: item.rating,
       }
     })
-  }, [allMovies, selectedCategory, searchTerm])
+  }, [trendingContent, selectedCategory, searchTerm])
 
   useEffect(() => {
     if (!searchTerm) {
@@ -662,39 +678,52 @@ export default function Home() {
                 <div className="relative z-20 h-full flex items-center">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
                     <div className="max-w-2xl lg:max-w-4xl">
-                      <div className="mb-3 sm:mb-4">
+                      <div className="mb-3 sm:mb-4 flex items-center gap-3">
                         <Badge className="bg-red-600/90 text-white border-none text-xs sm:text-sm px-3 py-1">
                           Trending Now
                         </Badge>
+                        {heroSlides[currentSlide].rating && (
+                          <Badge className="bg-yellow-600/90 text-white border-none text-xs sm:text-sm px-3 py-1 flex items-center gap-1">
+                            <Star className="h-3 w-3 sm:h-4 sm:w-4 fill-current" />
+                            {heroSlides[currentSlide].rating}
+                          </Badge>
+                        )}
+                        {heroSlides[currentSlide].mediaType && (
+                          <Badge className="bg-blue-600/90 text-white border-none text-xs sm:text-sm px-3 py-1 uppercase">
+                            {heroSlides[currentSlide].mediaType === 'tv' ? 'TV Series' : 'Movie'}
+                          </Badge>
+                        )}
                       </div>
                       <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 sm:mb-6 text-white leading-tight">
                         {heroSlides[currentSlide].title}
                       </h1>
-                      <p className="text-sm sm:text-base md:text-lg text-gray-200 mb-6 sm:mb-8 leading-relaxed max-w-xl lg:max-w-2xl">
+                      <p className="text-sm sm:text-base md:text-lg text-gray-200 mb-6 sm:mb-8 leading-relaxed max-w-xl lg:max-w-2xl line-clamp-3">
                         {heroSlides[currentSlide].description}
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                        {heroSlides[currentSlide].movieUrl ? (
+                        {heroSlides[currentSlide].trendingTitle ? (
                           <Button 
                             onClick={() => {
-                              setLoadingMovieId('hero-slide')
-                              setIsNavigating(true)
-                              router.push(heroSlides[currentSlide].movieUrl!)
+                              // Trigger search for the trending title
+                              const title = heroSlides[currentSlide].trendingTitle
+                              setSearchTerm(title)
+                              setShowSearchBar(true)
+                              setShowSuggestions(false)
+                              
+                              // Update URL with search term
+                              const params = new URLSearchParams(window.location.search)
+                              params.set('search', title)
+                              router.replace(`/?${params.toString()}`, { scroll: false })
+                              
+                              // Clear movies and trigger search
+                              setAllMovies([])
+                              setHasInitialized(false)
+                              refetch()
                             }}
-                            disabled={isNavigating}
-                            className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base"
                           >
-                            {isNavigating && loadingMovieId === 'hero-slide' ? (
-                              <>
-                                <div className="w-4 h-4 sm:w-5 sm:h-5 mr-2 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                                Loading...
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                                Watch Now
-                              </>
-                            )}
+                            <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                            Watch Now
                           </Button>
                         ) : (
                           <Button className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base">
