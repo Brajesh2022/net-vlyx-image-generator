@@ -32,19 +32,22 @@ export default function PlayPage({ params }: PlayPageProps) {
 
   const playInMX = () => {
     if (videoUrl) {
-      window.location.href = `intent:${videoUrl}#Intent;package=com.mxtech.videoplayer.ad;type=video/*;action=android.intent.action.VIEW;end`
+      const urlWithoutScheme = videoUrl.replace(/^https?:\/\//i, '')
+      window.location.href = `intent://${urlWithoutScheme}#Intent;scheme=https;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.mxtech.videoplayer.ad')};end`
     }
   }
 
   const playInMXPro = () => {
     if (videoUrl) {
-      window.location.href = `intent:${videoUrl}#Intent;package=com.mxtech.videoplayer.pro;type=video/*;action=android.intent.action.VIEW;end`
+      const urlWithoutScheme = videoUrl.replace(/^https?:\/\//i, '')
+      window.location.href = `intent://${urlWithoutScheme}#Intent;scheme=https;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.pro;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.mxtech.videoplayer.pro')};end`
     }
   }
 
   const playInVLC = () => {
     if (videoUrl) {
-      window.location.href = `intent:${videoUrl}#Intent;package=org.videolan.vlc;component=org.videolan.vlc/.gui.video.VideoPlayerActivity;type=video/*;action=android.intent.action.VIEW;end`
+      const urlWithoutScheme = videoUrl.replace(/^https?:\/\//i, '')
+      window.location.href = `intent://${urlWithoutScheme}#Intent;scheme=https;action=android.intent.action.VIEW;package=org.videolan.vlc;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=org.videolan.vlc')};end`
     }
   }
 

@@ -296,17 +296,9 @@ export default function NCloudPage() {
   }, [showStreamingPopup, detectedOS])
 
   const handleWatchOnline = (url: string) => {
-    const isAndroid = /Android/i.test(navigator.userAgent)
-    const urlWithoutScheme = url.replace(/^https?:\/\//, "")
-    let streamUrl
-
-    if (isAndroid) {
-      streamUrl = `intent://${urlWithoutScheme}#Intent;scheme=https;action=android.intent.action.VIEW;type=video/*;S.browser_fallback_url=${encodeURIComponent(url)};end`
-    } else {
-      streamUrl = `vlc://${urlWithoutScheme}`
-    }
-
-    window.location.href = streamUrl
+    // Show streaming popup instead of directly launching
+    setStreamingUrl(url)
+    setShowStreamingPopup(true)
     setSelectedLink(null)
   }
 
@@ -745,7 +737,7 @@ export default function NCloudPage() {
                           </div>
                         </div>
                         <a
-                          href={`intent:${streamingUrl}#Intent;package=org.videolan.vlc;scheme=https;end`}
+                          href={`intent://${streamingUrl.replace(/^https?:\/\//i, '')}#Intent;scheme=https;action=android.intent.action.VIEW;package=org.videolan.vlc;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=org.videolan.vlc')};end`}
                           className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-xl px-6 py-2.5 transition-all duration-300 transform hover:scale-105 shadow-lg flex-shrink-0"
                         >
                           <Play className="h-4 w-4 inline mr-1.5" />
@@ -767,7 +759,7 @@ export default function NCloudPage() {
                           <p className="text-gray-400 text-xs">Popular Android player</p>
                         </div>
                         <a
-                          href={`intent:${streamingUrl}#Intent;package=com.mxtech.videoplayer.ad;scheme=https;end`}
+                          href={`intent://${streamingUrl.replace(/^https?:\/\//i, '')}#Intent;scheme=https;action=android.intent.action.VIEW;package=com.mxtech.videoplayer.ad;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.mxtech.videoplayer.ad')};end`}
                           className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold rounded-xl px-6 py-2.5 transition-all duration-300 transform hover:scale-105 shadow-lg flex-shrink-0"
                         >
                           <Play className="h-4 w-4 inline mr-1.5" />
@@ -791,7 +783,7 @@ export default function NCloudPage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <a
-                            href={`intent:${streamingUrl}#Intent;action=android.intent.action.VIEW;type=video/*;end`}
+                            href={`intent://${streamingUrl.replace(/^https?:\/\//i, '')}#Intent;scheme=https;action=android.intent.action.VIEW;type=video/*;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=org.videolan.vlc')};end`}
                             className="text-center bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-xl px-5 py-3 transition-all duration-300 transform hover:scale-105 shadow-lg"
                           >
                             Choose Player
