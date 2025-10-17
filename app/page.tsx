@@ -473,8 +473,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black text-white animate-fade-in">
       {/* Enhanced Responsive Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-transparent backdrop-blur-lg"></div>
+      <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent">
+        <div className="absolute inset-0 bg-black/10 backdrop-blur-xl border-b border-white/5"></div>
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 relative z-10">
           {/* Full Width Search Overlay - Covers entire header */}
           {showSearchBar && (
