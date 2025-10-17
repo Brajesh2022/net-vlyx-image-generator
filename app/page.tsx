@@ -473,9 +473,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black text-white animate-fade-in">
       {/* Enhanced Responsive Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent">
-        <div className="absolute inset-0 bg-black/10 backdrop-blur-xl border-b border-white/5"></div>
-        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 relative z-10">
+      <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent pointer-events-none">
+        <div className="pointer-events-auto">
+          <div className="absolute inset-0 bg-black/10 backdrop-blur-xl border-b border-white/5"></div>
+          <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 relative z-10">
           {/* Full Width Search Overlay - Covers entire header */}
           {showSearchBar && (
             <div className="absolute inset-0 z-50 flex items-center px-4 animate-in slide-in-from-right duration-700 ease-out">
@@ -624,9 +625,10 @@ export default function Home() {
             </div>
           </div>
         </div>
+        </div>
       </header>
 
-      <main className="pt-16 sm:pt-20">
+      <main className="relative">
         {/* Hero Section */}
         {!searchTerm && (
           <section className="relative h-[60vh] sm:h-[70vh] md:h-[80vh] lg:h-[85vh] overflow-hidden">
