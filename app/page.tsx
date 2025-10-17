@@ -631,7 +631,7 @@ export default function Home() {
       <main className="relative">
         {/* Hero Section */}
         {!searchTerm && (
-          <section className="relative h-[60vh] sm:h-[70vh] md:h-[80vh] lg:h-[85vh] overflow-hidden">
+          <section className="relative h-[75vh] sm:h-[85vh] md:h-[90vh] lg:h-[95vh] overflow-hidden">
             {isLoading ? (
               <div className="absolute inset-0 bg-gray-900">
                 <div className="relative z-20 h-full flex items-center">
