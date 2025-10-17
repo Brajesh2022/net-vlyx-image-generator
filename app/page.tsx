@@ -62,6 +62,7 @@ export default function Home() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [loadingMovieId, setLoadingMovieId] = useState<string | null>(null)
   const [isNavigating, setIsNavigating] = useState(false)
+  const [hasInitialized, setHasInitialized] = useState(false)
   const searchTimeout = useRef<NodeJS.Timeout>()
   const slideInterval = useRef<NodeJS.Timeout>()
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -99,12 +100,12 @@ export default function Home() {
       }
       const result = await response.json()
       
-      // Reset accumulated movies when category or search changes
-      setAllMovies(result.movies || [])
-      setCurrentPage(1)
-      
       return result
     },
+    // Only refetch if we don't have data or if it's a new search/category
+    enabled: true,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   })
 
   // Fetch TMDb suggestions
@@ -161,6 +162,12 @@ export default function Home() {
     }
     router.replace(`/?${params.toString()}`, { scroll: false })
     
+    // Clear movies when starting a new search
+    if (value && value !== searchTerm) {
+      setAllMovies([])
+      setHasInitialized(false)
+    }
+    
     clearTimeout(searchTimeout.current)
     searchTimeout.current = setTimeout(() => {
       refetch()
@@ -199,6 +206,11 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search)
     params.delete('search')
     router.replace(`/?${params.toString()}`, { scroll: false })
+    
+    // If we have cached data for the current category, restore it
+    if (allMovies.length === 0 && !isLoading) {
+      refetch()
+    }
   }
 
   // Load more movies function (only for browsing, not search)
@@ -228,6 +240,36 @@ export default function Home() {
       setIsLoadingMore(false)
     }
   }
+
+  // State restoration and persistence logic
+  useEffect(() => {
+    if (data && !hasInitialized) {
+      // Only set initial data if we haven't initialized yet
+      setAllMovies(data.movies || [])
+      setCurrentPage(1)
+      setHasInitialized(true)
+    } else if (data && hasInitialized && searchTerm) {
+      // For search results, always update the movies
+      setAllMovies(data.movies || [])
+      setCurrentPage(1)
+    } else if (data && hasInitialized && !searchTerm && selectedCategory !== 'home') {
+      // For category browsing, only update if we don't have movies or if it's a new category
+      if (allMovies.length === 0) {
+        setAllMovies(data.movies || [])
+        setCurrentPage(1)
+      }
+    }
+  }, [data, hasInitialized, searchTerm, selectedCategory, allMovies.length])
+
+  // Restore state from URL parameters on back navigation
+  useEffect(() => {
+    if (!hasInitialized && (urlSearch || urlCategory !== 'home')) {
+      // If we have URL params but no data, trigger a refetch
+      if (!data && !isLoading) {
+        refetch()
+      }
+    }
+  }, [urlSearch, urlCategory, hasInitialized, data, isLoading, refetch])
 
   const filteredMovies = searchTerm ? (data?.movies || []) : allMovies
 
@@ -381,6 +423,28 @@ export default function Home() {
       return () => clearTimeout(timeout)
     }
   }, [isNavigating])
+
+  // Fallback mechanism to restore content if it gets cleared
+  useEffect(() => {
+    // If we don't have movies and we're not loading, and we should have content, refetch
+    if (!searchTerm && allMovies.length === 0 && !isLoading && !error && hasInitialized) {
+      console.log('Content was cleared, attempting to restore...')
+      refetch()
+    }
+  }, [allMovies.length, isLoading, error, searchTerm, hasInitialized, refetch])
+
+  // Handle back navigation - restore content if needed
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !searchTerm && allMovies.length === 0 && !isLoading) {
+        console.log('Page became visible with no content, attempting to restore...')
+        refetch()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [searchTerm, allMovies.length, isLoading, refetch])
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
@@ -706,7 +770,11 @@ export default function Home() {
                       const newCategory = e.target.value
                       setSelectedCategory(newCategory)
                       setCurrentPage(1)
-                      setAllMovies([])
+                      // Only clear movies if it's a different category
+                      if (newCategory !== selectedCategory) {
+                        setAllMovies([])
+                        setHasInitialized(false)
+                      }
                       
                       // Update URL with category
                       const params = new URLSearchParams(window.location.search)
@@ -746,10 +814,18 @@ export default function Home() {
 
           {/* Loading State */}
           {isLoading && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="aspect-[2/3] bg-gray-900 rounded-lg animate-pulse" />
-              ))}
+            <div className="text-center py-8">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-gray-400">
+                  {allMovies.length === 0 ? 'Loading content...' : 'Loading more content...'}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 mt-8">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="aspect-[2/3] bg-gray-900 rounded-lg animate-pulse" />
+                ))}
+              </div>
             </div>
           )}
 
@@ -877,17 +953,35 @@ export default function Home() {
               <p className="text-gray-400 mb-6">
                 {searchTerm
                   ? `No results found for "${searchTerm}". Try a different search term.`
-                  : "Try adjusting your filters or search for something specific."}
+                  : "Content may have been cleared. Try refreshing or use the restore button below."}
               </p>
-              {searchTerm && (
-                <Button
-                  onClick={handleCloseSearch}
-                  variant="outline"
-                  className="border-gray-600 text-white hover:bg-gray-800"
-                >
-                  Clear Search
-                </Button>
-              )}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {searchTerm ? (
+                  <Button
+                    onClick={handleCloseSearch}
+                    variant="outline"
+                    className="border-gray-600 text-white hover:bg-gray-800"
+                  >
+                    Clear Search
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={() => refetch()}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      Restore Content
+                    </Button>
+                    <Button
+                      onClick={() => window.location.reload()}
+                      variant="outline"
+                      className="border-gray-600 text-white hover:bg-gray-800"
+                    >
+                      Refresh Page
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
