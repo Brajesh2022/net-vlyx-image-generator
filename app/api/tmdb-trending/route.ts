@@ -10,33 +10,53 @@ export async function GET(request: NextRequest) {
   try {
     console.log(`Fetching trending ${mediaType} for ${timeWindow}...`)
 
-    const response = await fetch(
-      `https://api.themoviedb.org/3/trending/${mediaType}/${timeWindow}?api_key=${TMDB_API_KEY}&language=en-US`
-    )
+    // Fetch both global and India-specific trending content
+    const [globalResponse, indiaResponse] = await Promise.all([
+      fetch(
+        `https://api.themoviedb.org/3/trending/${mediaType}/${timeWindow}?api_key=${TMDB_API_KEY}&language=en-US`
+      ),
+      // Discover Indian movies (Bollywood, Tamil, Telugu, etc.)
+      fetch(
+        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&include_adult=false&with_original_language=hi|ta|te|ml|kn&vote_count.gte=50`
+      )
+    ])
 
-    if (!response.ok) {
-      throw new Error(`TMDb API error: ${response.status}`)
+    if (!globalResponse.ok && !indiaResponse.ok) {
+      throw new Error(`TMDb API error`)
     }
 
-    const data = await response.json()
+    const globalData = globalResponse.ok ? await globalResponse.json() : { results: [] }
+    const indiaData = indiaResponse.ok ? await indiaResponse.json() : { results: [] }
 
-    // Transform results to include high-quality images and relevant info
-    const results = data.results?.slice(0, 10).map((item: any) => ({
+    // Combine and shuffle results - mix global trending with Indian content
+    const globalResults = globalData.results?.slice(0, 6) || []
+    const indiaResults = indiaData.results?.slice(0, 4) || []
+    
+    // Merge arrays and shuffle
+    const combined = [...globalResults, ...indiaResults]
+    const shuffled = combined.sort(() => Math.random() - 0.5)
+
+    // Transform results to include high-quality images (both poster and backdrop)
+    const results = shuffled.slice(0, 10).map((item: any) => ({
       id: item.id,
       title: item.title || item.name,
       overview: item.overview,
+      // Poster for mobile (portrait)
       poster: item.poster_path 
-        ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+        ? `https://image.tmdb.org/t/p/w780${item.poster_path}`
         : null,
+      // Backdrop for desktop (landscape)
       backdrop: item.backdrop_path
         ? `https://image.tmdb.org/t/p/original${item.backdrop_path}`
         : null,
       rating: item.vote_average ? item.vote_average.toFixed(1) : null,
       releaseDate: item.release_date || item.first_air_date || "",
-      mediaType: item.media_type || mediaType,
-    })) || []
+      mediaType: item.media_type || 'movie',
+      // Language info for Indian content
+      originalLanguage: item.original_language,
+    }))
 
-    console.log(`Successfully fetched ${results.length} trending items`)
+    console.log(`Successfully fetched ${results.length} trending items (${indiaResults.length} Indian content)`)
     return NextResponse.json({ results })
 
   } catch (error) {

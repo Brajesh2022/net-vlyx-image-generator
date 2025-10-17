@@ -376,10 +376,12 @@ export default function Home() {
         title: item.title,
         description: item.overview || "Experience premium entertainment with crystal clear quality and immersive viewing.",
         background: item.backdrop || item.poster || "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        poster: item.poster || item.backdrop || "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
         gradient: "from-black via-black/70 to-transparent",
         trendingTitle: item.title, // Store for search
         mediaType: item.mediaType,
         rating: item.rating,
+        originalLanguage: item.originalLanguage,
       }
     })
   }, [trendingContent, selectedCategory, searchTerm])
@@ -626,7 +628,7 @@ export default function Home() {
       <main className="pt-16 sm:pt-20">
         {/* Hero Section */}
         {!searchTerm && (
-          <section className="relative h-[70vh] sm:h-[80vh] lg:h-[85vh] overflow-hidden">
+          <section className="relative h-[85vh] sm:h-[80vh] lg:h-[85vh] overflow-hidden">
             {isLoading ? (
               <div className="absolute inset-0 bg-gray-900">
                 <div className="relative z-20 h-full flex items-center">
@@ -666,19 +668,26 @@ export default function Home() {
                         index === currentSlide ? "opacity-100 scale-100" : "opacity-0 scale-105"
                       }`}
                     >
+                      {/* Mobile: Portrait poster image */}
                       <div
-                        className="w-full h-full bg-cover bg-center"
+                        className="block md:hidden w-full h-full bg-cover bg-center"
+                        style={{ backgroundImage: `url(${slide.poster || slide.background})` }}
+                      />
+                      {/* Desktop: Landscape backdrop image */}
+                      <div
+                        className="hidden md:block w-full h-full bg-cover bg-center"
                         style={{ backgroundImage: `url(${slide.background})` }}
                       />
-                      <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`} />
+                      {/* Gradient overlay - stronger on mobile for better text readability */}
+                      <div className={`absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black via-black/80 md:via-black/70 to-black/60 md:to-transparent`} />
                     </div>
                   ))}
                 </div>
 
-                <div className="relative z-20 h-full flex items-center">
+                <div className="relative z-20 h-full flex items-end md:items-center pb-16 md:pb-0">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
                     <div className="max-w-2xl lg:max-w-4xl">
-                      <div className="mb-3 sm:mb-4 flex items-center gap-3">
+                      <div className="mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
                         <Badge className="bg-red-600/90 text-white border-none text-xs sm:text-sm px-3 py-1">
                           Trending Now
                         </Badge>
@@ -691,6 +700,15 @@ export default function Home() {
                         {heroSlides[currentSlide].mediaType && (
                           <Badge className="bg-blue-600/90 text-white border-none text-xs sm:text-sm px-3 py-1 uppercase">
                             {heroSlides[currentSlide].mediaType === 'tv' ? 'TV Series' : 'Movie'}
+                          </Badge>
+                        )}
+                        {heroSlides[currentSlide].originalLanguage && ['hi', 'ta', 'te', 'ml', 'kn'].includes(heroSlides[currentSlide].originalLanguage) && (
+                          <Badge className="bg-orange-600/90 text-white border-none text-xs sm:text-sm px-3 py-1">
+                            {heroSlides[currentSlide].originalLanguage === 'hi' ? 'Bollywood' : 
+                             heroSlides[currentSlide].originalLanguage === 'ta' ? 'Tamil' :
+                             heroSlides[currentSlide].originalLanguage === 'te' ? 'Telugu' :
+                             heroSlides[currentSlide].originalLanguage === 'ml' ? 'Malayalam' :
+                             heroSlides[currentSlide].originalLanguage === 'kn' ? 'Kannada' : 'Indian'}
                           </Badge>
                         )}
                       </div>
