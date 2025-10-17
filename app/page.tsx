@@ -628,7 +628,7 @@ export default function Home() {
       <main className="pt-16 sm:pt-20">
         {/* Hero Section */}
         {!searchTerm && (
-          <section className="relative h-[85vh] sm:h-[80vh] lg:h-[85vh] overflow-hidden">
+          <section className="relative h-[60vh] sm:h-[70vh] md:h-[80vh] lg:h-[85vh] overflow-hidden">
             {isLoading ? (
               <div className="absolute inset-0 bg-gray-900">
                 <div className="relative z-20 h-full flex items-center">
@@ -684,7 +684,7 @@ export default function Home() {
                   ))}
                 </div>
 
-                <div className="relative z-20 h-full flex items-end md:items-center pb-16 md:pb-0">
+                <div className="relative z-20 h-full flex items-end md:items-center pb-12 sm:pb-16 md:pb-0">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
                     <div className="max-w-2xl lg:max-w-4xl">
                       <div className="mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
@@ -712,13 +712,13 @@ export default function Home() {
                           </Badge>
                         )}
                       </div>
-                      <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 sm:mb-6 text-white leading-tight">
+                      <h1 className="text-xl sm:text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 sm:mb-4 md:mb-6 text-white leading-tight">
                         {heroSlides[currentSlide].title}
                       </h1>
-                      <p className="text-sm sm:text-base md:text-lg text-gray-200 mb-6 sm:mb-8 leading-relaxed max-w-xl lg:max-w-2xl line-clamp-3">
+                      <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-200 mb-4 sm:mb-6 md:mb-8 leading-relaxed max-w-xl lg:max-w-2xl line-clamp-2 md:line-clamp-3">
                         {heroSlides[currentSlide].description}
                       </p>
-                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4">
                         {heroSlides[currentSlide].trendingTitle ? (
                           <Button 
                             onClick={() => {
@@ -738,22 +738,22 @@ export default function Home() {
                               setHasInitialized(false)
                               refetch()
                             }}
-                            className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base"
+                            className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-xs sm:text-sm md:text-base"
                           >
-                            <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                            <Play className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1.5 sm:mr-2" />
                             Watch Now
                           </Button>
                         ) : (
-                          <Button className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base">
-                            <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                          <Button className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-xs sm:text-sm md:text-base">
+                            <Play className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1.5 sm:mr-2" />
                             Explore Now
                           </Button>
                         )}
                         <Button
                           variant="outline"
-                          className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-gray-600/50 text-white border-gray-400 hover:bg-gray-500/50 transition-colors text-sm sm:text-base"
+                          className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-gray-600/50 text-white border-gray-400 hover:bg-gray-500/50 transition-colors text-xs sm:text-sm md:text-base"
                         >
-                          <Info className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                          <Info className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1.5 sm:mr-2" />
                           More Info
                         </Button>
                       </div>
