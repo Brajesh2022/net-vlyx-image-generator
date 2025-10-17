@@ -163,6 +163,7 @@ export default function VegaMoviePage() {
   const [imagePosition, setImagePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 }) // Track image position when zoomed
   const [playerSelection, setPlayerSelection] = useState<"playHere" | "externalPlayer" | null>(null) // Player selection for watch mode
   const [showPlayHereWarning, setShowPlayHereWarning] = useState(false) // Warning modal for Play Here option
+  const [selectedSeason, setSelectedSeason] = useState<number | null>(null) // Selected season for multi-season series
 
   // Touch handling for mobile swipe
   const touchStartX = useRef<number>(0)
@@ -388,6 +389,40 @@ export default function VegaMoviePage() {
     }
   }
 
+  // Detect multi-season range from title (e.g., "Season 1-3" or "Season 2-4")
+  const detectSeasonRange = (title: string): { hasRange: boolean; seasons: number[] } => {
+    const cleanTitle = title.toLowerCase()
+    
+    // Pattern 1: "Season 1-3", "Season 1–3" (with en-dash or em-dash)
+    const rangeMatch1 = cleanTitle.match(/season[\s]*(\d+)[\s]*[-–—][\s]*(\d+)/i)
+    if (rangeMatch1) {
+      const start = parseInt(rangeMatch1[1])
+      const end = parseInt(rangeMatch1[2])
+      const seasons = Array.from({ length: end - start + 1 }, (_, i) => start + i)
+      return { hasRange: true, seasons }
+    }
+    
+    // Pattern 2: "S1-3", "S2-4"
+    const rangeMatch2 = cleanTitle.match(/\bs[\s]*(\d+)[\s]*[-–—][\s]*(\d+)/i)
+    if (rangeMatch2) {
+      const start = parseInt(rangeMatch2[1])
+      const end = parseInt(rangeMatch2[2])
+      const seasons = Array.from({ length: end - start + 1 }, (_, i) => start + i)
+      return { hasRange: true, seasons }
+    }
+    
+    // Pattern 3: "Season 1–5" (from title like "Breaking Bad (Season 1–5)")
+    const rangeMatch3 = cleanTitle.match(/\(season[\s]*(\d+)[\s]*[-–—][\s]*(\d+)\)/i)
+    if (rangeMatch3) {
+      const start = parseInt(rangeMatch3[1])
+      const end = parseInt(rangeMatch3[2])
+      const seasons = Array.from({ length: end - start + 1 }, (_, i) => start + i)
+      return { hasRange: true, seasons }
+    }
+    
+    return { hasRange: false, seasons: [] }
+  }
+
   // Enhanced season extraction function
   const extractSeasonFromTitle = (title: string): string | null => {
     // Clean title for better matching
@@ -611,6 +646,15 @@ export default function VegaMoviePage() {
       section.downloads.forEach((download) => {
         download.links.forEach((link) => {
           if (!isValidDownloadLink(link?.url)) return
+
+          // If a season is selected, filter by that season
+          const itemSeason = section.season || link.season
+          if (selectedSeason !== null && itemSeason) {
+            const seasonNum = parseInt(itemSeason)
+            if (seasonNum !== selectedSeason) {
+              return // Skip items that don't match the selected season
+            }
+          }
 
           const linkText = (link.label || "").toLowerCase()
           const sectionTitle = (section.title || "").toLowerCase()
@@ -1059,8 +1103,52 @@ export default function VegaMoviePage() {
             <p className="text-gray-400 text-sm md:text-lg">Choose how you want to enjoy this content</p>
           </div>
 
+          {/* Step 0: Season Selection (for multi-season series) */}
+          {(() => {
+            const seasonRange = detectSeasonRange(movieDetails?.title || "")
+            if (seasonRange.hasRange && selectedSeason === null) {
+              return (
+                <div className="mb-12 md:mb-16 animate-fade-in">
+                  <h3 className="text-xl md:text-2xl font-semibold mb-6 md:mb-8 text-center">Select Season</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 max-w-4xl mx-auto">
+                    {seasonRange.seasons.map((season) => (
+                      <button
+                        key={season}
+                        onClick={() => setSelectedSeason(season)}
+                        className="group relative p-4 md:p-6 rounded-xl bg-gradient-to-br from-indigo-600/20 to-purple-600/20 border-2 border-indigo-500/30 hover:border-indigo-400 hover:from-indigo-600/30 hover:to-purple-600/30 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
+                      >
+                        <div className="text-center">
+                          <div className="text-3xl md:text-4xl font-bold text-white mb-2">{season}</div>
+                          <p className="text-sm md:text-base text-gray-400">Season {season}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            }
+            return null
+          })()}
+
           {/* Step 1: Mode Selection (Download or Watch) */}
-          {!selectedMode && (
+          {selectedSeason !== null && !selectedMode && (() => {
+            const seasonRange = detectSeasonRange(movieDetails?.title || "")
+            if (seasonRange.hasRange) {
+              return (
+                <div className="mb-8">
+                  <button
+                    onClick={() => setSelectedSeason(null)}
+                    className="mb-6 md:mb-8 text-sm md:text-base text-gray-400 hover:text-white transition-colors flex items-center gap-2 mx-auto"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Back to season selection
+                  </button>
+                </div>
+              )
+            }
+            return null
+          })()}
+          {((selectedSeason !== null && !selectedMode) || (!detectSeasonRange(movieDetails?.title || "").hasRange && !selectedMode)) && (
             <div className="mb-12 md:mb-16 animate-fade-in">
               <h3 className="text-xl md:text-2xl font-semibold mb-6 md:mb-8 text-center">What would you like to do?</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-3xl mx-auto">
@@ -1085,7 +1173,7 @@ export default function VegaMoviePage() {
           )}
 
           {/* Step 2: Download Type Selection (if bulk downloads available) */}
-          {selectedMode === "download" && !downloadType && (() => {
+          {((selectedSeason !== null && selectedMode === "download") || (!detectSeasonRange(movieDetails?.title || "").hasRange && selectedMode === "download")) && !downloadType && (() => {
             const { episodeDownloads, batchDownloads } = separateDownloads()
             const hasBulkOptions = batchDownloads.length > 0
             
@@ -1131,7 +1219,7 @@ export default function VegaMoviePage() {
           })()}
 
           {/* Step 2.5: Player Selection (for watch mode with IMDb ID) */}
-          {selectedMode === "watch" && !playerSelection && getImdbId() && (
+          {((selectedSeason !== null && selectedMode === "watch") || (!detectSeasonRange(movieDetails?.title || "").hasRange && selectedMode === "watch")) && !playerSelection && getImdbId() && (
             <div className="mb-12 md:mb-16 animate-fade-in">
               <button
                 onClick={() => setSelectedMode(null)}
@@ -1180,7 +1268,7 @@ export default function VegaMoviePage() {
           )}
 
           {/* Step 3: Quality Selection */}
-          {((selectedMode === "watch" && (playerSelection === "externalPlayer" || !getImdbId())) || (selectedMode === "download" && downloadType)) && (() => {
+          {((selectedSeason !== null || !detectSeasonRange(movieDetails?.title || "").hasRange) && ((selectedMode === "watch" && (playerSelection === "externalPlayer" || !getImdbId())) || (selectedMode === "download" && downloadType))) && (() => {
             const availableQualities = getAvailableQualities()
 
             return availableQualities.length > 0 ? (
