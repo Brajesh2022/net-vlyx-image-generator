@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { Search, Film, Star, Play, ChevronLeft, ChevronRight, Info, Heart, MessageSquare, X } from "lucide-react"
+import { Search, Film, Star, Play, ChevronLeft, ChevronRight, Info, Heart, MessageSquare, X, Mail, Instagram, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -1346,23 +1346,25 @@ export default function Home() {
             {/* Contact & Credits */}
             <div>
               <h4 className="font-semibold mb-4 text-white">Get in Touch</h4>
-              <ul className="space-y-3 text-sm text-gray-400">
+              <ul className="space-y-3 text-sm">
                 <li>
                   <a 
                     href="https://vlyx.vercel.app/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-white transition-colors flex items-center gap-2"
+                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group"
                   >
-                    <span className="text-blue-500">🌐</span> vlyx.vercel.app
+                    <Globe className="h-4 w-4 text-blue-500 group-hover:text-blue-400 transition-colors" />
+                    <span>vlyx.vercel.app</span>
                   </a>
                 </li>
                 <li>
                   <a 
                     href="mailto:vlyxcodes@gmail.com"
-                    className="hover:text-white transition-colors flex items-center gap-2"
+                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group"
                   >
-                    <span className="text-red-500">✉</span> vlyxcodes@gmail.com
+                    <Mail className="h-4 w-4 text-red-500 group-hover:text-red-400 transition-colors" />
+                    <span>vlyxcodes@gmail.com</span>
                   </a>
                 </li>
                 <li>
@@ -1370,9 +1372,10 @@ export default function Home() {
                     href="https://instagram.com/vlyxcodes"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-white transition-colors flex items-center gap-2"
+                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group"
                   >
-                    <span className="text-purple-500">📷</span> @vlyxcodes
+                    <Instagram className="h-4 w-4 text-purple-500 group-hover:text-purple-400 transition-colors" />
+                    <span>@vlyxcodes</span>
                   </a>
                 </li>
               </ul>
