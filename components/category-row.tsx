@@ -148,18 +148,6 @@ export function CategoryRow({ title, movies, viewAllLink, showRanking = false }:
                       <Play className="h-6 w-6 text-white ml-1" />
                     </div>
                   </div>
-
-                  {movie.category && (
-                    <Badge className="absolute top-2 right-2 bg-red-600/90 text-white text-xs">
-                      {movie.category}
-                    </Badge>
-                  )}
-                  <div className="absolute top-2 left-2 flex items-center space-x-1">
-                    <Badge className="bg-yellow-600/90 text-white text-xs flex items-center gap-1">
-                      <Star className="h-3 w-3" />
-                      HD
-                    </Badge>
-                  </div>
                 </div>
 
                 <div className="mt-3 px-1">

@@ -50,12 +50,12 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
               <div
                 key={item.id}
                 onClick={() => handleClick(item)}
-                className="relative flex-shrink-0 w-32 md:w-40 cursor-pointer group transition-transform duration-300 hover:scale-105"
+                className="relative flex-shrink-0 w-40 md:w-48 cursor-pointer group transition-transform duration-300 hover:scale-105"
               >
-                {/* Netflix-style Ranking Number */}
-                <div className="absolute -left-3 md:-left-4 bottom-0 z-20 pointer-events-none">
+                {/* Netflix-style Ranking Number - Positioned slightly above poster */}
+                <div className="absolute -left-3 md:-left-4 bottom-4 md:bottom-8 z-20 pointer-events-none">
                   <div
-                    className="text-[100px] md:text-[140px] font-black leading-none"
+                    className="text-[120px] md:text-[160px] font-black leading-none"
                     style={{
                       WebkitTextStroke: "3px #1a1a1a",
                       WebkitTextFillColor: "transparent",
@@ -66,7 +66,7 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
                   </div>
                 </div>
 
-                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900 ml-8 md:ml-12">
+                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900 ml-10 md:ml-14">
                   <SecureImage
                     src={imgSrc}
                     alt={item.title}
