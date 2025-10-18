@@ -109,15 +109,17 @@ export default function Home() {
   useEffect(() => {
     const fetchHomepageContent = async () => {
       try {
-        // Fetch in parallel for better performance - Now with popular filter
-        const [latestRes, popularRes, bollywoodRes, horrorRes, southRes, sciFiRes, actionRes, dramaRes] = await Promise.all([
+        // Fetch in parallel for better performance
+        const [latestRes, popularRes, bollywoodRes, southRes, animationRes, koreanRes, actionRes, horrorRes, sciFiRes, dramaRes] = await Promise.all([
           fetch('/api/category/latest'),
           fetch('/api/tmdb-popular-india'),
           fetch('/api/category/bollywood'),
-          fetch('/api/category/horror'),
           fetch('/api/category/south-movies'),
-          fetch('/api/category/sci-fi'),
+          fetch('/api/category/animation'),
+          fetch('/api/category/korean'),
           fetch('/api/category/action'),
+          fetch('/api/category/horror'),
+          fetch('/api/category/sci-fi'),
           fetch('/api/category/drama'),
         ])
 
@@ -136,21 +138,29 @@ export default function Home() {
           const bollywoodData = await bollywoodRes.json()
           categories['bollywood'] = bollywoodData.movies || []
         }
-        if (horrorRes.ok) {
-          const horrorData = await horrorRes.json()
-          categories['horror'] = horrorData.movies || []
-        }
         if (southRes.ok) {
           const southData = await southRes.json()
           categories['south-movies'] = southData.movies || []
         }
-        if (sciFiRes.ok) {
-          const sciFiData = await sciFiRes.json()
-          categories['sci-fi'] = sciFiData.movies || []
+        if (animationRes.ok) {
+          const animationData = await animationRes.json()
+          categories['animation'] = animationData.movies || []
+        }
+        if (koreanRes.ok) {
+          const koreanData = await koreanRes.json()
+          categories['korean'] = koreanData.movies || []
         }
         if (actionRes.ok) {
           const actionData = await actionRes.json()
           categories['action'] = actionData.movies || []
+        }
+        if (horrorRes.ok) {
+          const horrorData = await horrorRes.json()
+          categories['horror'] = horrorData.movies || []
+        }
+        if (sciFiRes.ok) {
+          const sciFiData = await sciFiRes.json()
+          categories['sci-fi'] = sciFiData.movies || []
         }
         if (dramaRes.ok) {
           const dramaData = await dramaRes.json()
@@ -877,7 +887,7 @@ export default function Home() {
         {/* Netflix-style Content Sections - Only show on homepage when not searching */}
         {!searchTerm && selectedCategory === "home" && (
           <div className="max-w-7xl mx-auto px-4 py-8">
-            {/* Latest Section */}
+            {/* Latest Uploads */}
             {latestMovies.length > 0 && (
               <CategoryRow
                 title="Latest Uploads"
@@ -894,25 +904,43 @@ export default function Home() {
               />
             )}
 
-            {/* Bollywood Section - Popular */}
+            {/* Bollywood - Latest */}
             {categoryMovies['bollywood'] && categoryMovies['bollywood'].length > 0 && (
               <CategoryRow
-                title="Popular in Bollywood"
+                title="Latest Bollywood Movies"
                 movies={categoryMovies['bollywood']}
                 viewAllLink="/category?type=bollywood"
               />
             )}
 
-            {/* South Movies Section - Popular */}
+            {/* South Movies - Latest */}
             {categoryMovies['south-movies'] && categoryMovies['south-movies'].length > 0 && (
               <CategoryRow
-                title="Popular in South Movies"
+                title="Latest South Movies"
                 movies={categoryMovies['south-movies']}
                 viewAllLink="/category?type=south-movies"
               />
             )}
 
-            {/* Action Section - Popular */}
+            {/* Korean - Latest */}
+            {categoryMovies['korean'] && categoryMovies['korean'].length > 0 && (
+              <CategoryRow
+                title="Latest Korean Content"
+                movies={categoryMovies['korean']}
+                viewAllLink="/category?type=korean"
+              />
+            )}
+
+            {/* Animation - Latest */}
+            {categoryMovies['animation'] && categoryMovies['animation'].length > 0 && (
+              <CategoryRow
+                title="Latest Animation"
+                movies={categoryMovies['animation']}
+                viewAllLink="/category?type=animation"
+              />
+            )}
+
+            {/* Action - Popular */}
             {categoryMovies['action'] && categoryMovies['action'].length > 0 && (
               <CategoryRow
                 title="Popular in Action"
@@ -921,7 +949,7 @@ export default function Home() {
               />
             )}
 
-            {/* Horror Section - Popular */}
+            {/* Horror - Popular */}
             {categoryMovies['horror'] && categoryMovies['horror'].length > 0 && (
               <CategoryRow
                 title="Popular in Horror"
@@ -930,7 +958,7 @@ export default function Home() {
               />
             )}
 
-            {/* Sci-Fi Section - Popular */}
+            {/* Sci-Fi - Popular */}
             {categoryMovies['sci-fi'] && categoryMovies['sci-fi'].length > 0 && (
               <CategoryRow
                 title="Popular in Sci-Fi"
@@ -939,7 +967,7 @@ export default function Home() {
               />
             )}
 
-            {/* Drama Section - Popular */}
+            {/* Drama - Popular */}
             {categoryMovies['drama'] && categoryMovies['drama'].length > 0 && (
               <CategoryRow
                 title="Popular in Drama"
@@ -1044,7 +1072,7 @@ export default function Home() {
                 if (!slug || slug.length < 2) return null // Skip invalid movies
                 
                 // Determine source URL for the movie
-                let sourceUrl = "https://www.vegamovies-nl.bike" // Default fallback
+                let sourceUrl = "https://www.vegamovies-nl.cafe" // Default fallback
                 if (movie.link) {
                   try {
                     const u = new URL(movie.link)

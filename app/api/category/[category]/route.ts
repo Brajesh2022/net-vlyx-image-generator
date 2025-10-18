@@ -4,20 +4,24 @@ import { protectApiRoute } from "@/lib/api-protection"
 
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
+// Categories with latest filter (by date)
+const LATEST_CATEGORIES = ["bollywood", "south-movies", "animation", "korean"]
+
 const CATEGORIES: Record<string, string> = {
-  "sci-fi": "https://www.vegamovies-nl.cafe/sci-fi/?archive_query=comment",
-  action: "https://www.vegamovies-nl.cafe/action/?archive_query=comment",
-  drama: "https://www.vegamovies-nl.cafe/drama/?archive_query=comment",
-  comedy: "https://www.vegamovies-nl.cafe/comedy/?archive_query=comment",
-  thriller: "https://www.vegamovies-nl.cafe/thriller/?archive_query=comment",
-  romance: "https://www.vegamovies-nl.cafe/romance/?archive_query=comment",
-  horror: "https://www.vegamovies-nl.cafe/horror/?archive_query=comment",
-  animation: "https://www.vegamovies-nl.cafe/animation/?archive_query=comment",
-  bollywood: "https://www.vegamovies-nl.cafe/bollywood/?archive_query=comment",
-  "south-movies": "https://www.vegamovies-nl.cafe/south-movies/?archive_query=comment",
-  "dual-audio-movies": "https://www.vegamovies-nl.cafe/dual-audio-movies/?archive_query=comment",
-  "dual-audio-series": "https://www.vegamovies-nl.cafe/dual-audio-series/?archive_query=comment",
-  "hindi-dubbed": "https://www.vegamovies-nl.cafe/hindi-dubbed/?archive_query=comment",
+  "sci-fi": "https://www.vegamovies-nl.cafe/sci-fi/",
+  action: "https://www.vegamovies-nl.cafe/action/",
+  drama: "https://www.vegamovies-nl.cafe/drama/",
+  comedy: "https://www.vegamovies-nl.cafe/comedy/",
+  thriller: "https://www.vegamovies-nl.cafe/thriller/",
+  romance: "https://www.vegamovies-nl.cafe/romance/",
+  horror: "https://www.vegamovies-nl.cafe/horror/",
+  animation: "https://www.vegamovies-nl.cafe/animation/",
+  bollywood: "https://www.vegamovies-nl.cafe/bollywood/",
+  korean: "https://www.vegamovies-nl.cafe/korean/",
+  "south-movies": "https://www.vegamovies-nl.cafe/south-movies/",
+  "dual-audio-movies": "https://www.vegamovies-nl.cafe/dual-audio-movies/",
+  "dual-audio-series": "https://www.vegamovies-nl.cafe/dual-audio-series/",
+  "hindi-dubbed": "https://www.vegamovies-nl.cafe/hindi-dubbed/",
 }
 
 interface Movie {
@@ -111,20 +115,43 @@ export async function GET(
   }
 
   const { category } = await params
-  const categoryUrl = CATEGORIES[category]
+  const { searchParams } = new URL(request.url)
+  const filter = searchParams.get('filter') || 'auto' // auto, latest, popular
+  const page = searchParams.get('page') || '1'
+  
+  let categoryUrl = CATEGORIES[category]
 
   if (!categoryUrl) {
     return NextResponse.json({ error: "Invalid category", movies: [] }, { status: 400 })
   }
 
+  // Apply filter based on category and user selection
+  let useLatest = LATEST_CATEGORIES.includes(category)
+  
+  if (filter === 'latest') {
+    useLatest = true
+  } else if (filter === 'popular') {
+    useLatest = false
+  }
+  
+  // Add filter to URL
+  if (!useLatest) {
+    categoryUrl += '?archive_query=comment'
+  }
+  
+  // Add page parameter if not first page
+  if (page !== '1') {
+    categoryUrl += (categoryUrl.includes('?') ? '&' : '?') + `page=${page}`
+  }
+
   try {
-    console.log(`Fetching ${category} content...`)
+    console.log(`Fetching ${category} content (filter: ${useLatest ? 'latest' : 'popular'}, page: ${page})...`)
 
     const html = await fetchVegaMoviesHTML(categoryUrl)
-    const movies = parseVegaMoviesData(html, 10)
+    const movies = parseVegaMoviesData(html, page === '1' ? 10 : 20)
 
     console.log(`Successfully fetched ${movies.length} items for ${category}`)
-    return NextResponse.json({ movies })
+    return NextResponse.json({ movies, hasMore: movies.length >= (page === '1' ? 10 : 20) })
   } catch (error) {
     console.error(`Error in ${category} API:`, error)
 
@@ -132,6 +159,7 @@ export async function GET(
       {
         error: error instanceof Error ? error.message : "Failed to fetch category content",
         movies: [],
+        hasMore: false,
       },
       { status: 500 }
     )

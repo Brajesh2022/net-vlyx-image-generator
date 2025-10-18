@@ -23,14 +23,20 @@ function CategoryContent() {
   const searchParams = useSearchParams()
   const type = searchParams.get("type") || "sci-fi"
 
+  // Categories that default to "latest"
+  const latestCategories = ["bollywood", "south-movies", "animation", "korean"]
+  const defaultFilter = latestCategories.includes(type) ? "latest" : "popular"
+
   const [currentPage, setCurrentPage] = useState(1)
   const [allMovies, setAllMovies] = useState<Movie[]>([])
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [selectedFilter, setSelectedFilter] = useState(defaultFilter)
+  const [hasMore, setHasMore] = useState(true)
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/category", type, currentPage],
+    queryKey: ["/api/category", type, selectedFilter, currentPage],
     queryFn: async () => {
-      const response = await fetch(`/api/category/${type}`)
+      const response = await fetch(`/api/category/${type}?filter=${selectedFilter}&page=${currentPage}`)
       if (!response.ok) {
         throw new Error("Failed to fetch movies")
       }
@@ -42,15 +48,30 @@ function CategoryContent() {
 
   useEffect(() => {
     if (data && data.movies) {
-      setAllMovies(data.movies)
+      if (currentPage === 1) {
+        setAllMovies(data.movies)
+      } else {
+        setAllMovies(prev => [...prev, ...data.movies])
+      }
+      setHasMore(data.hasMore !== false)
     }
-  }, [data])
+  }, [data, currentPage])
+
+  // Reset when filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+    setAllMovies([])
+  }, [selectedFilter, type])
 
   const handleLoadMore = async () => {
+    if (!hasMore || isLoadingMore) return
     setIsLoadingMore(true)
-    // For now, just simulate loading more
-    // In production, you'd fetch the next page
-    setTimeout(() => setIsLoadingMore(false), 1000)
+    setCurrentPage(prev => prev + 1)
+    setIsLoadingMore(false)
+  }
+
+  const handleFilterChange = (filter: string) => {
+    setSelectedFilter(filter)
   }
 
   const createMovieSlug = (movie: Movie) => {
@@ -101,6 +122,7 @@ function CategoryContent() {
       horror: "Horror",
       animation: "Animation",
       bollywood: "Bollywood",
+      korean: "Korean",
       "south-movies": "South Movies",
       "dual-audio-movies": "Dual Audio Movies",
       "dual-audio-series": "Dual Audio Series",
@@ -140,8 +162,25 @@ function CategoryContent() {
       <main className="pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4">
           <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">{getCategoryLabel(type)}</h1>
-            <p className="text-gray-400">Browse all {getCategoryLabel(type).toLowerCase()} content</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold mb-2">{getCategoryLabel(type)}</h1>
+                <p className="text-gray-400">Browse all {getCategoryLabel(type).toLowerCase()} content</p>
+              </div>
+              
+              {/* Filter Dropdown */}
+              <div className="flex items-center gap-3">
+                <span className="text-gray-400 text-sm">Sort by:</span>
+                <select
+                  value={selectedFilter}
+                  onChange={(e) => handleFilterChange(e.target.value)}
+                  className="px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-red-500 focus:ring-red-500/20 focus:outline-none"
+                >
+                  <option value="latest">Latest</option>
+                  <option value="popular">Popular</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Loading State */}
@@ -175,7 +214,7 @@ function CategoryContent() {
                   const slug = createMovieSlug(movie)
                   if (!slug || slug.length < 2) return null
 
-                  let sourceUrl = "https://www.vegamovies-nl.bike"
+                  let sourceUrl = "https://www.vegamovies-nl.cafe"
                   if (movie.link) {
                     try {
                       const u = new URL(movie.link)
@@ -215,18 +254,6 @@ function CategoryContent() {
                             <Play className="h-6 w-6 text-white ml-1" />
                           </div>
                         </div>
-
-                        {movie.category && (
-                          <Badge className="absolute top-2 right-2 bg-red-600/90 text-white text-xs">
-                            {movie.category}
-                          </Badge>
-                        )}
-                        <div className="absolute top-2 left-2 flex items-center space-x-1">
-                          <Badge className="bg-yellow-600/90 text-white text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            HD
-                          </Badge>
-                        </div>
                       </div>
                       <div className="mt-3 px-1">
                         <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover:text-red-400 transition-colors">
@@ -239,22 +266,24 @@ function CategoryContent() {
               </div>
 
               {/* Load More Button */}
-              <div className="flex justify-center mt-8">
-                <Button
-                  onClick={handleLoadMore}
-                  disabled={isLoadingMore}
-                  className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-all duration-300 hover:scale-105"
-                >
-                  {isLoadingMore ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Loading...
-                    </span>
-                  ) : (
-                    "Load More"
-                  )}
-                </Button>
-              </div>
+              {hasMore && (
+                <div className="flex justify-center mt-8">
+                  <Button
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore || isLoading}
+                    className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoadingMore || isLoading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      "Load More"
+                    )}
+                  </Button>
+                </div>
+              )}
             </>
           )}
 

@@ -178,7 +178,7 @@ function ViewAllContent() {
                   const slug = createMovieSlug(movie)
                   if (!slug || slug.length < 2) return null
 
-                  let sourceUrl = "https://www.vegamovies-nl.bike"
+                  let sourceUrl = "https://www.vegamovies-nl.cafe"
                   if (movie.link) {
                     try {
                       const u = new URL(movie.link)
@@ -217,18 +217,6 @@ function ViewAllContent() {
                           <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
                             <Play className="h-6 w-6 text-white ml-1" />
                           </div>
-                        </div>
-
-                        {movie.category && (
-                          <Badge className="absolute top-2 right-2 bg-red-600/90 text-white text-xs">
-                            {movie.category}
-                          </Badge>
-                        )}
-                        <div className="absolute top-2 left-2 flex items-center space-x-1">
-                          <Badge className="bg-yellow-600/90 text-white text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            HD
-                          </Badge>
                         </div>
                       </div>
                       <div className="mt-3 px-1">
