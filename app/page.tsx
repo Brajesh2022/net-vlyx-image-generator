@@ -726,32 +726,62 @@ export default function Home() {
         {!searchTerm && (
           <section className="relative h-[75vh] sm:h-[85vh] md:h-[90vh] lg:h-[95vh] overflow-hidden">
             {isLoading ? (
-              <div className="absolute inset-0 bg-gray-900">
-                <div className="relative z-20 h-full flex items-center">
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900">
+                {/* Animated background effect */}
+                <div className="absolute inset-0 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-red-900/5 via-transparent to-purple-900/5 animate-pulse"></div>
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500/50 to-transparent animate-shimmer"></div>
+                </div>
+
+                <div className="relative z-20 h-full flex items-end md:items-center pb-12 sm:pb-16 md:pb-0">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-                    <div className="max-w-4xl">
-                      <div className="mb-4">
-                        <div className="h-6 w-24 bg-gray-800 rounded animate-pulse"></div>
+                    <div className="max-w-2xl lg:max-w-4xl">
+                      {/* Badge Skeleton */}
+                      <div className="mb-3 sm:mb-4 flex gap-2">
+                        <div className="h-7 w-28 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-full animate-shimmer-slow bg-[length:200%_100%]"></div>
+                        <div className="h-7 w-16 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-full animate-shimmer-slow bg-[length:200%_100%]" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="h-7 w-20 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-full animate-shimmer-slow bg-[length:200%_100%]" style={{ animationDelay: '0.2s' }}></div>
                       </div>
-                      <div className="space-y-4 mb-6">
-                        <div className="h-8 sm:h-12 lg:h-16 w-full bg-gray-800 rounded animate-pulse"></div>
-                        <div className="h-8 sm:h-12 lg:h-16 w-3/4 bg-gray-800 rounded animate-pulse"></div>
+
+                      {/* Title Skeleton */}
+                      <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+                        <div className="h-10 sm:h-14 md:h-16 lg:h-20 w-full bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-lg animate-shimmer-slow bg-[length:200%_100%]"></div>
+                        <div className="h-10 sm:h-14 md:h-16 lg:h-20 w-4/5 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-lg animate-shimmer-slow bg-[length:200%_100%]" style={{ animationDelay: '0.15s' }}></div>
                       </div>
-                      <div className="space-y-3 mb-8">
-                        <div className="h-4 w-full bg-gray-800 rounded animate-pulse"></div>
-                        <div className="h-4 w-5/6 bg-gray-800 rounded animate-pulse"></div>
-                        <div className="h-4 w-2/3 bg-gray-800 rounded animate-pulse"></div>
+
+                      {/* Description Skeleton */}
+                      <div className="space-y-2 sm:space-y-3 mb-6 sm:mb-8">
+                        <div className="h-4 w-full bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded animate-shimmer-slow bg-[length:200%_100%]"></div>
+                        <div className="h-4 w-11/12 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded animate-shimmer-slow bg-[length:200%_100%]" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="h-4 w-3/4 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded animate-shimmer-slow bg-[length:200%_100%]" style={{ animationDelay: '0.2s' }}></div>
                       </div>
-                      <div className="flex gap-4">
-                        <div className="h-12 w-32 bg-gray-800/30 hover:bg-gray-800/50 rounded-full items-center justify-center transition-colors group">
-                          <ChevronLeft className="h-6 w-6 text-white group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="h-12 w-32 bg-gray-800/30 hover:bg-gray-800/50 rounded-full items-center justify-center transition-colors group">
-                          <ChevronRight className="h-6 w-6 text-white group-hover:scale-110 transition-transform" />
-                        </div>
+
+                      {/* Buttons Skeleton */}
+                      <div className="flex flex-row gap-3 md:gap-4">
+                        <div className="flex-1 sm:flex-none h-11 sm:h-12 md:h-14 w-full sm:w-36 md:w-40 bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 rounded-lg animate-shimmer-slow bg-[length:200%_100%] shadow-lg"></div>
+                        <div className="flex-1 sm:flex-none h-11 sm:h-12 md:h-14 w-full sm:w-36 md:w-40 bg-gradient-to-r from-gray-800/50 via-gray-700/50 to-gray-800/50 rounded-lg animate-shimmer-slow bg-[length:200%_100%] backdrop-blur-xl" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Navigation Arrows Skeleton */}
+                <div className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 bg-gray-800/30 rounded-full items-center justify-center animate-pulse">
+                  <ChevronLeft className="h-6 w-6 text-gray-600" />
+                </div>
+                <div className="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 bg-gray-800/30 rounded-full items-center justify-center animate-pulse" style={{ animationDelay: '0.15s' }}>
+                  <ChevronRight className="h-6 w-6 text-gray-600" />
+                </div>
+
+                {/* Dots Skeleton */}
+                <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-700 animate-pulse"
+                      style={{ animationDelay: `${i * 0.1}s` }}
+                    />
+                  ))}
                 </div>
               </div>
             ) : (
