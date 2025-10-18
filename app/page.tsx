@@ -804,8 +804,8 @@ export default function Home() {
                         className="hidden md:block w-full h-full bg-cover bg-center"
                         style={{ backgroundImage: `url(${slide.background})` }}
                       />
-                      {/* Gradient overlay - stronger on mobile for better text readability */}
-                      <div className={`absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black via-black/80 md:via-black/70 to-black/60 md:to-transparent`} />
+                      {/* Gradient overlay - balanced for mobile readability */}
+                      <div className={`absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black via-black/60 md:via-black/70 to-black/40 md:to-transparent`} />
                     </div>
                   ))}
                 </div>
