@@ -28,14 +28,9 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
   const router = useRouter()
 
   const handleClick = (item: TMDBItem) => {
-    // Trigger search for the trending title and scroll to results
+    // Open search in a new tab
     const searchUrl = `/?search=${encodeURIComponent(item.title)}`
-    router.push(searchUrl)
-    
-    // Scroll to results after a brief delay to allow page to update
-    setTimeout(() => {
-      window.scrollTo({ top: 600, behavior: 'smooth' })
-    }, 100)
+    window.open(searchUrl, '_blank')
   }
 
   if (items.length === 0) return null
