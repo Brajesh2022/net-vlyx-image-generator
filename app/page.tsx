@@ -78,6 +78,7 @@ export default function Home() {
   const slideInterval = useRef<NodeJS.Timeout>()
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>()
   const containerRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const isInitialMount = useRef(true)
 
   // TMDb API Key (used directly for testing as requested)
@@ -286,6 +287,10 @@ export default function Home() {
 
   const handleSearchSubmit = () => {
     setShowSuggestions(false)
+    // Hide mobile keyboard by blurring the input
+    if (searchInputRef.current) {
+      searchInputRef.current.blur()
+    }
     refetch()
   }
 
@@ -293,6 +298,10 @@ export default function Home() {
     setSearchTerm(suggestion)
     setShowSuggestions(false)
     setSuggestions([])
+    // Hide mobile keyboard
+    if (searchInputRef.current) {
+      searchInputRef.current.blur()
+    }
     // Trigger the internal search immediately
     refetch()
   }
@@ -566,6 +575,7 @@ export default function Home() {
               <div ref={containerRef} className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 z-10" />
                 <Input
+                  ref={searchInputRef}
                   placeholder="Search movies, shows..."
                   value={searchTerm}
                   onChange={(e) => handleSearchInputChange(e.target.value)}
