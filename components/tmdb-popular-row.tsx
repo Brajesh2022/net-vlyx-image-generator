@@ -28,9 +28,14 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
   const router = useRouter()
 
   const handleClick = (item: TMDBItem) => {
-    // Trigger search for the trending title
+    // Trigger search for the trending title and scroll to results
     const searchUrl = `/?search=${encodeURIComponent(item.title)}`
     router.push(searchUrl)
+    
+    // Scroll to results after a brief delay to allow page to update
+    setTimeout(() => {
+      window.scrollTo({ top: 600, behavior: 'smooth' })
+    }, 100)
   }
 
   if (items.length === 0) return null
@@ -57,7 +62,7 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
                   <div
                     className="text-[120px] md:text-[160px] font-black leading-none"
                     style={{
-                      WebkitTextStroke: "3px #1a1a1a",
+                      WebkitTextStroke: "3px #d4d4d4",
                       WebkitTextFillColor: "transparent",
                       textShadow: "0 0 20px rgba(0,0,0,0.8)",
                     }}
