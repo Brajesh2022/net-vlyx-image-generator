@@ -1,59 +1,82 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const TMDB_API_KEY = "848d4c9db9d3f19d0229dc95735190d3"
+const REGION = "IN"
+const INDIAN_LANGUAGES = "hi|ta|te|ml|kn"
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("Fetching popular content from India...")
+    console.log("Fetching popular content from India with hybrid scoring...")
 
-    // Fetch both trending and popular Indian content
-    const [trendingResponse, bollywoodResponse, southResponse] = await Promise.all([
-      // Global trending
+    // Fetch three different sources for comprehensive coverage
+    const [nowPlayingResponse, popularIndianResponse, topRatedIndianResponse] = await Promise.all([
+      // Current hits in theaters (including Hollywood)
       fetch(
-        `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_API_KEY}&language=en-US`
+        `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&language=en-US&page=1&region=${REGION}`
       ),
-      // Bollywood (Hindi) movies
+      // Popular Indian language films
       fetch(
-        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&include_adult=false&with_original_language=hi&vote_count.gte=20`
+        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&region=${REGION}&sort_by=popularity.desc&with_original_language=${INDIAN_LANGUAGES}`
       ),
-      // South Indian movies (Tamil, Telugu, Malayalam, Kannada)
+      // Top-rated Indian language films (quality cinema)
       fetch(
-        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&include_adult=false&with_original_language=ta|te|ml|kn&vote_count.gte=20`
+        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&region=${REGION}&sort_by=vote_average.desc&vote_count.gte=100&with_original_language=${INDIAN_LANGUAGES}`
       ),
     ])
 
-    const trendingData = trendingResponse.ok ? await trendingResponse.json() : { results: [] }
-    const bollywoodData = bollywoodResponse.ok ? await bollywoodResponse.json() : { results: [] }
-    const southData = southResponse.ok ? await southResponse.json() : { results: [] }
+    const nowPlayingData = nowPlayingResponse.ok ? await nowPlayingResponse.json() : { results: [] }
+    const popularIndianData = popularIndianResponse.ok ? await popularIndianResponse.json() : { results: [] }
+    const topRatedIndianData = topRatedIndianResponse.ok ? await topRatedIndianResponse.json() : { results: [] }
 
-    // Combine results - prioritize Indian content
-    const trending = trendingData.results?.slice(0, 4) || []
-    const bollywood = bollywoodData.results?.slice(0, 3) || []
-    const south = southData.results?.slice(0, 3) || []
+    // Combine all movie lists
+    const allMovies = [
+      ...(nowPlayingData.results || []),
+      ...(popularIndianData.results || []),
+      ...(topRatedIndianData.results || []),
+    ]
 
-    // Merge and take top 10
-    const combined = [...bollywood, ...south, ...trending]
-    const unique = Array.from(new Map(combined.map((item) => [item.id, item])).values())
-    const top10 = unique.slice(0, 10)
+    // De-duplicate movies using a Map (based on movie ID)
+    const uniqueMoviesMap = new Map()
+    allMovies.forEach((movie: any) => {
+      if (!uniqueMoviesMap.has(movie.id)) {
+        uniqueMoviesMap.set(movie.id, movie)
+      }
+    })
 
-    // Transform results
-    const results = top10.map((item: any, index: number) => ({
-      id: item.id,
-      rank: index + 1,
-      title: item.title || item.name,
-      overview: item.overview,
-      poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
-      backdrop: item.backdrop_path
-        ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
-        : null,
-      rating: item.vote_average ? item.vote_average.toFixed(1) : null,
-      releaseDate: item.release_date || item.first_air_date || "",
-      mediaType: item.media_type || "movie",
-      originalLanguage: item.original_language,
-      isIndian: ["hi", "ta", "te", "ml", "kn"].includes(item.original_language),
+    // Convert map back to array
+    const uniqueMovies = Array.from(uniqueMoviesMap.values())
+
+    // Create hybrid score: (popularity * 0.7) + (vote_average * 3)
+    // This balances current popularity with quality ratings
+    const scoredMovies = uniqueMovies.map((movie: any) => ({
+      ...movie,
+      hybrid_score: (movie.popularity * 0.7) + (movie.vote_average * 3),
     }))
 
-    console.log(`Successfully fetched ${results.length} popular items`)
+    // Sort by hybrid score, descending
+    scoredMovies.sort((a: any, b: any) => b.hybrid_score - a.hybrid_score)
+
+    // Get top 20 movies
+    const top20Movies = scoredMovies.slice(0, 20)
+
+    // Format results with rank
+    const results = top20Movies.map((movie: any, index: number) => ({
+      id: movie.id,
+      rank: index + 1,
+      title: movie.title || movie.name,
+      overview: movie.overview || "",
+      poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
+      backdrop: movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : null,
+      rating: movie.vote_average ? movie.vote_average.toFixed(1) : null,
+      releaseDate: movie.release_date || movie.first_air_date || "",
+      mediaType: movie.media_type || "movie",
+      originalLanguage: movie.original_language || "",
+      isIndian: ["hi", "ta", "te", "ml", "kn"].includes(movie.original_language),
+      popularity: movie.popularity,
+      hybridScore: movie.hybrid_score.toFixed(2),
+    }))
+
+    console.log(`Successfully fetched ${results.length} popular items with hybrid scoring`)
     return NextResponse.json({ results })
   } catch (error) {
     console.error("Error fetching popular content:", error)
