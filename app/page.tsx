@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { useWishlist } from "@/hooks/useWishlist"
 import { WishlistModal } from "@/components/wishlist-modal"
 import { FeedbackReview } from "@/components/feedback-review"
-import { encodeMovieUrl, cleanMovieTitle } from "@/lib/utils"
+import { encodeMovieUrl, cleanMovieTitleForHome, splitMovieTitle, truncateSubtitle } from "@/lib/utils"
 import { SecureImage } from "@/components/secure-image"
 import { MovieInfoModal } from "@/components/movie-info-modal"
 import { CategoryRow } from "@/components/category-row"
@@ -73,6 +73,7 @@ export default function Home() {
   const [latestMovies, setLatestMovies] = useState<Movie[]>([])
   const [popularItems, setPopularItems] = useState<any[]>([])
   const [categoryMovies, setCategoryMovies] = useState<Record<string, Movie[]>>({})
+  const [expandedSubtitles, setExpandedSubtitles] = useState<Set<string>>(new Set())
   const searchTimeout = useRef<NodeJS.Timeout>()
   const slideInterval = useRef<NodeJS.Timeout>()
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -1025,60 +1026,103 @@ export default function Home() {
                 const movieId = `m-${index}-${slug.substring(0, 50)}`
                 const isLoadingMovie = loadingMovieId === movieId
                 
-                // Clean the movie title
-                const displayTitle = cleanMovieTitle(movie.title)
+                // Split title and subtitle for search results
+                const { title: mainTitle, subtitle } = searchTerm 
+                  ? splitMovieTitle(movie.title) 
+                  : { title: cleanMovieTitleForHome(movie.title), subtitle: "" }
+                
+                const isExpanded = expandedSubtitles.has(movieId)
+                const truncatedSubtitle = truncateSubtitle(subtitle, 80)
+                const hasLongSubtitle = subtitle.length > 80
 
                 return (
                   <div 
-                    key={movieId} 
-                    onClick={() => {
-                      setLoadingMovieId(movieId)
-                      setIsNavigating(true)
-                      router.push(movieUrl)
-                    }}
-                    className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10"
+                    key={movieId}
+                    className="group transition-all duration-300 hover:scale-105 hover:z-10"
                   >
-                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900">
-                      <SecureImage
-                        src={imgSrc || "/placeholder.svg"}
-                        alt={displayTitle}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-110"
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      
-                      {/* Loading overlay */}
-                      {isLoadingMovie && (
-                        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in duration-200">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
-                            <span className="text-white text-xs font-medium">Loading...</span>
+                    <div 
+                      onClick={() => {
+                        setLoadingMovieId(movieId)
+                        setIsNavigating(true)
+                        router.push(movieUrl)
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900">
+                        <SecureImage
+                          src={imgSrc || "/placeholder.svg"}
+                          alt={mainTitle}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-110"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        
+                        {/* Loading overlay */}
+                        {isLoadingMovie && (
+                          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in duration-200">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+                              <span className="text-white text-xs font-medium">Loading...</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                            <Play className="h-6 w-6 text-white ml-1" />
                           </div>
                         </div>
-                      )}
-                      
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                          <Play className="h-6 w-6 text-white ml-1" />
+                        {movie.category && (
+                          <Badge className="absolute top-2 right-2 bg-red-600/90 text-white text-xs">
+                            {movie.category}
+                          </Badge>
+                        )}
+                        <div className="absolute top-2 left-2 flex items-center space-x-1">
+                          <Badge className="bg-yellow-600/90 text-white text-xs">
+                            <Star className="h-3 w-3 mr-1" />
+                            HD
+                          </Badge>
                         </div>
                       </div>
-                      {movie.category && (
-                        <Badge className="absolute top-2 right-2 bg-red-600/90 text-white text-xs">
-                          {movie.category}
-                        </Badge>
-                      )}
-                      <div className="absolute top-2 left-2 flex items-center space-x-1">
-                        <Badge className="bg-yellow-600/90 text-white text-xs">
-                          <Star className="h-3 w-3 mr-1" />
-                          HD
-                        </Badge>
-                      </div>
                     </div>
+                    
                     <div className="mt-3 px-1">
-                      <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover:text-red-400 transition-colors">
-                        {displayTitle}
+                      <h4 className="font-semibold text-sm text-white group-hover:text-red-400 transition-colors line-clamp-2">
+                        {mainTitle}
                       </h4>
+                      {subtitle && (
+                        <div className="mt-1 relative group/subtitle">
+                          <p 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (hasLongSubtitle) {
+                                setExpandedSubtitles(prev => {
+                                  const newSet = new Set(prev)
+                                  if (newSet.has(movieId)) {
+                                    newSet.delete(movieId)
+                                  } else {
+                                    newSet.add(movieId)
+                                  }
+                                  return newSet
+                                })
+                              }
+                            }}
+                            className={`text-gray-400 text-xs leading-relaxed ${
+                              hasLongSubtitle ? 'cursor-pointer hover:text-gray-300' : ''
+                            } ${isExpanded ? '' : 'line-clamp-2'}`}
+                            title={subtitle}
+                          >
+                            {isExpanded ? subtitle : truncatedSubtitle}
+                          </p>
+                          {/* Tooltip on hover */}
+                          {!isExpanded && hasLongSubtitle && (
+                            <div className="hidden group-hover/subtitle:block absolute bottom-full left-0 right-0 mb-2 p-2 bg-gray-900/95 backdrop-blur-sm border border-gray-700 rounded text-xs text-gray-300 z-50 shadow-xl">
+                              {subtitle}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )

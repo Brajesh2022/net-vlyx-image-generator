@@ -1,8 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Play, Star } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Play } from "lucide-react"
 import { HorizontalScroll } from "@/components/horizontal-scroll"
 import { SecureImage } from "@/components/secure-image"
 
@@ -28,9 +27,10 @@ interface TMDBPopularRowProps {
 export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
   const router = useRouter()
 
-  const handleClick = async (item: TMDBItem) => {
-    // Search for the title on our website
-    router.push(`/?search=${encodeURIComponent(item.title)}`)
+  const handleClick = (item: TMDBItem) => {
+    // Trigger search for the trending title
+    const searchUrl = `/?search=${encodeURIComponent(item.title)}`
+    router.push(searchUrl)
   }
 
   if (items.length === 0) return null
@@ -50,12 +50,12 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
               <div
                 key={item.id}
                 onClick={() => handleClick(item)}
-                className="relative flex-shrink-0 w-40 md:w-48 cursor-pointer group transition-transform duration-300 hover:scale-105"
+                className="relative flex-shrink-0 w-32 md:w-40 cursor-pointer group transition-transform duration-300 hover:scale-105"
               >
                 {/* Netflix-style Ranking Number */}
-                <div className="absolute -left-4 bottom-0 z-20 pointer-events-none">
+                <div className="absolute -left-3 md:-left-4 bottom-0 z-20 pointer-events-none">
                   <div
-                    className="text-[120px] md:text-[140px] font-black leading-none"
+                    className="text-[100px] md:text-[140px] font-black leading-none"
                     style={{
                       WebkitTextStroke: "3px #1a1a1a",
                       WebkitTextFillColor: "transparent",
@@ -66,13 +66,13 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
                   </div>
                 </div>
 
-                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900 ml-12">
+                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900 ml-8 md:ml-12">
                   <SecureImage
                     src={imgSrc}
                     alt={item.title}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-110"
-                    sizes="(max-width: 768px) 160px, 192px"
+                    sizes="(max-width: 768px) 128px, 160px"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
@@ -81,40 +81,6 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
                       <Play className="h-6 w-6 text-white ml-1" />
                     </div>
                   </div>
-
-                  <div className="absolute top-2 right-2 flex flex-col gap-1">
-                    {item.rating && (
-                      <Badge className="bg-yellow-600/90 text-white text-xs flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-current" />
-                        {item.rating}
-                      </Badge>
-                    )}
-                    {item.isIndian && (
-                      <Badge className="bg-orange-600/90 text-white text-xs">
-                        {item.originalLanguage === "hi"
-                          ? "Hindi"
-                          : item.originalLanguage === "ta"
-                            ? "Tamil"
-                            : item.originalLanguage === "te"
-                              ? "Telugu"
-                              : item.originalLanguage === "ml"
-                                ? "Malayalam"
-                                : "Kannada"}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="absolute top-2 left-2">
-                    <Badge className="bg-blue-600/90 text-white text-xs uppercase">
-                      {item.mediaType === "tv" ? "Series" : "Movie"}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="mt-3 px-1">
-                  <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover:text-red-400 transition-colors">
-                    {item.title}
-                  </h4>
                 </div>
               </div>
             )

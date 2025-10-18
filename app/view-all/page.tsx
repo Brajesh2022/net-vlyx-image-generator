@@ -8,7 +8,7 @@ import { Film, Play, Star, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { SecureImage } from "@/components/secure-image"
-import { cleanMovieTitle, encodeMovieUrl } from "@/lib/utils"
+import { cleanMovieTitleForHome, encodeMovieUrl } from "@/lib/utils"
 
 interface Movie {
   title: string
@@ -195,7 +195,7 @@ function ViewAllContent() {
                     movie.image ||
                     "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
 
-                  const cleanTitle = cleanMovieTitle(movie.title)
+                  const cleanTitle = cleanMovieTitleForHome(movie.title)
 
                   return (
                     <div

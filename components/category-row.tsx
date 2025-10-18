@@ -2,12 +2,12 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Play, Star } from "lucide-react"
+import { Play, Star, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { HorizontalScroll } from "@/components/horizontal-scroll"
 import { SecureImage } from "@/components/secure-image"
-import { cleanMovieTitle, encodeMovieUrl } from "@/lib/utils"
+import { cleanMovieTitleForHome, encodeMovieUrl } from "@/lib/utils"
 
 interface Movie {
   title: string
@@ -84,7 +84,7 @@ export function CategoryRow({ title, movies, viewAllLink, showRanking = false }:
 
       <HorizontalScroll>
         <div className="flex gap-4 pb-4">
-          {movies.map((movie, index) => {
+          {movies.slice(0, 10).map((movie, index) => {
             const slug = createMovieSlug(movie)
             if (!slug || slug.length < 2) return null
 
@@ -105,7 +105,7 @@ export function CategoryRow({ title, movies, viewAllLink, showRanking = false }:
               movie.image ||
               "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
 
-            const cleanTitle = cleanMovieTitle(movie.title)
+            const cleanTitle = cleanMovieTitleForHome(movie.title)
 
             return (
               <div
@@ -166,12 +166,27 @@ export function CategoryRow({ title, movies, viewAllLink, showRanking = false }:
                   <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover:text-red-400 transition-colors">
                     {cleanTitle}
                   </h4>
-                </div>
               </div>
-            )
-          })}
-        </div>
-      </HorizontalScroll>
-    </div>
-  )
+            </div>
+          )
+        })}
+        
+        {/* View More Button */}
+        {viewAllLink && (
+          <Link href={viewAllLink}>
+            <div className="flex-shrink-0 w-40 md:w-48 cursor-pointer group transition-transform duration-300 hover:scale-105">
+              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-700 hover:border-red-500 transition-colors duration-300 flex flex-col items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-red-600/20 border-2 border-red-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <ArrowRight className="h-8 w-8 text-red-500" />
+                </div>
+                <p className="text-white font-semibold text-lg">View More</p>
+                <p className="text-gray-400 text-sm mt-2">See all content</p>
+              </div>
+            </div>
+          </Link>
+        )}
+      </div>
+    </HorizontalScroll>
+  </div>
+)
 }

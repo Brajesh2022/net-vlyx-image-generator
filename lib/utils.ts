@@ -201,26 +201,108 @@ export function replaceBrandingText(text: string): string {
 }
 
 /**
- * Cleans movie title by showing only up to year bracket
+ * Cleans movie title for homepage display - shows only up to opening bracket (excludes year)
  * Example: "Following (2024) AMZN-WEB-DL Dual Audio {Hindi-Korean} 480p [370MB]"
- * Returns: "Following (2024)"
+ * Returns: "Following"
  */
-export function cleanMovieTitle(title: string): string {
+export function cleanMovieTitleForHome(title: string): string {
   if (!title) return ""
   
-  // Match everything up to and including year bracket like (2024)
-  const match = title.match(/^(.+?\(\d{4}\))/)
+  // Match everything before the first opening bracket
+  const match = title.match(/^([^(]+)/)
   
   if (match) {
     return match[1].trim()
   }
   
-  // If no year found, try to get just the title before any technical info
-  const techInfoMatch = title.match(/^([^[\]{|]+?)(?:\s*[\[\]{|]|$)/)
-  if (techInfoMatch) {
-    return techInfoMatch[1].trim()
-  }
-  
   // Fallback: return original title
   return title.trim()
+}
+
+/**
+ * Splits movie title for search results into title and subtitle
+ * Title: Everything up to dual language indicators (Hindi, English, Dual Audio, etc.)
+ * Subtitle: Rest of the technical information
+ * 
+ * Example: "Panchayat (2020) Season 1 Hindi Complete Prime Video WEB Series 480p [90MB]"
+ * Returns: { title: "Panchayat (2020) Season 1", subtitle: "Hindi Complete Prime Video WEB Series 480p [90MB]" }
+ */
+export function splitMovieTitle(title: string): { title: string; subtitle: string } {
+  if (!title) return { title: "", subtitle: "" }
+  
+  // Language/format indicators that typically mark the start of technical info
+  const indicators = [
+    "Hindi",
+    "English",
+    "Tamil",
+    "Telugu",
+    "Malayalam",
+    "Kannada",
+    "Korean",
+    "Japanese",
+    "Chinese",
+    "Dual Audio",
+    "Multi Audio",
+    "WEB-DL",
+    "WEBRip",
+    "HDRip",
+    "BluRay",
+    "DVDRip",
+    "Prime Video",
+    "Netflix",
+    "Hotstar",
+    "480p",
+    "720p",
+    "1080p",
+    "2160p",
+    "4K"
+  ]
+  
+  // Find the first occurrence of any indicator
+  let splitIndex = -1
+  let matchedIndicator = ""
+  
+  for (const indicator of indicators) {
+    const index = title.indexOf(indicator)
+    if (index !== -1 && (splitIndex === -1 || index < splitIndex)) {
+      splitIndex = index
+      matchedIndicator = indicator
+    }
+  }
+  
+  if (splitIndex > 0) {
+    // Split at the indicator
+    const mainTitle = title.substring(0, splitIndex).trim()
+    const subtitle = title.substring(splitIndex).trim()
+    
+    return {
+      title: mainTitle,
+      subtitle: subtitle
+    }
+  }
+  
+  // If no indicator found, try to split at common patterns
+  // Look for patterns like "Season X" followed by technical info
+  const seasonMatch = title.match(/^(.+?(?:Season\s+\d+|S\d+(?:E\d+)?))(.+)$/i)
+  if (seasonMatch && seasonMatch[2].trim().length > 0) {
+    return {
+      title: seasonMatch[1].trim(),
+      subtitle: seasonMatch[2].trim()
+    }
+  }
+  
+  // Fallback: return full title with empty subtitle
+  return {
+    title: title.trim(),
+    subtitle: ""
+  }
+}
+
+/**
+ * Truncates subtitle to a maximum length with ellipsis
+ */
+export function truncateSubtitle(subtitle: string, maxLength: number = 80): string {
+  if (!subtitle || subtitle.length <= maxLength) return subtitle
+  
+  return subtitle.substring(0, maxLength).trim() + "..."
 }
