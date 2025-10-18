@@ -109,18 +109,18 @@ export default function Home() {
   useEffect(() => {
     const fetchHomepageContent = async () => {
       try {
-        // Fetch in parallel for better performance
+        // Fetch in parallel for better performance (limit=10 for home page sections)
         const [latestRes, popularRes, bollywoodRes, southRes, animationRes, koreanRes, actionRes, horrorRes, sciFiRes, dramaRes] = await Promise.all([
           fetch('/api/category/latest'),
           fetch('/api/tmdb-popular-india'),
-          fetch('/api/category/bollywood'),
-          fetch('/api/category/south-movies'),
-          fetch('/api/category/animation'),
-          fetch('/api/category/korean'),
-          fetch('/api/category/action'),
-          fetch('/api/category/horror'),
-          fetch('/api/category/sci-fi'),
-          fetch('/api/category/drama'),
+          fetch('/api/category/bollywood?limit=10'),
+          fetch('/api/category/south-movies?limit=10'),
+          fetch('/api/category/animation?limit=10'),
+          fetch('/api/category/korean?limit=10'),
+          fetch('/api/category/action?limit=10'),
+          fetch('/api/category/horror?limit=10'),
+          fetch('/api/category/sci-fi?limit=10'),
+          fetch('/api/category/drama?limit=10'),
         ])
 
         if (latestRes.ok) {

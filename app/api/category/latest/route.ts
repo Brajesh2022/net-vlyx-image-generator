@@ -46,7 +46,7 @@ function parseVegaMoviesData(html: string, limit: number = 10): Movie[] {
   const movies: Movie[] = []
 
   $("article.post-item").each((index, element) => {
-    if (movies.length >= limit) return false // Stop when we have enough
+    if (limit > 0 && movies.length >= limit) return false // Stop when we have enough (only if limit is set)
 
     const $element = $(element)
 

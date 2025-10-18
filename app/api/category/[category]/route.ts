@@ -58,12 +58,14 @@ async function fetchVegaMoviesHTML(url: string): Promise<string> {
   }
 }
 
-function parseVegaMoviesData(html: string, limit: number = 10): Movie[] {
+function parseVegaMoviesData(html: string, limit: number = 0): Movie[] {
   const $ = cheerio.load(html)
   const movies: Movie[] = []
 
+  // Parse movies from the page (limit = 0 means no limit, get all)
   $("article.post-item").each((index, element) => {
-    if (movies.length >= limit) return false
+    // If limit is set and reached, stop
+    if (limit > 0 && movies.length >= limit) return false
 
     const $element = $(element)
 
@@ -118,6 +120,7 @@ export async function GET(
   const { searchParams } = new URL(request.url)
   const filter = searchParams.get('filter') || 'auto' // auto, latest, popular
   const page = searchParams.get('page') || '1'
+  const limit = searchParams.get('limit') || '0' // 0 = no limit (get all), 10 = for home page
   
   let categoryUrl = CATEGORIES[category]
 
@@ -134,24 +137,39 @@ export async function GET(
     useLatest = false
   }
   
-  // Add filter to URL
-  if (!useLatest) {
-    categoryUrl += '?archive_query=comment'
+  // Build URL with proper pagination format: /page/2/?filters
+  // Remove trailing slash from base URL
+  categoryUrl = categoryUrl.replace(/\/$/, '')
+  
+  // Add page path if not first page
+  if (page !== '1') {
+    categoryUrl += `/page/${page}/`
+  } else {
+    categoryUrl += '/'
   }
   
-  // Add page parameter if not first page
-  if (page !== '1') {
-    categoryUrl += (categoryUrl.includes('?') ? '&' : '?') + `page=${page}`
+  // Add filter query parameters
+  if (!useLatest) {
+    categoryUrl += '?archive_query=comment&alphabet_filter'
+  } else {
+    categoryUrl += '?alphabet_filter'
   }
 
   try {
-    console.log(`Fetching ${category} content (filter: ${useLatest ? 'latest' : 'popular'}, page: ${page})...`)
+    console.log(`Fetching ${category} content (filter: ${useLatest ? 'latest' : 'popular'}, page: ${page}, limit: ${limit})...`)
+    console.log(`URL: ${categoryUrl}`)
 
     const html = await fetchVegaMoviesHTML(categoryUrl)
-    const movies = parseVegaMoviesData(html, page === '1' ? 10 : 20)
+    const movies = parseVegaMoviesData(html, parseInt(limit))
 
-    console.log(`Successfully fetched ${movies.length} items for ${category}`)
-    return NextResponse.json({ movies, hasMore: movies.length >= (page === '1' ? 10 : 20) })
+    console.log(`Successfully fetched ${movies.length} items for ${category} (page ${page})`)
+    
+    // Determine if there are more pages
+    // If limit was set (homepage), always show more available
+    // If no limit (category page), check if we got enough movies
+    const hasMore = limit !== '0' ? true : movies.length >= 15
+
+    return NextResponse.json({ movies, hasMore })
   } catch (error) {
     console.error(`Error in ${category} API:`, error)
 
