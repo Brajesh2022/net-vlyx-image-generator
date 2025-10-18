@@ -193,6 +193,17 @@ export default function TermsPage() {
               </p>
               <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
                 <p className="mb-2">
+                  <strong className="text-white">Website:</strong>{" "}
+                  <a 
+                    href="https://vlyx.vercel.app/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:text-blue-400 transition-colors"
+                  >
+                    vlyx.vercel.app
+                  </a>
+                </p>
+                <p className="mb-2">
                   <strong className="text-white">Email:</strong>{" "}
                   <a href="mailto:vlyxcodes@gmail.com" className="text-red-500 hover:text-red-400 transition-colors">
                     vlyxcodes@gmail.com
@@ -226,7 +237,15 @@ export default function TermsPage() {
                 Last Updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </p>
               <p className="text-center text-sm text-gray-400 mt-2">
-                Developed and Managed by <span className="text-purple-400 font-semibold">Vlyx Codes</span>
+                Developed and Managed by{" "}
+                <a 
+                  href="https://vlyx.vercel.app/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-purple-400 font-semibold hover:text-purple-300 transition-colors"
+                >
+                  Vlyx Codes
+                </a>
               </p>
             </div>
           </div>

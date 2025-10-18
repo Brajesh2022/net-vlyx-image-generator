@@ -118,8 +118,16 @@ export default function AboutPage() {
                   </h3>
                   <p className="text-gray-300 mb-4">
                     NetVlyx is proudly developed and maintained by <strong className="text-white">Vlyx Codes</strong>, 
-                    a passionate developer dedicated to creating innovative and user-friendly web applications.
+                    a professional web development company dedicated to creating innovative and user-friendly web applications.
                   </p>
+                  <a
+                    href="https://vlyx.vercel.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-semibold"
+                  >
+                    Visit Vlyx Codes Website →
+                  </a>
                 </div>
 
                 <div className="bg-black/40 rounded-lg p-6 border border-gray-700">
@@ -132,20 +140,28 @@ export default function AboutPage() {
                     that went into building this platform. Their expertise in modern web technologies and commitment 
                     to delivering an exceptional user experience has made NetVlyx what it is today.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                  <div className="grid sm:grid-cols-2 gap-3 mt-6">
+                    <a
+                      href="https://vlyx.vercel.app/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 text-center"
+                    >
+                      🌐 Company Website
+                    </a>
                     <a
                       href="mailto:vlyxcodes@gmail.com"
                       className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 text-center"
                     >
-                      Email: vlyxcodes@gmail.com
+                      ✉️ Email Us
                     </a>
                     <a
                       href="https://instagram.com/vlyxcodes"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 text-center"
+                      className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 text-center sm:col-span-2"
                     >
-                      Instagram: @vlyxcodes
+                      📷 Follow on Instagram
                     </a>
                   </div>
                 </div>

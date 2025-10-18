@@ -102,6 +102,9 @@ export default function DMCAPage() {
                 >
                   vlyxcodes@gmail.com
                 </a>
+                <p className="text-xs text-gray-500 mt-2">
+                  Managed by <a href="https://vlyx.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Vlyx Codes</a>
+                </p>
               </div>
               <p className="mb-4">
                 Your notice must include:

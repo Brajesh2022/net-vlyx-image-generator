@@ -155,6 +155,17 @@ export default function PrivacyPage() {
               </p>
               <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
                 <p className="mb-2">
+                  <strong className="text-white">Website:</strong>{" "}
+                  <a 
+                    href="https://vlyx.vercel.app/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:text-blue-400 transition-colors"
+                  >
+                    vlyx.vercel.app
+                  </a>
+                </p>
+                <p className="mb-2">
                   <strong className="text-white">Email:</strong>{" "}
                   <a href="mailto:vlyxcodes@gmail.com" className="text-red-500 hover:text-red-400 transition-colors">
                     vlyxcodes@gmail.com

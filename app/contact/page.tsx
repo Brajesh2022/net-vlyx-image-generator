@@ -52,6 +52,39 @@ export default function ContactPage() {
               </p>
 
               <div className="space-y-6">
+                {/* Website Link */}
+                <div className="bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border border-blue-500/30 rounded-lg p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">🌐</span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Company Website</h3>
+                      <p className="text-gray-400 text-sm">Learn more about Vlyx Codes</p>
+                    </div>
+                  </div>
+                  <a
+                    href="https://vlyx.vercel.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition-colors text-lg font-semibold block mb-2"
+                  >
+                    vlyx.vercel.app
+                  </a>
+                  <p className="text-gray-400 text-sm">
+                    Visit our company website to see our portfolio and other projects
+                  </p>
+                  <a
+                    href="https://vlyx.vercel.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105"
+                  >
+                    <span className="text-xl">🌐</span>
+                    Visit Website
+                  </a>
+                </div>
+
                 {/* Email Contact */}
                 <div className="bg-gradient-to-br from-red-900/20 to-orange-900/20 border border-red-500/30 rounded-lg p-6">
                   <div className="flex items-center gap-4 mb-4">

@@ -1349,6 +1349,16 @@ export default function Home() {
               <ul className="space-y-3 text-sm text-gray-400">
                 <li>
                   <a 
+                    href="https://vlyx.vercel.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition-colors flex items-center gap-2"
+                  >
+                    <span className="text-blue-500">🌐</span> vlyx.vercel.app
+                  </a>
+                </li>
+                <li>
+                  <a 
                     href="mailto:vlyxcodes@gmail.com"
                     className="hover:text-white transition-colors flex items-center gap-2"
                   >
@@ -1369,10 +1379,17 @@ export default function Home() {
               
               <div className="mt-6 pt-6 border-t border-gray-800">
                 <p className="text-xs text-gray-500 mb-2">Developed & Managed By</p>
-                <p className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                  Vlyx Codes
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Building the future of entertainment</p>
+                <a 
+                  href="https://vlyx.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <p className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent hover:from-purple-300 hover:to-blue-300 transition-all">
+                    Vlyx Codes
+                  </p>
+                </a>
+                <p className="text-xs text-gray-500 mt-1">Professional Web Development Company</p>
               </div>
             </div>
           </div>
