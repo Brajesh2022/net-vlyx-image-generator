@@ -1255,9 +1255,10 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="liquid-glass mt-16 border-t border-gray-800">
+      <footer className="liquid-glass mt-16 border-t border-gray-800 bg-gradient-to-b from-black to-gray-900">
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {/* About NetVlyx */}
             <div>
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-8 h-8 netflix-gradient rounded flex items-center justify-center">
@@ -1268,79 +1269,127 @@ export default function Home() {
                 </h3>
               </div>
               <p className="text-gray-400 text-sm mb-4">
-                Welcome to Official NetVlyx WebSite – Free Download HD Movies & TV Shows on NetVlyx. Enjoy Latest Movies
-                from Bollywood, Hollywood, & South Indian.
+                Your premium entertainment destination. We help you discover content from across the internet. 
+                No content is hosted on our platform - we simply index publicly available content.
               </p>
+              <Link href="/about">
+                <button className="text-red-500 hover:text-red-400 transition-colors text-sm font-semibold">
+                  Learn More About Us →
+                </button>
+              </Link>
             </div>
 
+            {/* Quick Links */}
             <div>
-              <h4 className="font-semibold mb-4">Categories</h4>
+              <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li>
-                  <button className="hover:text-white transition-colors">Bollywood Movies</button>
+                  <Link href="/category?type=bollywood">
+                    <button className="hover:text-white transition-colors">Bollywood Movies</button>
+                  </Link>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">Hollywood Movies</button>
+                  <Link href="/category?type=south-movies">
+                    <button className="hover:text-white transition-colors">South Movies</button>
+                  </Link>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">South Indian Movies</button>
+                  <Link href="/category?type=korean">
+                    <button className="hover:text-white transition-colors">Korean Content</button>
+                  </Link>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">Web Series</button>
+                  <Link href="/category?type=animation">
+                    <button className="hover:text-white transition-colors">Animation</button>
+                  </Link>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">TV Shows</button>
+                  <Link href="/category?type=action">
+                    <button className="hover:text-white transition-colors">Action Movies</button>
+                  </Link>
                 </li>
               </ul>
             </div>
 
+            {/* Legal & Support */}
             <div>
-              <h4 className="font-semibold mb-4">Quality</h4>
+              <h4 className="font-semibold mb-4 text-white">Legal & Support</h4>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li>
-                  <button className="hover:text-white transition-colors">4K Ultra HD</button>
+                  <Link href="/about">
+                    <button className="hover:text-white transition-colors">About Us</button>
+                  </Link>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">1080p HD</button>
+                  <Link href="/contact">
+                    <button className="hover:text-white transition-colors">Contact Us</button>
+                  </Link>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">720p HD</button>
+                  <Link href="/dmca">
+                    <button className="hover:text-white transition-colors">DMCA Policy</button>
+                  </Link>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">480p</button>
+                  <Link href="/privacy">
+                    <button className="hover:text-white transition-colors">Privacy Policy</button>
+                  </Link>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">Mobile Quality</button>
+                  <Link href="/terms">
+                    <button className="hover:text-white transition-colors">Terms of Service</button>
+                  </Link>
                 </li>
               </ul>
             </div>
 
+            {/* Contact & Credits */}
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
+              <h4 className="font-semibold mb-4 text-white">Get in Touch</h4>
+              <ul className="space-y-3 text-sm text-gray-400">
                 <li>
-                  <button className="hover:text-white transition-colors">Help Center</button>
+                  <a 
+                    href="mailto:vlyxcodes@gmail.com"
+                    className="hover:text-white transition-colors flex items-center gap-2"
+                  >
+                    <span className="text-red-500">✉</span> vlyxcodes@gmail.com
+                  </a>
                 </li>
                 <li>
-                  <button className="hover:text-white transition-colors">Contact Us</button>
-                </li>
-                <li>
-                  <button className="hover:text-white transition-colors">Privacy Policy</button>
-                </li>
-                <li>
-                  <button className="hover:text-white transition-colors">Terms of Service</button>
-                </li>
-                <li>
-                  <button className="hover:text-white transition-colors">DMCA</button>
+                  <a 
+                    href="https://instagram.com/vlyxcodes"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition-colors flex items-center gap-2"
+                  >
+                    <span className="text-purple-500">📷</span> @vlyxcodes
+                  </a>
                 </li>
               </ul>
+              
+              <div className="mt-6 pt-6 border-t border-gray-800">
+                <p className="text-xs text-gray-500 mb-2">Developed & Managed By</p>
+                <p className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                  Vlyx Codes
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Building the future of entertainment</p>
+              </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>
-              &copy; 2024 NetVlyx. All rights reserved. Designed with liquid glass aesthetics for the ultimate viewing
-              experience.
+          {/* Bottom Bar */}
+          <div className="border-t border-gray-800 mt-8 pt-8">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-sm text-gray-400 text-center md:text-left">
+                &copy; {new Date().getFullYear()} NetVlyx. All rights reserved. 
+              </p>
+              <p className="text-xs text-gray-500 text-center md:text-right max-w-2xl">
+                <strong className="text-gray-400">Disclaimer:</strong> NetVlyx does not host any content. 
+                We only index and provide links to content that is publicly available on the internet.
+              </p>
+            </div>
+            <p className="text-center text-xs text-gray-600 mt-4">
+              Made with ❤️ by <span className="text-purple-500 font-semibold">Vlyx Codes</span>
             </p>
           </div>
         </div>
