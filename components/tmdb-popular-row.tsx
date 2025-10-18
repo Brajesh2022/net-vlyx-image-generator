@@ -50,7 +50,7 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
               <div
                 key={item.id}
                 onClick={() => handleClick(item)}
-                className="relative flex-shrink-0 w-40 md:w-48 cursor-pointer group transition-transform duration-300 hover:scale-105"
+                className="relative flex-shrink-0 w-40 md:w-48 cursor-pointer group/item transition-transform duration-300 hover:scale-105"
               >
                 {/* Netflix-style Ranking Number - Positioned slightly above poster */}
                 <div className="absolute -left-3 md:-left-4 bottom-4 md:bottom-8 z-20 pointer-events-none">
@@ -71,12 +71,12 @@ export function TMDBPopularRow({ title, items }: TMDBPopularRowProps) {
                     src={imgSrc}
                     alt={item.title}
                     fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-110"
+                    className="object-cover transition-transform duration-300 group-hover/item:scale-110"
                     sizes="(max-width: 768px) 128px, 160px"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" />
 
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity duration-300">
                     <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
                       <Play className="h-6 w-6 text-white ml-1" />
                     </div>

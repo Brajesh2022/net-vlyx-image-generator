@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Play, Star, ArrowRight } from "lucide-react"
@@ -26,6 +27,7 @@ interface CategoryRowProps {
 
 export function CategoryRow({ title, movies, viewAllLink, showRanking = false }: CategoryRowProps) {
   const router = useRouter()
+  const [loadingMovieId, setLoadingMovieId] = useState<string | null>(null)
 
   const createMovieSlug = (movie: Movie) => {
     try {
@@ -106,12 +108,17 @@ export function CategoryRow({ title, movies, viewAllLink, showRanking = false }:
               "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
 
             const cleanTitle = cleanMovieTitleForHome(movie.title)
+            const movieId = `cat-${index}-${slug.substring(0, 30)}`
+            const isLoadingMovie = loadingMovieId === movieId
 
             return (
               <div
                 key={`${slug}-${index}`}
-                onClick={() => router.push(movieUrl)}
-                className="relative flex-shrink-0 w-40 md:w-48 cursor-pointer group transition-transform duration-300 hover:scale-105"
+                onClick={() => {
+                  setLoadingMovieId(movieId)
+                  router.push(movieUrl)
+                }}
+                className="relative flex-shrink-0 w-40 md:w-48 cursor-pointer group/card transition-transform duration-300 hover:scale-105"
               >
                 {/* Ranking Number (Netflix-style) */}
                 {showRanking && (
@@ -138,12 +145,22 @@ export function CategoryRow({ title, movies, viewAllLink, showRanking = false }:
                     src={imgSrc}
                     alt={cleanTitle}
                     fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-110"
+                    className="object-cover transition-transform duration-300 group-hover/card:scale-110"
                     sizes="(max-width: 768px) 160px, 192px"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300" />
 
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {/* Loading overlay */}
+                  {isLoadingMovie && (
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-30 animate-in fade-in duration-150">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-white text-xs font-medium">Loading...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity duration-300">
                     <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
                       <Play className="h-6 w-6 text-white ml-1" />
                     </div>
@@ -151,7 +168,7 @@ export function CategoryRow({ title, movies, viewAllLink, showRanking = false }:
                 </div>
 
                 <div className="mt-3 px-1">
-                  <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover:text-red-400 transition-colors">
+                  <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover/card:text-red-400 transition-colors">
                     {cleanTitle}
                   </h4>
               </div>
