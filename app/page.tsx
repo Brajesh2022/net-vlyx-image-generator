@@ -11,8 +11,11 @@ import { Badge } from "@/components/ui/badge"
 import { useWishlist } from "@/hooks/useWishlist"
 import { WishlistModal } from "@/components/wishlist-modal"
 import { FeedbackReview } from "@/components/feedback-review"
-import { encodeMovieUrl } from "@/lib/utils"
+import { encodeMovieUrl, cleanMovieTitle } from "@/lib/utils"
 import { SecureImage } from "@/components/secure-image"
+import { MovieInfoModal } from "@/components/movie-info-modal"
+import { CategoryRow } from "@/components/category-row"
+import { TMDBPopularRow } from "@/components/tmdb-popular-row"
 
 interface Movie {
   title: string
@@ -65,6 +68,11 @@ export default function Home() {
   const [hasInitialized, setHasInitialized] = useState(false)
   const [trendingContent, setTrendingContent] = useState<any[]>([])
   const [isTrendingLoading, setIsTrendingLoading] = useState(false)
+  const [showInfoModal, setShowInfoModal] = useState(false)
+  const [modalMovieTitle, setModalMovieTitle] = useState("")
+  const [latestMovies, setLatestMovies] = useState<Movie[]>([])
+  const [popularItems, setPopularItems] = useState<any[]>([])
+  const [categoryMovies, setCategoryMovies] = useState<Record<string, Movie[]>>({})
   const searchTimeout = useRef<NodeJS.Timeout>()
   const slideInterval = useRef<NodeJS.Timeout>()
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -95,6 +103,55 @@ export default function Home() {
     }
     fetchTrending()
   }, [])
+
+  // Fetch latest movies, popular items, and category content
+  useEffect(() => {
+    const fetchHomepageContent = async () => {
+      try {
+        // Fetch in parallel for better performance
+        const [latestRes, popularRes, sciFiRes, actionRes, dramaRes] = await Promise.all([
+          fetch('/api/category/latest'),
+          fetch('/api/tmdb-popular-india'),
+          fetch('/api/category/sci-fi'),
+          fetch('/api/category/action'),
+          fetch('/api/category/drama'),
+        ])
+
+        if (latestRes.ok) {
+          const latestData = await latestRes.json()
+          setLatestMovies(latestData.movies || [])
+        }
+
+        if (popularRes.ok) {
+          const popularData = await popularRes.json()
+          setPopularItems(popularData.results || [])
+        }
+
+        const categories: Record<string, Movie[]> = {}
+        if (sciFiRes.ok) {
+          const sciFiData = await sciFiRes.json()
+          categories['sci-fi'] = sciFiData.movies || []
+        }
+        if (actionRes.ok) {
+          const actionData = await actionRes.json()
+          categories['action'] = actionData.movies || []
+        }
+        if (dramaRes.ok) {
+          const dramaData = await dramaRes.json()
+          categories['drama'] = dramaData.movies || []
+        }
+
+        setCategoryMovies(categories)
+      } catch (error) {
+        console.error('Error fetching homepage content:', error)
+      }
+    }
+
+    // Only fetch if we're on homepage (not searching)
+    if (!searchTerm && selectedCategory === 'home') {
+      fetchHomepageContent()
+    }
+  }, [searchTerm, selectedCategory])
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: [searchTerm ? "/api/scrape-vega" : "/api/scrape", searchTerm, selectedCategory],
@@ -721,7 +778,7 @@ export default function Home() {
                       <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-200 mb-4 sm:mb-6 md:mb-8 leading-relaxed max-w-xl lg:max-w-2xl line-clamp-2 md:line-clamp-3">
                         {heroSlides[currentSlide].description}
                       </p>
-                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4">
+                      <div className="flex flex-row gap-3 md:gap-4">
                         {heroSlides[currentSlide].trendingTitle ? (
                           <Button 
                             onClick={() => {
@@ -741,20 +798,28 @@ export default function Home() {
                               setHasInitialized(false)
                               refetch()
                             }}
-                            className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-xs sm:text-sm md:text-base"
+                            className="flex-1 sm:flex-none px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-all duration-300 hover:scale-105 text-xs sm:text-sm md:text-base rounded-lg shadow-lg"
                           >
                             <Play className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1.5 sm:mr-2" />
-                            Watch Now
+                            Watch
                           </Button>
                         ) : (
-                          <Button className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-colors text-xs sm:text-sm md:text-base">
+                          <Button className="flex-1 sm:flex-none px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold hover:bg-gray-200 transition-all duration-300 hover:scale-105 text-xs sm:text-sm md:text-base rounded-lg shadow-lg">
                             <Play className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1.5 sm:mr-2" />
-                            Explore Now
+                            Explore
                           </Button>
                         )}
                         <Button
-                          variant="outline"
-                          className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-gray-600/50 text-white border-gray-400 hover:bg-gray-500/50 transition-colors text-xs sm:text-sm md:text-base"
+                          onClick={() => {
+                            setModalMovieTitle(heroSlides[currentSlide].title)
+                            setShowInfoModal(true)
+                          }}
+                          className="flex-1 sm:flex-none px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 text-white border-none font-semibold transition-all duration-300 hover:scale-105 text-xs sm:text-sm md:text-base rounded-lg shadow-lg bg-gray-600/50 hover:bg-gray-500/50 backdrop-blur-xl"
+                          style={{
+                            backdropFilter: 'blur(12px)',
+                            WebkitBackdropFilter: 'blur(12px)',
+                            background: 'rgba(107, 114, 128, 0.5)',
+                          }}
                         >
                           <Info className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1.5 sm:mr-2" />
                           More Info
@@ -793,9 +858,58 @@ export default function Home() {
           </section>
         )}
 
+        {/* Netflix-style Content Sections - Only show on homepage when not searching */}
+        {!searchTerm && selectedCategory === "home" && (
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            {/* Latest Section */}
+            {latestMovies.length > 0 && (
+              <CategoryRow
+                title="Latest Uploads"
+                movies={latestMovies}
+                viewAllLink="/view-all?category=home"
+              />
+            )}
+
+            {/* What's Popular in India */}
+            {popularItems.length > 0 && (
+              <TMDBPopularRow
+                title="What's Popular in India"
+                items={popularItems}
+              />
+            )}
+
+            {/* Sci-Fi Section */}
+            {categoryMovies['sci-fi'] && categoryMovies['sci-fi'].length > 0 && (
+              <CategoryRow
+                title="Sci-Fi"
+                movies={categoryMovies['sci-fi']}
+                viewAllLink="/category?type=sci-fi"
+              />
+            )}
+
+            {/* Action Section */}
+            {categoryMovies['action'] && categoryMovies['action'].length > 0 && (
+              <CategoryRow
+                title="Action"
+                movies={categoryMovies['action']}
+                viewAllLink="/category?type=action"
+              />
+            )}
+
+            {/* Drama Section */}
+            {categoryMovies['drama'] && categoryMovies['drama'].length > 0 && (
+              <CategoryRow
+                title="Drama"
+                movies={categoryMovies['drama']}
+                viewAllLink="/category?type=drama"
+              />
+            )}
+          </div>
+        )}
+
         <div className="max-w-7xl mx-auto px-4 py-8">
-          {/* Content Header - Only show when not searching */}
-          {!searchTerm && (
+          {/* Content Header - Only show when not searching or not on homepage */}
+          {(!searchTerm && selectedCategory !== "home") || searchTerm ? (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
@@ -844,7 +958,7 @@ export default function Home() {
                 )}
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Error State */}
           {error && (
@@ -877,8 +991,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* Movies Grid */}
-          {!isLoading && data && filteredMovies.length > 0 && (
+          {/* Movies Grid - Only show when searching or browsing categories (not on homepage) */}
+          {!isLoading && data && filteredMovies.length > 0 && (searchTerm || selectedCategory !== "home") && (
             <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
               {filteredMovies.map((movie: any, index: number) => {
@@ -909,7 +1023,10 @@ export default function Home() {
                   "https://images.unsplash.com/photo-1489599517276-1fcb4a8b6e47?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=600"
 
                 const movieId = `m-${index}-${slug.substring(0, 50)}`
-                const isLoading = loadingMovieId === movieId
+                const isLoadingMovie = loadingMovieId === movieId
+                
+                // Clean the movie title
+                const displayTitle = cleanMovieTitle(movie.title)
 
                 return (
                   <div 
@@ -924,7 +1041,7 @@ export default function Home() {
                     <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900">
                       <SecureImage
                         src={imgSrc || "/placeholder.svg"}
-                        alt={movie.title}
+                        alt={displayTitle}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-110"
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -932,7 +1049,7 @@ export default function Home() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       
                       {/* Loading overlay */}
-                      {isLoading && (
+                      {isLoadingMovie && (
                         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in duration-200">
                           <div className="flex flex-col items-center gap-2">
                             <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
@@ -960,9 +1077,8 @@ export default function Home() {
                     </div>
                     <div className="mt-3 px-1">
                       <h4 className="font-semibold text-sm line-clamp-2 text-white group-hover:text-red-400 transition-colors">
-                        {movie.title}
+                        {displayTitle}
                       </h4>
-                      <p className="text-gray-400 text-xs mt-1 line-clamp-2">{movie.description}</p>
                     </div>
                   </div>
                 )
@@ -1132,6 +1248,27 @@ export default function Home() {
 
       {/* Feedback Review Component */}
       <FeedbackReview isOpen={showFeedbackModal} onOpenChange={setShowFeedbackModal} />
+
+      {/* Movie Info Modal */}
+      <MovieInfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={modalMovieTitle}
+        onWatchClick={() => {
+          // When Watch is clicked in modal, search for the movie
+          setSearchTerm(modalMovieTitle)
+          setShowSearchBar(true)
+          setShowSuggestions(false)
+          
+          const params = new URLSearchParams(window.location.search)
+          params.set('search', modalMovieTitle)
+          router.replace(`/?${params.toString()}`, { scroll: false })
+          
+          setAllMovies([])
+          setHasInitialized(false)
+          refetch()
+        }}
+      />
 
       {/* Global Navigation Loading Overlay */}
       {isNavigating && (

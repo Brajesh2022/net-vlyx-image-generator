@@ -97,6 +97,13 @@
     border: 1px solid hsla(0, 0%, 100%, 0.15);
   }
 
+  .frosted-glass {
+    background: rgba(107, 114, 128, 0.3);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
   .netflix-gradient {
     background: linear-gradient(45deg, hsl(0, 72%, 51%), hsl(0, 60%, 45%), hsl(0, 0%, 0%));
   }
@@ -135,6 +142,22 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+  }
+
+  /* Netflix-style hover effects */
+  .netflix-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .netflix-hover:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Smooth scrolling for horizontal rows */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

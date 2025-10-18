@@ -199,3 +199,28 @@ export function replaceBrandingText(text: string): string {
   
   return result
 }
+
+/**
+ * Cleans movie title by showing only up to year bracket
+ * Example: "Following (2024) AMZN-WEB-DL Dual Audio {Hindi-Korean} 480p [370MB]"
+ * Returns: "Following (2024)"
+ */
+export function cleanMovieTitle(title: string): string {
+  if (!title) return ""
+  
+  // Match everything up to and including year bracket like (2024)
+  const match = title.match(/^(.+?\(\d{4}\))/)
+  
+  if (match) {
+    return match[1].trim()
+  }
+  
+  // If no year found, try to get just the title before any technical info
+  const techInfoMatch = title.match(/^([^[\]{|]+?)(?:\s*[\[\]{|]|$)/)
+  if (techInfoMatch) {
+    return techInfoMatch[1].trim()
+  }
+  
+  // Fallback: return original title
+  return title.trim()
+}
