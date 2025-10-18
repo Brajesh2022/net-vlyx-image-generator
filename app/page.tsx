@@ -109,10 +109,13 @@ export default function Home() {
   useEffect(() => {
     const fetchHomepageContent = async () => {
       try {
-        // Fetch in parallel for better performance
-        const [latestRes, popularRes, sciFiRes, actionRes, dramaRes] = await Promise.all([
+        // Fetch in parallel for better performance - Now with popular filter
+        const [latestRes, popularRes, bollywoodRes, horrorRes, southRes, sciFiRes, actionRes, dramaRes] = await Promise.all([
           fetch('/api/category/latest'),
           fetch('/api/tmdb-popular-india'),
+          fetch('/api/category/bollywood'),
+          fetch('/api/category/horror'),
+          fetch('/api/category/south-movies'),
           fetch('/api/category/sci-fi'),
           fetch('/api/category/action'),
           fetch('/api/category/drama'),
@@ -129,6 +132,18 @@ export default function Home() {
         }
 
         const categories: Record<string, Movie[]> = {}
+        if (bollywoodRes.ok) {
+          const bollywoodData = await bollywoodRes.json()
+          categories['bollywood'] = bollywoodData.movies || []
+        }
+        if (horrorRes.ok) {
+          const horrorData = await horrorRes.json()
+          categories['horror'] = horrorData.movies || []
+        }
+        if (southRes.ok) {
+          const southData = await southRes.json()
+          categories['south-movies'] = southData.movies || []
+        }
         if (sciFiRes.ok) {
           const sciFiData = await sciFiRes.json()
           categories['sci-fi'] = sciFiData.movies || []
@@ -879,28 +894,55 @@ export default function Home() {
               />
             )}
 
-            {/* Sci-Fi Section */}
-            {categoryMovies['sci-fi'] && categoryMovies['sci-fi'].length > 0 && (
+            {/* Bollywood Section - Popular */}
+            {categoryMovies['bollywood'] && categoryMovies['bollywood'].length > 0 && (
               <CategoryRow
-                title="Sci-Fi"
-                movies={categoryMovies['sci-fi']}
-                viewAllLink="/category?type=sci-fi"
+                title="Popular in Bollywood"
+                movies={categoryMovies['bollywood']}
+                viewAllLink="/category?type=bollywood"
               />
             )}
 
-            {/* Action Section */}
+            {/* South Movies Section - Popular */}
+            {categoryMovies['south-movies'] && categoryMovies['south-movies'].length > 0 && (
+              <CategoryRow
+                title="Popular in South Movies"
+                movies={categoryMovies['south-movies']}
+                viewAllLink="/category?type=south-movies"
+              />
+            )}
+
+            {/* Action Section - Popular */}
             {categoryMovies['action'] && categoryMovies['action'].length > 0 && (
               <CategoryRow
-                title="Action"
+                title="Popular in Action"
                 movies={categoryMovies['action']}
                 viewAllLink="/category?type=action"
               />
             )}
 
-            {/* Drama Section */}
+            {/* Horror Section - Popular */}
+            {categoryMovies['horror'] && categoryMovies['horror'].length > 0 && (
+              <CategoryRow
+                title="Popular in Horror"
+                movies={categoryMovies['horror']}
+                viewAllLink="/category?type=horror"
+              />
+            )}
+
+            {/* Sci-Fi Section - Popular */}
+            {categoryMovies['sci-fi'] && categoryMovies['sci-fi'].length > 0 && (
+              <CategoryRow
+                title="Popular in Sci-Fi"
+                movies={categoryMovies['sci-fi']}
+                viewAllLink="/category?type=sci-fi"
+              />
+            )}
+
+            {/* Drama Section - Popular */}
             {categoryMovies['drama'] && categoryMovies['drama'].length > 0 && (
               <CategoryRow
-                title="Drama"
+                title="Popular in Drama"
                 movies={categoryMovies['drama']}
                 viewAllLink="/category?type=drama"
               />

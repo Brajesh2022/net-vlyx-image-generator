@@ -5,19 +5,19 @@ import { protectApiRoute } from "@/lib/api-protection"
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
 const CATEGORIES: Record<string, string> = {
-  "sci-fi": "https://www.vegamovies-nl.bike/category/sci-fi/",
-  action: "https://www.vegamovies-nl.bike/category/action/",
-  drama: "https://www.vegamovies-nl.bike/category/drama/",
-  comedy: "https://www.vegamovies-nl.bike/category/comedy/",
-  thriller: "https://www.vegamovies-nl.bike/category/thriller/",
-  romance: "https://www.vegamovies-nl.bike/category/romance/",
-  horror: "https://www.vegamovies-nl.bike/category/horror/",
-  animation: "https://www.vegamovies-nl.bike/category/animation/",
-  bollywood: "https://www.vegamovies-nl.bike/category/bollywood/",
-  "south-movies": "https://www.vegamovies-nl.bike/category/south-movies/",
-  "dual-audio-movies": "https://www.vegamovies-nl.bike/dual-audio/dual-audio-movies/",
-  "dual-audio-series": "https://www.vegamovies-nl.bike/dual-audio/dual-audio-series/",
-  "hindi-dubbed": "https://www.vegamovies-nl.bike/category/hindi-dubbed/",
+  "sci-fi": "https://www.vegamovies-nl.cafe/sci-fi/?archive_query=comment",
+  action: "https://www.vegamovies-nl.cafe/action/?archive_query=comment",
+  drama: "https://www.vegamovies-nl.cafe/drama/?archive_query=comment",
+  comedy: "https://www.vegamovies-nl.cafe/comedy/?archive_query=comment",
+  thriller: "https://www.vegamovies-nl.cafe/thriller/?archive_query=comment",
+  romance: "https://www.vegamovies-nl.cafe/romance/?archive_query=comment",
+  horror: "https://www.vegamovies-nl.cafe/horror/?archive_query=comment",
+  animation: "https://www.vegamovies-nl.cafe/animation/?archive_query=comment",
+  bollywood: "https://www.vegamovies-nl.cafe/bollywood/?archive_query=comment",
+  "south-movies": "https://www.vegamovies-nl.cafe/south-movies/?archive_query=comment",
+  "dual-audio-movies": "https://www.vegamovies-nl.cafe/dual-audio-movies/?archive_query=comment",
+  "dual-audio-series": "https://www.vegamovies-nl.cafe/dual-audio-series/?archive_query=comment",
+  "hindi-dubbed": "https://www.vegamovies-nl.cafe/hindi-dubbed/?archive_query=comment",
 }
 
 interface Movie {

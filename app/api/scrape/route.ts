@@ -2,20 +2,20 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import { protectApiRoute } from "@/lib/api-protection"
 
-const BASE_URL = "https://www.vegamovies-nl.bike/"
+const BASE_URL = "https://www.vegamovies-nl.cafe/"
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
 // Categories available on vegamovies-nl
 const CATEGORIES = {
-  home: "https://www.vegamovies-nl.bike/",
-  bollywood: "https://www.vegamovies-nl.bike/category/bollywood/",
-  "south-movies": "https://www.vegamovies-nl.bike/category/south-movies/",
-  "dual-audio-movies": "https://www.vegamovies-nl.bike/dual-audio/dual-audio-movies/",
-  "dual-audio-series": "https://www.vegamovies-nl.bike/dual-audio/dual-audio-series/",
-  "hindi-dubbed": "https://www.vegamovies-nl.bike/category/hindi-dubbed/",
-  animation: "https://www.vegamovies-nl.bike/category/animation/",
-  horror: "https://www.vegamovies-nl.bike/category/horror/",
-  "sci-fi": "https://www.vegamovies-nl.bike/category/sci-fi/",
+  home: "https://www.vegamovies-nl.cafe/",
+  bollywood: "https://www.vegamovies-nl.cafe/bollywood/",
+  "south-movies": "https://www.vegamovies-nl.cafe/south-movies/",
+  "dual-audio-movies": "https://www.vegamovies-nl.cafe/dual-audio-movies/",
+  "dual-audio-series": "https://www.vegamovies-nl.cafe/dual-audio-series/",
+  "hindi-dubbed": "https://www.vegamovies-nl.cafe/hindi-dubbed/",
+  animation: "https://www.vegamovies-nl.cafe/animation/",
+  horror: "https://www.vegamovies-nl.cafe/horror/",
+  "sci-fi": "https://www.vegamovies-nl.cafe/sci-fi/",
 }
 
 interface Movie {
