@@ -1116,7 +1116,7 @@ export default function Home() {
                 if (!slug || slug.length < 2) return null // Skip invalid movies
                 
                 // Determine source URL for the movie
-                let sourceUrl = "https://www.vegamovies-nl.cafe" // Default fallback
+                let sourceUrl = "https://www.vegamovies-nl.run/" // Default fallback
                 if (movie.link) {
                   try {
                     const u = new URL(movie.link)

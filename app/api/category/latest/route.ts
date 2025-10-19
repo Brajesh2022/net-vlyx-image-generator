@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import { protectApiRoute } from "@/lib/api-protection"
 
-const BASE_URL = "https://www.vegamovies-nl.cafe/"
+const BASE_URL = "https://www.vegamovies-nl.run/"
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
 interface Movie {

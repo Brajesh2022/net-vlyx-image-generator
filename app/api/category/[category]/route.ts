@@ -8,20 +8,20 @@ const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 const LATEST_CATEGORIES = ["bollywood", "south-movies", "animation", "korean"]
 
 const CATEGORIES: Record<string, string> = {
-  "sci-fi": "https://www.vegamovies-nl.cafe/sci-fi/",
-  action: "https://www.vegamovies-nl.cafe/action/",
-  drama: "https://www.vegamovies-nl.cafe/drama/",
-  comedy: "https://www.vegamovies-nl.cafe/comedy/",
-  thriller: "https://www.vegamovies-nl.cafe/thriller/",
-  romance: "https://www.vegamovies-nl.cafe/romance/",
-  horror: "https://www.vegamovies-nl.cafe/horror/",
-  animation: "https://www.vegamovies-nl.cafe/animation/",
-  bollywood: "https://www.vegamovies-nl.cafe/bollywood/",
-  korean: "https://www.vegamovies-nl.cafe/korean/",
-  "south-movies": "https://www.vegamovies-nl.cafe/south-movies/",
-  "dual-audio-movies": "https://www.vegamovies-nl.cafe/dual-audio-movies/",
-  "dual-audio-series": "https://www.vegamovies-nl.cafe/dual-audio-series/",
-  "hindi-dubbed": "https://www.vegamovies-nl.cafe/hindi-dubbed/",
+  "sci-fi": "https://www.vegamovies-nl.run/sci-fi/",
+  action: "https://www.vegamovies-nl.run/action/",
+  drama: "https://www.vegamovies-nl.run/drama/",
+  comedy: "https://www.vegamovies-nl.run/comedy/",
+  thriller: "https://www.vegamovies-nl.run/thriller/",
+  romance: "https://www.vegamovies-nl.run/romance/",
+  horror: "https://www.vegamovies-nl.run/horror/",
+  animation: "https://www.vegamovies-nl.run/animation/",
+  bollywood: "https://www.vegamovies-nl.run/bollywood/",
+  korean: "https://www.vegamovies-nl.run/korean/",
+  "south-movies": "https://www.vegamovies-nl.run/south-movies/",
+  "dual-audio-movies": "https://www.vegamovies-nl.run/dual-audio-movies/",
+  "dual-audio-series": "https://www.vegamovies-nl.run/dual-audio-series/",
+  "hindi-dubbed": "https://www.vegamovies-nl.run/hindi-dubbed/",
 }
 
 interface Movie {

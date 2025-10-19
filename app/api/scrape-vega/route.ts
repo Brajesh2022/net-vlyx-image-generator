@@ -5,7 +5,7 @@ import { protectApiRoute } from "@/lib/api-protection"
 const SOURCES = {
   vegaA: "https://vegamovise.biz",
   vegaB: "https://bollyhub.one",
-  luxLike: "https://www.vegamovies-nl.cafe/",
+  luxLike: "https://www.vegamovies-nl.run/",
 }
 
 // CORS proxies to bypass restrictions
