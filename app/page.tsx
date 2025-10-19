@@ -16,6 +16,7 @@ import { SecureImage } from "@/components/secure-image"
 import { MovieInfoModal } from "@/components/movie-info-modal"
 import { CategoryRow } from "@/components/category-row"
 import { TMDBPopularRow } from "@/components/tmdb-popular-row"
+import { useVisitorTracking } from "@/hooks/useVisitorTracking"
 
 interface Movie {
   title: string
@@ -86,6 +87,9 @@ export default function Home() {
 
   // Wishlist functionality
   const { wishlist, isClient } = useWishlist()
+
+  // Visitor tracking - only track on home page
+  useVisitorTracking()
 
   // Fetch trending content from TMDB for hero section
   useEffect(() => {

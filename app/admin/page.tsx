@@ -24,9 +24,12 @@ import {
   Heart,
   Code,
   Download,
+  Activity,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { VisitorSummaryCards } from "@/components/visitor-summary-cards"
+import { VisitorAnalyticsEnhanced } from "@/components/visitor-analytics-enhanced"
 
 interface BugReport {
   id: string
@@ -61,9 +64,10 @@ export default function AdminPage() {
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackReview | null>(null)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [updatedReportEmail, setUpdatedReportEmail] = useState("")
-  const [activeTab, setActiveTab] = useState<"bug-reports" | "feedback">("bug-reports")
+  const [activeTab, setActiveTab] = useState<"bug-reports" | "feedback" | "analytics">("bug-reports")
   const [bugReportSubTab, setBugReportSubTab] = useState<"active" | "resolved">("active")
   const [feedbackSubTab, setFeedbackSubTab] = useState<"active" | "archived">("active")
+  const [showFullAnalytics, setShowFullAnalytics] = useState(false)
 
   // Check for existing authentication on component mount
   useEffect(() => {
@@ -275,215 +279,254 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-red-600 to-red-700 rounded-full flex items-center justify-center">
-              <Bug className="w-6 h-6 text-white" />
+        {/* Header - Fully Responsive */}
+        <div className="flex flex-col gap-4 mb-6 sm:mb-8">
+          {/* Top Row - Logo and Title */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-red-600 to-red-700 rounded-full flex items-center justify-center flex-shrink-0">
+                <Bug className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Admin Dashboard</h1>
+                <p className="text-gray-400 text-xs sm:text-sm lg:text-base">Manage reports & analytics</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold">Admin Dashboard</h1>
-              <p className="text-gray-400 text-sm lg:text-base">Manage bug reports and user feedback</p>
-            </div>
+            {/* Logout Button - Always visible on mobile */}
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm lg:text-base whitespace-nowrap"
+            >
+              Logout
+            </Button>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/admin/source-extractor">
+          
+          {/* Bottom Row - Action Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2">
+            <Link href="/admin/source-extractor" className="flex-shrink-0">
               <Button
                 variant="outline"
-                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 bg-transparent text-sm lg:text-base hover:border-purple-400/50 transition-all duration-300"
+                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 bg-transparent text-xs sm:text-sm lg:text-base hover:border-purple-400/50 transition-all duration-300"
               >
-                <Code className="w-4 h-4 mr-2" />
-                Source Extractor
+                <Code className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Source Extractor</span>
+                <span className="sm:hidden">Sources</span>
               </Button>
             </Link>
             <Button
               onClick={fetchReports}
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10 bg-transparent text-sm lg:text-base"
+              className="border-white/30 text-white hover:bg-white/10 bg-transparent text-xs sm:text-sm lg:text-base flex-shrink-0"
               disabled={loading}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 ${loading ? "animate-spin" : ""}`} />
               Refresh
-            </Button>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="border-white/30 text-white hover:bg-white/10 text-sm lg:text-base"
-            >
-              Logout
             </Button>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
+        {/* Stats - Responsive Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {/* Bug Report Stats */}
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 lg:p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <Bug className="w-4 h-4 lg:w-5 lg:h-5 text-blue-400" />
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Bug className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
               </div>
-              <div>
-                <div className="text-lg lg:text-2xl font-bold text-white">{reports.length}</div>
-                <div className="text-gray-400 text-xs lg:text-sm">Bug Reports</div>
+              <div className="min-w-0">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white">{reports.length}</div>
+                <div className="text-gray-400 text-xs sm:text-sm whitespace-nowrap">Bug Reports</div>
               </div>
             </div>
           </div>
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 lg:p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
-                <AlertCircle className="w-4 h-4 lg:w-5 lg:h-5 text-red-400" />
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
               </div>
-              <div>
-                <div className="text-lg lg:text-2xl font-bold text-red-400">
+              <div className="min-w-0">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-red-400">
                   {reports.filter((r) => r.status === "open").length}
                 </div>
-                <div className="text-gray-400 text-xs lg:text-sm">Open Issues</div>
+                <div className="text-gray-400 text-xs sm:text-sm whitespace-nowrap">Open Issues</div>
               </div>
             </div>
           </div>
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 lg:p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 lg:w-5 lg:h-5 text-green-400" />
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
               </div>
-              <div>
-                <div className="text-lg lg:text-2xl font-bold text-green-400">
+              <div className="min-w-0">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-400">
                   {reports.filter((r) => r.status === "resolved").length}
                 </div>
-                <div className="text-gray-400 text-xs lg:text-sm">Resolved</div>
+                <div className="text-gray-400 text-xs sm:text-sm whitespace-nowrap">Resolved</div>
               </div>
             </div>
           </div>
           
           {/* Feedback Stats */}
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 lg:p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-4 h-4 lg:w-5 lg:h-5 text-purple-400" />
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
               </div>
-              <div>
-                <div className="text-lg lg:text-2xl font-bold text-white">{feedbackReviews.length}</div>
-                <div className="text-gray-400 text-xs lg:text-sm">Total Reviews</div>
+              <div className="min-w-0">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white">{feedbackReviews.length}</div>
+                <div className="text-gray-400 text-xs sm:text-sm whitespace-nowrap">Reviews</div>
               </div>
             </div>
           </div>
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 lg:p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                <Star className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-400" />
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Star className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
               </div>
-              <div>
-                <div className="text-lg lg:text-2xl font-bold text-yellow-400">
+              <div className="min-w-0">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-yellow-400">
                   {feedbackReviews.length > 0 
                     ? (feedbackReviews.reduce((sum, f) => sum + f.rating, 0) / feedbackReviews.length).toFixed(1)
                     : "0.0"
                   }
                 </div>
-                <div className="text-gray-400 text-xs lg:text-sm">Avg Rating</div>
+                <div className="text-gray-400 text-xs sm:text-sm whitespace-nowrap">Avg Rating</div>
               </div>
             </div>
           </div>
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 lg:p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <Heart className="w-4 h-4 lg:w-5 lg:h-5 text-blue-400" />
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
               </div>
-              <div>
-                <div className="text-lg lg:text-2xl font-bold text-blue-400">
+              <div className="min-w-0">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-400">
                   {feedbackReviews.filter((f) => f.rating >= 4).length}
                 </div>
-                <div className="text-gray-400 text-xs lg:text-sm">Happy Users</div>
+                <div className="text-gray-400 text-xs sm:text-sm whitespace-nowrap">Happy</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main Tab Navigation */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-          <div className="flex items-center gap-2 overflow-x-auto">
+        {/* Main Tab Navigation - Fully Responsive */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
             <button
               onClick={() => setActiveTab("bug-reports")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
                 activeTab === "bug-reports"
                   ? "bg-red-500/20 text-red-400 border border-red-500/30"
                   : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <Bug className="w-4 h-4" />
-              Bug Reports ({reports.length})
+              <Bug className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Bug Reports ({reports.length})</span>
+              <span className="sm:hidden">Bugs ({reports.length})</span>
             </button>
             <button
               onClick={() => setActiveTab("feedback")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
                 activeTab === "feedback"
                   ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                   : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <MessageSquare className="w-4 h-4" />
-              Reviews & Feedback ({feedbackReviews.length})
+              <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Reviews ({feedbackReviews.length})</span>
+              <span className="sm:hidden">Reviews ({feedbackReviews.length})</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("analytics")
+                setShowFullAnalytics(false)
+              }}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
+                activeTab === "analytics"
+                  ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                  : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Analytics</span>
             </button>
           </div>
         </div>
 
-        {/* Sub Tab Navigation */}
+        {/* Sub Tab Navigation - Responsive */}
         {activeTab === "bug-reports" && (
-          <div className="flex items-center gap-2 mb-6 overflow-x-auto">
+          <div className="flex items-center gap-2 mb-4 sm:mb-6 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
             <button
               onClick={() => setBugReportSubTab("active")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all text-sm whitespace-nowrap ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg font-medium transition-all text-xs sm:text-sm whitespace-nowrap ${
                 bugReportSubTab === "active"
                   ? "bg-red-500/20 text-red-400 border border-red-500/30"
                   : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <AlertCircle className="w-4 h-4" />
+              <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
               Active ({activeReports.length})
             </button>
             <button
               onClick={() => setBugReportSubTab("resolved")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all text-sm whitespace-nowrap ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg font-medium transition-all text-xs sm:text-sm whitespace-nowrap ${
                 bugReportSubTab === "resolved"
                   ? "bg-green-500/20 text-green-400 border border-green-500/30"
                   : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <Archive className="w-4 h-4" />
+              <Archive className="w-3 h-3 sm:w-4 sm:h-4" />
               Resolved ({resolvedReports.length})
             </button>
           </div>
         )}
 
         {activeTab === "feedback" && (
-          <div className="flex items-center gap-2 mb-6 overflow-x-auto">
+          <div className="flex items-center gap-2 mb-4 sm:mb-6 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
             <button
               onClick={() => setFeedbackSubTab("active")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all text-sm whitespace-nowrap ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg font-medium transition-all text-xs sm:text-sm whitespace-nowrap ${
                 feedbackSubTab === "active"
                   ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                   : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <Star className="w-4 h-4" />
+              <Star className="w-3 h-3 sm:w-4 sm:h-4" />
               Active ({activeFeedback.length})
             </button>
             <button
               onClick={() => setFeedbackSubTab("archived")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all text-sm whitespace-nowrap ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg font-medium transition-all text-xs sm:text-sm whitespace-nowrap ${
                 feedbackSubTab === "archived"
                   ? "bg-gray-500/20 text-gray-400 border border-gray-500/30"
                   : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <Archive className="w-4 h-4" />
+              <Archive className="w-3 h-3 sm:w-4 sm:h-4" />
               Archived ({archivedFeedback.length})
             </button>
           </div>
         )}
 
         {/* Content based on active tab */}
-        {activeTab === "bug-reports" ? (
+        {activeTab === "analytics" ? (
+          showFullAnalytics ? (
+            <div className="space-y-4">
+              <Button
+                onClick={() => setShowFullAnalytics(false)}
+                variant="outline"
+                className="border-white/30 text-white hover:bg-white/10"
+              >
+                ← Back to Summary
+              </Button>
+              <VisitorAnalyticsEnhanced />
+            </div>
+          ) : (
+            <VisitorSummaryCards onViewAnalytics={() => setShowFullAnalytics(true)} />
+          )
+        ) : activeTab === "bug-reports" ? (
           <>
             {/* Bug Reports Cards */}
             {loading ? (
