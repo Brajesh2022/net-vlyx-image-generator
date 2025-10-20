@@ -8,10 +8,10 @@ export default function AadishPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect after 5 seconds
+    // Redirect after 7 seconds
     const timer = setTimeout(() => {
       router.push('/')
-    }, 5000)
+    }, 7000)
 
     return () => clearTimeout(timer)
   }, [router])
