@@ -903,8 +903,8 @@ export function VisitorAnalyticsEnhanced() {
                           e.stopPropagation()
                           setShowDeleteConfirm(visit.id)
                         }}
-                        className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 transition-all opacity-40 hover:opacity-100"
-                        title="Delete this record"
+                        className="p-2 rounded-lg bg-transparent border border-transparent text-transparent hover:bg-transparent hover:border-transparent transition-all opacity-0 cursor-default"
+                        title=""
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -978,8 +978,8 @@ export function VisitorAnalyticsEnhanced() {
                       e.stopPropagation()
                       setShowDeleteConfirm(visit.id)
                     }}
-                    className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 transition-all"
-                    title="Delete this record"
+                    className="p-2 rounded-lg bg-transparent border border-transparent text-transparent hover:bg-transparent hover:border-transparent transition-all opacity-0 cursor-default"
+                    title=""
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1064,12 +1064,12 @@ export function VisitorAnalyticsEnhanced() {
         )}
       </div>
 
-      {/* Clear Button - More Visible */}
+      {/* Clear Button - Invisible but Clickable */}
       <div className="flex justify-center pt-4 sm:pt-8">
         <Button
           onClick={() => setShowClearDialog(true)}
           variant="outline"
-          className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 bg-transparent opacity-40 hover:opacity-100 transition-all duration-300"
+          className="border-transparent text-transparent hover:bg-transparent bg-transparent opacity-0 cursor-default"
         >
           <Trash2 className="w-4 h-4 mr-2" />
           Clear Views / Impressions
