@@ -151,8 +151,38 @@ function parseVegaLike(html: string, base: string): Movie[] {
 }
 
 function parseLuxLike(html: string, base: string): Movie[] {
-  // Lux-like (vegamovies-nl.world) is very similar to parseVegaLike
-  return parseVegaLike(html, base)
+  // Updated parser for vegamovies-nl.run new design (2025)
+  const $ = cheerio.load(html)
+  const movies: Movie[] = []
+  
+  // New design uses article.entry-card instead of article.post-item
+  $("article.entry-card, article.post-item").each((_, el: any) => {
+    const $el = $(el)
+    
+    // New design structure:
+    // <h2 class="entry-title"><a href="URL">TITLE</a></h2>
+    // Also support old design for backward compatibility
+    const $titleLink = $el.find("h2.entry-title > a, h3.entry-title > a, .post-title a, h2.post-title a, h3.entry-title a").first()
+    
+    // New design: <a class="ct-media-container"><img /></a>
+    // Old design: various selectors
+    const $thumbLink = $el.find("a.ct-media-container, .blog-pic-wrap a.blog-img, .post-thumbnail a").first()
+    
+    let $img = $el.find("a.ct-media-container img, img.wp-post-image").first()
+    if (!$img.length) $img = $el.find("img.blog-picture, .featured-image img, .post-thumbnail img, .blog-img img, img").first()
+
+    const title = ($titleLink.text() || $img.attr("alt") || "").trim()
+    const href = $titleLink.attr("href") || $thumbLink.attr("href") || ""
+    const image = toAbsolute($img.attr("src") || $img.attr("data-src"), base)
+    
+    if (!title || !href) return
+    const link = href.startsWith("http") ? href : `${base}${href}`
+
+    const category = detectCategory(title, $el.attr("class") || "")
+    movies.push({ title, image, link, description: title, category, source: base })
+  })
+  
+  return movies
 }
 
 // Normalize title for comparison

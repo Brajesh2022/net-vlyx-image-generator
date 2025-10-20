@@ -67,23 +67,29 @@ function parseVegaMoviesData(html: string): ParsedMovieData {
   const movies: Movie[] = []
   const categories = new Set<string>()
 
-  // Parse movie items - vegamovies-nl uses article.post-item
-  $("article.post-item").each((index, element) => {
+  // Parse movie items - NEW DESIGN (2025): vegamovies-nl uses article.entry-card
+  // OLD DESIGN: article.post-item (keeping for backward compatibility)
+  $("article.entry-card, article.post-item").each((index, element) => {
     const $element = $(element)
 
     // Extract title and link
-    const $titleElement = $element.find("h3.post-title > a, h2.entry-title > a").first()
+    // NEW DESIGN: <h2 class="entry-title"><a>Title</a></h2>
+    // OLD DESIGN: <h3 class="post-title"><a>Title</a></h3>
+    const $titleElement = $element.find("h2.entry-title > a, h3.entry-title > a, h3.post-title > a").first()
     const title = ($titleElement.attr("title") || $titleElement.text() || "").trim()
     const link = $titleElement.attr("href") || ""
 
     // Extract image - Use HIGH QUALITY version (remove resolution suffix)
-    const $imageElement = $element.find("div.blog-pic img.blog-picture, img.blog-picture").first()
+    // NEW DESIGN: <a class="ct-media-container"><img class="wp-post-image" /></a>
+    // OLD DESIGN: <div class="blog-pic"><img class="blog-picture" /></div>
+    const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
     let image = $imageElement.attr("src") || ""
     
-    // Convert to high-res by removing resolution suffix like -300x450
+    // Convert to high-res by removing resolution suffix like -300x450 or -165x248-1
     // Pattern: image-300x450.jpg -> image.jpg
+    // Pattern: image-165x248-1.png -> image.png
     if (image) {
-      image = image.replace(/-\d+x\d+(\.(jpg|jpeg|png|webp))$/i, "$1")
+      image = image.replace(/-\d+x\d+(-\d+)?(\.(jpg|jpeg|png|webp))$/i, "$2")
     }
 
     if (!title || !link) return

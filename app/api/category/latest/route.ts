@@ -45,21 +45,24 @@ function parseVegaMoviesData(html: string, limit: number = 10): Movie[] {
   const $ = cheerio.load(html)
   const movies: Movie[] = []
 
-  $("article.post-item").each((index, element) => {
+  // NEW DESIGN (2025): article.entry-card | OLD DESIGN: article.post-item
+  $("article.entry-card, article.post-item").each((index, element) => {
     if (limit > 0 && movies.length >= limit) return false // Stop when we have enough (only if limit is set)
 
     const $element = $(element)
 
-    const $titleElement = $element.find("h3.post-title > a, h2.entry-title > a").first()
+    // NEW DESIGN: h2.entry-title > a | OLD DESIGN: h3.post-title > a
+    const $titleElement = $element.find("h2.entry-title > a, h3.entry-title > a, h3.post-title > a").first()
     const title = ($titleElement.attr("title") || $titleElement.text() || "").trim()
     const link = $titleElement.attr("href") || ""
 
-    const $imageElement = $element.find("div.blog-pic img.blog-picture, img.blog-picture").first()
+    // NEW DESIGN: a.ct-media-container img | OLD DESIGN: div.blog-pic img.blog-picture
+    const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
     let image = $imageElement.attr("src") || ""
 
-    // Convert to high-res by removing resolution suffix
+    // Convert to high-res by removing resolution suffix (e.g., -165x248-1.png or -300x450.jpg)
     if (image) {
-      image = image.replace(/-\d+x\d+(\.(jpg|jpeg|png|webp))$/i, "$1")
+      image = image.replace(/-\d+x\d+(-\d+)?(\.(jpg|jpeg|png|webp))$/i, "$2")
     }
 
     if (!title || !link) return
