@@ -79,18 +79,15 @@ function parseVegaMoviesData(html: string): ParsedMovieData {
     const title = ($titleElement.attr("title") || $titleElement.text() || "").trim()
     const link = $titleElement.attr("href") || ""
 
-    // Extract image - Use HIGH QUALITY version (remove resolution suffix)
+    // Extract image
     // NEW DESIGN: <a class="ct-media-container"><img class="wp-post-image" /></a>
     // OLD DESIGN: <div class="blog-pic"><img class="blog-picture" /></div>
     const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
-    let image = $imageElement.attr("src") || ""
+    const image = $imageElement.attr("src") || ""
     
-    // Convert to high-res by removing resolution suffix like -300x450 or -165x248-1
-    // Pattern: image-300x450.jpg -> image.jpg
-    // Pattern: image-165x248-1.png -> image.png
-    if (image) {
-      image = image.replace(/-\d+x\d+(-\d+)?(\.(jpg|jpeg|png|webp))$/i, "$2")
-    }
+    // NOTE: We use the thumbnail URLs as-is from vegamovies-nl (e.g., image-165x248.png)
+    // These are the actual optimized thumbnails that exist and load quickly.
+    // Do NOT remove resolution suffix - the full-res versions may not exist!
 
     if (!title || !link) return
 

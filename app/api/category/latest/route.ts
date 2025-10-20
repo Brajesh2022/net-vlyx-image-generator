@@ -58,12 +58,10 @@ function parseVegaMoviesData(html: string, limit: number = 10): Movie[] {
 
     // NEW DESIGN: a.ct-media-container img | OLD DESIGN: div.blog-pic img.blog-picture
     const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
-    let image = $imageElement.attr("src") || ""
+    const image = $imageElement.attr("src") || ""
 
-    // Convert to high-res by removing resolution suffix (e.g., -165x248-1.png or -300x450.jpg)
-    if (image) {
-      image = image.replace(/-\d+x\d+(-\d+)?(\.(jpg|jpeg|png|webp))$/i, "$2")
-    }
+    // NOTE: We use the thumbnail URLs as-is (e.g., image-165x248.png)
+    // These are optimized thumbnails that exist and load quickly
 
     if (!title || !link) return
 
