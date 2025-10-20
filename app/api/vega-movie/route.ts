@@ -108,7 +108,11 @@ function parseMovieDetails(html: string): MovieDetails {
   const CONTENT_SCOPE = ".single-service-content, .entry-inner, .entry-content"
 
   // Extract title
-  const title = $("h1.entry-title, .entry-title").first().text().trim() || "Unknown Title"
+  // Support multiple title selectors for different website designs:
+  // - h1.page-title: vegamovies-nl new design (2025)
+  // - h1.entry-title: vegamovies old design and other vega sites
+  // - .entry-title: fallback for various templates
+  const title = $("h1.page-title, h1.entry-title, .entry-title").first().text().trim() || "Unknown Title"
 
   // Extract poster - try multiple selectors for VegaMovies
   let poster = ""

@@ -101,7 +101,10 @@ function parseMovieDetails(html: string): MovieDetails {
   const $ = cheerio.load(html)
 
   // Extract title
-  const title = $("h1.entry-title").text().trim() || "Unknown Title"
+  // Support multiple title selectors for different website designs:
+  // - h1.page-title: vegamovies-nl new design (2025)
+  // - h1.entry-title: vegamovies-nl old design
+  const title = $("h1.page-title, h1.entry-title").text().trim() || "Unknown Title"
 
   // Extract poster - try multiple selectors and clean up URL
   let poster = ""
