@@ -984,37 +984,37 @@ export default function Home() {
               />
             )}
 
-            {/* Action - Popular */}
+            {/* Action - Latest */}
             {categoryMovies['action'] && categoryMovies['action'].length > 0 && (
               <CategoryRow
-                title="Popular in Action"
+                title="Latest in Action"
                 movies={categoryMovies['action']}
                 viewAllLink="/category?type=action"
               />
             )}
 
-            {/* Horror - Popular */}
+            {/* Horror - Latest */}
             {categoryMovies['horror'] && categoryMovies['horror'].length > 0 && (
               <CategoryRow
-                title="Popular in Horror"
+                title="Latest in Horror"
                 movies={categoryMovies['horror']}
                 viewAllLink="/category?type=horror"
               />
             )}
 
-            {/* Sci-Fi - Popular */}
+            {/* Sci-Fi - Latest */}
             {categoryMovies['sci-fi'] && categoryMovies['sci-fi'].length > 0 && (
               <CategoryRow
-                title="Popular in Sci-Fi"
+                title="Latest in Sci-Fi"
                 movies={categoryMovies['sci-fi']}
                 viewAllLink="/category?type=sci-fi"
               />
             )}
 
-            {/* Drama - Popular */}
+            {/* Drama - Latest */}
             {categoryMovies['drama'] && categoryMovies['drama'].length > 0 && (
               <CategoryRow
-                title="Popular in Drama"
+                title="Latest in Drama"
                 movies={categoryMovies['drama']}
                 viewAllLink="/category?type=drama"
               />

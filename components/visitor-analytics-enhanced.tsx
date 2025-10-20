@@ -96,8 +96,13 @@ export function VisitorAnalyticsEnhanced() {
   
   // Clear data states
   const [showClearDialog, setShowClearDialog] = useState(false)
-  const [clearStep, setClearStep] = useState(1)
+  const [clearMode, setClearMode] = useState<'time' | 'count'>('time')
+  const [clearTimeRange, setClearTimeRange] = useState('30min')
+  const [customMinutes, setCustomMinutes] = useState('')
+  const [clearCount, setClearCount] = useState('')
   const [clearConfirmText, setClearConfirmText] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
   // Check if we're on the client side
   useEffect(() => {
@@ -370,36 +375,79 @@ export function VisitorAnalyticsEnhanced() {
   }
 
   const handleClearData = async () => {
-    if (clearStep === 1) {
-      setClearStep(2)
+    if (clearConfirmText.toLowerCase() !== 'clear') {
       return
     }
-    
-    if (clearStep === 2) {
-      setClearStep(3)
-      return
-    }
-    
-    if (clearStep === 3 && clearConfirmText === 'clear views') {
-      try {
-        for (const visitor of allVisitors) {
-          await deleteDoc(doc(db, 'visitor-tracking', visitor.id))
+
+    try {
+      let itemsToDelete: VisitorData[] = []
+      const allItems = [...allVisitors, ...allImpressions]
+
+      if (clearMode === 'time') {
+        // Calculate time threshold
+        let minutes = 0
+        if (clearTimeRange === 'custom') {
+          minutes = parseInt(customMinutes) || 0
+        } else {
+          const timeMap: Record<string, number> = {
+            '30min': 30,
+            '1hour': 60,
+            '3hours': 180,
+            '6hours': 360,
+            '12hours': 720,
+            '24hours': 1440,
+            '7days': 10080,
+            '30days': 43200,
+          }
+          minutes = timeMap[clearTimeRange] || 30
         }
         
-        for (const impression of allImpressions) {
-          await deleteDoc(doc(db, 'visitor-impressions', impression.id))
-        }
-        
-        setShowClearDialog(false)
-        setClearStep(1)
-        setClearConfirmText('')
-        fetchAnalytics()
-        
-        alert('All visitor data has been cleared successfully!')
-      } catch (error) {
-        console.error('Error clearing data:', error)
-        alert('Error clearing data. Please try again.')
+        const thresholdTime = Date.now() - (minutes * 60 * 1000)
+        itemsToDelete = allItems.filter(item => item.timestamp >= thresholdTime)
+      } else if (clearMode === 'count') {
+        // Get last N items
+        const count = parseInt(clearCount) || 0
+        itemsToDelete = allItems.sort((a, b) => b.timestamp - a.timestamp).slice(0, count)
       }
+
+      // Delete the items
+      for (const item of itemsToDelete) {
+        const collectionName = item.type === 'unique' ? 'visitor-tracking' : 'visitor-impressions'
+        await deleteDoc(doc(db, collectionName, item.id))
+      }
+
+      setShowClearDialog(false)
+      setClearMode('time')
+      setClearTimeRange('30min')
+      setCustomMinutes('')
+      setClearCount('')
+      setClearConfirmText('')
+      fetchAnalytics()
+
+      alert(`Successfully cleared ${itemsToDelete.length} record(s)!`)
+    } catch (error) {
+      console.error('Error clearing data:', error)
+      alert('Error clearing data. Please try again.')
+    }
+  }
+
+  const handleDeleteSingleItem = async (itemId: string, itemType: 'unique' | 'impression') => {
+    if (deleteConfirmText.toLowerCase() !== 'clear') {
+      return
+    }
+
+    try {
+      const collectionName = itemType === 'unique' ? 'visitor-tracking' : 'visitor-impressions'
+      await deleteDoc(doc(db, collectionName, itemId))
+      
+      setShowDeleteConfirm(null)
+      setDeleteConfirmText('')
+      fetchAnalytics()
+      
+      alert('Record deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting record:', error)
+      alert('Error deleting record. Please try again.')
     }
   }
 
@@ -796,6 +844,7 @@ export function VisitorAnalyticsEnhanced() {
                 <th className="text-left text-gray-400 text-sm font-medium py-3 px-4">OS</th>
                 <th className="text-left text-gray-400 text-sm font-medium py-3 px-4">IP Address</th>
                 <th className="text-left text-gray-400 text-sm font-medium py-3 px-4">Device ID</th>
+                <th className="text-left text-gray-400 text-sm font-medium py-3 px-4">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -805,10 +854,9 @@ export function VisitorAnalyticsEnhanced() {
                 .map((visit, index) => (
                   <tr 
                     key={visit.id} 
-                    className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
-                    onClick={() => viewDeviceDetails(visit.deviceId)}
+                    className="border-b border-white/5 hover:bg-white/5 transition-colors"
                   >
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         visit.type === 'unique' 
                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
@@ -817,17 +865,19 @@ export function VisitorAnalyticsEnhanced() {
                         {visit.type === 'unique' ? 'Unique' : 'Impression'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-300 text-sm">
+                    <td className="py-3 px-4 text-gray-300 text-sm cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>
                       {new Date(visit.timestamp).toLocaleString()}
                     </td>
-                    <td className="py-3 px-4 text-gray-300 text-sm flex items-center gap-2">
-                      {visit.deviceType === 'Mobile' ? <Smartphone className="w-4 h-4 text-blue-400" /> : 
-                       visit.deviceType === 'Tablet' ? <Tablet className="w-4 h-4 text-purple-400" /> : 
-                       <Monitor className="w-4 h-4 text-green-400" />}
-                      {visit.deviceType}
+                    <td className="py-3 px-4 text-gray-300 text-sm cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>
+                      <div className="flex items-center gap-2">
+                        {visit.deviceType === 'Mobile' ? <Smartphone className="w-4 h-4 text-blue-400" /> : 
+                         visit.deviceType === 'Tablet' ? <Tablet className="w-4 h-4 text-purple-400" /> : 
+                         <Monitor className="w-4 h-4 text-green-400" />}
+                        {visit.deviceType}
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-gray-300 text-sm">{visit.browser}</td>
-                    <td className="py-3 px-4 text-gray-300 text-sm">{visit.os}</td>
+                    <td className="py-3 px-4 text-gray-300 text-sm cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>{visit.browser}</td>
+                    <td className="py-3 px-4 text-gray-300 text-sm cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>{visit.os}</td>
                     <td 
                       className="py-3 px-4 text-gray-300 text-sm font-mono cursor-pointer hover:text-blue-400 hover:bg-blue-500/10 transition-colors relative group"
                       onClick={(e) => copyIPToClipboard(visit.ipAddress, e)}
@@ -844,8 +894,20 @@ export function VisitorAnalyticsEnhanced() {
                         )}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-400 text-xs font-mono">
+                    <td className="py-3 px-4 text-gray-400 text-xs font-mono cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>
                       {visit.deviceId.substring(0, 20)}...
+                    </td>
+                    <td className="py-3 px-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowDeleteConfirm(visit.id)
+                        }}
+                        className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 transition-all opacity-40 hover:opacity-100"
+                        title="Delete this record"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -861,8 +923,7 @@ export function VisitorAnalyticsEnhanced() {
             .map((visit, index) => (
               <div 
                 key={visit.id}
-                onClick={() => viewDeviceDetails(visit.deviceId)}
-                className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition-all cursor-pointer"
+                className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition-all relative"
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -907,9 +968,21 @@ export function VisitorAnalyticsEnhanced() {
                     </span>
                   </div>
                 </div>
-                <div className="mt-2 text-xs">
-                  <span className="text-gray-400">Device ID: </span>
-                  <span className="text-gray-500 font-mono">{visit.deviceId.substring(0, 30)}...</span>
+                <div className="mt-2 text-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-gray-400">Device ID: </span>
+                    <span className="text-gray-500 font-mono">{visit.deviceId.substring(0, 30)}...</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowDeleteConfirm(visit.id)
+                    }}
+                    className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 transition-all"
+                    title="Delete this record"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}
@@ -991,29 +1064,29 @@ export function VisitorAnalyticsEnhanced() {
         )}
       </div>
 
-      {/* Secret Clear Button */}
+      {/* Clear Button - More Visible */}
       <div className="flex justify-center pt-4 sm:pt-8">
-        <button
+        <Button
           onClick={() => setShowClearDialog(true)}
-          className="opacity-10 hover:opacity-100 transition-opacity duration-500 text-gray-600 hover:text-red-500 text-xs"
+          variant="outline"
+          className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 bg-transparent opacity-40 hover:opacity-100 transition-all duration-300"
         >
-          •••
-        </button>
+          <Trash2 className="w-4 h-4 mr-2" />
+          Clear Views / Impressions
+        </Button>
       </div>
 
-      {/* Clear Data Dialog - Responsive */}
+      {/* Advanced Clear Data Dialog */}
       {showClearDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => {
             setShowClearDialog(false)
-            setClearStep(1)
             setClearConfirmText('')
           }} />
-          <div className="relative bg-gradient-to-br from-red-900/90 to-red-950/90 backdrop-blur-xl border border-red-500/30 rounded-2xl p-6 sm:p-8 max-w-md w-full">
+          <div className="relative bg-gradient-to-br from-red-900/90 to-red-950/90 backdrop-blur-xl border border-red-500/30 rounded-2xl p-6 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => {
                 setShowClearDialog(false)
-                setClearStep(1)
                 setClearConfirmText('')
               }}
               className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -1026,46 +1099,189 @@ export function VisitorAnalyticsEnhanced() {
                 <Trash2 className="w-8 h-8 text-red-500" />
               </div>
               <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
-                {clearStep === 1 && 'Clear All Visitor Data?'}
-                {clearStep === 2 && 'Are You Sure?'}
-                {clearStep === 3 && 'Final Confirmation'}
+                Clear Visitor Data
               </h3>
               <p className="text-gray-300 text-sm sm:text-base">
-                {clearStep === 1 && 'This will permanently delete all visitor analytics data.'}
-                {clearStep === 2 && 'This action cannot be undone. All visitor tracking history will be lost forever.'}
-                {clearStep === 3 && 'Type "clear views" to confirm deletion.'}
+                Choose how you want to clear visitor analytics data
               </p>
             </div>
 
-            {clearStep === 3 && (
+            {/* Clear Mode Selection */}
+            <div className="mb-6">
+              <label className="text-white text-sm font-medium mb-3 block">Clear By:</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setClearMode('time')}
+                  className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                    clearMode === 'time'
+                      ? 'border-red-500 bg-red-500/20 text-white'
+                      : 'border-white/20 bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  <Clock className="w-5 h-5 mx-auto mb-1" />
+                  <span className="text-sm font-medium">Time Range</span>
+                </button>
+                <button
+                  onClick={() => setClearMode('count')}
+                  className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                    clearMode === 'count'
+                      ? 'border-red-500 bg-red-500/20 text-white'
+                      : 'border-white/20 bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  <BarChart3 className="w-5 h-5 mx-auto mb-1" />
+                  <span className="text-sm font-medium">Record Count</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Time Range Options */}
+            {clearMode === 'time' && (
+              <div className="mb-6">
+                <label className="text-white text-sm font-medium mb-3 block">Select Time Range:</label>
+                <select
+                  value={clearTimeRange}
+                  onChange={(e) => setClearTimeRange(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="30min">Last 30 minutes</option>
+                  <option value="1hour">Last 1 hour</option>
+                  <option value="3hours">Last 3 hours</option>
+                  <option value="6hours">Last 6 hours</option>
+                  <option value="12hours">Last 12 hours</option>
+                  <option value="24hours">Last 24 hours</option>
+                  <option value="7days">Last 7 days</option>
+                  <option value="30days">Last 30 days</option>
+                  <option value="custom">Custom Minutes</option>
+                </select>
+                
+                {clearTimeRange === 'custom' && (
+                  <Input
+                    type="number"
+                    value={customMinutes}
+                    onChange={(e) => setCustomMinutes(e.target.value)}
+                    placeholder="Enter minutes"
+                    className="mt-3 bg-white/10 border-white/20 text-white"
+                    min="1"
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Count Options */}
+            {clearMode === 'count' && (
+              <div className="mb-6">
+                <label className="text-white text-sm font-medium mb-3 block">Number of Records to Clear:</label>
+                <Input
+                  type="number"
+                  value={clearCount}
+                  onChange={(e) => setClearCount(e.target.value)}
+                  placeholder="e.g., 300"
+                  className="bg-white/10 border-white/20 text-white"
+                  min="1"
+                />
+                <p className="text-gray-400 text-xs mt-2">
+                  Will clear the most recent {clearCount || 'N'} records
+                </p>
+              </div>
+            )}
+
+            {/* Confirmation Input */}
+            <div className="mb-6">
+              <label className="text-white text-sm font-medium mb-3 block">Type "clear" to confirm:</label>
               <Input
                 value={clearConfirmText}
                 onChange={(e) => setClearConfirmText(e.target.value)}
-                placeholder='Type "clear views"'
-                className="mb-6 bg-white/10 border-white/20 text-white text-sm sm:text-base"
+                placeholder='Type "clear"'
+                className="bg-white/10 border-white/20 text-white"
               />
-            )}
+            </div>
 
             <div className="flex gap-3">
               <Button
                 onClick={() => {
                   setShowClearDialog(false)
-                  setClearStep(1)
                   setClearConfirmText('')
                 }}
                 variant="outline"
-                className="flex-1 border-white/30 text-white hover:bg-white/10 text-sm sm:text-base"
+                className="flex-1 border-white/30 text-white hover:bg-white/10"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleClearData}
-                disabled={clearStep === 3 && clearConfirmText !== 'clear views'}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                disabled={clearConfirmText.toLowerCase() !== 'clear'}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {clearStep === 1 && 'Continue'}
-                {clearStep === 2 && 'Yes, Delete'}
-                {clearStep === 3 && 'Confirm'}
+                Clear Data
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Single Item Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => {
+            setShowDeleteConfirm(null)
+            setDeleteConfirmText('')
+          }} />
+          <div className="relative bg-gradient-to-br from-red-900/90 to-red-950/90 backdrop-blur-xl border border-red-500/30 rounded-2xl p-6 sm:p-8 max-w-md w-full">
+            <button
+              onClick={() => {
+                setShowDeleteConfirm(null)
+                setDeleteConfirmText('')
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                Delete This Record?
+              </h3>
+              <p className="text-gray-300 text-sm sm:text-base">
+                This action cannot be undone. The visit record will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="text-white text-sm font-medium mb-3 block">Type "clear" to confirm:</label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder='Type "clear"'
+                className="bg-white/10 border-white/20 text-white"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowDeleteConfirm(null)
+                  setDeleteConfirmText('')
+                }}
+                variant="outline"
+                className="flex-1 border-white/30 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const itemToDelete = [...allVisitors, ...allImpressions].find(v => v.id === showDeleteConfirm)
+                  if (itemToDelete) {
+                    handleDeleteSingleItem(itemToDelete.id, itemToDelete.type)
+                  }
+                }}
+                disabled={deleteConfirmText.toLowerCase() !== 'clear'}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Delete Record
               </Button>
             </div>
           </div>

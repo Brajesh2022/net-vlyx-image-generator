@@ -23,15 +23,13 @@ function CategoryContent() {
   const searchParams = useSearchParams()
   const type = searchParams.get("type") || "sci-fi"
 
-  // Categories that default to "latest"
-  const latestCategories = ["bollywood", "south-movies", "animation", "korean"]
-  const defaultFilter = latestCategories.includes(type) ? "latest" : "popular"
-
   const [currentPage, setCurrentPage] = useState(1)
   const [allMovies, setAllMovies] = useState<Movie[]>([])
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [selectedFilter, setSelectedFilter] = useState(defaultFilter)
   const [hasMore, setHasMore] = useState(true)
+
+  // Always use "latest" filter for all categories
+  const selectedFilter = "latest"
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/category", type, selectedFilter, currentPage],
@@ -57,21 +55,17 @@ function CategoryContent() {
     }
   }, [data, currentPage])
 
-  // Reset when filter changes
+  // Reset when type changes
   useEffect(() => {
     setCurrentPage(1)
     setAllMovies([])
-  }, [selectedFilter, type])
+  }, [type])
 
   const handleLoadMore = async () => {
     if (!hasMore || isLoadingMore) return
     setIsLoadingMore(true)
     setCurrentPage(prev => prev + 1)
     setIsLoadingMore(false)
-  }
-
-  const handleFilterChange = (filter: string) => {
-    setSelectedFilter(filter)
   }
 
   const createMovieSlug = (movie: Movie) => {
@@ -162,24 +156,9 @@ function CategoryContent() {
       <main className="pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4">
           <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-2">{getCategoryLabel(type)}</h1>
-                <p className="text-gray-400">Browse all {getCategoryLabel(type).toLowerCase()} content</p>
-              </div>
-              
-              {/* Filter Dropdown */}
-              <div className="flex items-center gap-3">
-                <span className="text-gray-400 text-sm">Sort by:</span>
-                <select
-                  value={selectedFilter}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-red-500 focus:ring-red-500/20 focus:outline-none"
-                >
-                  <option value="latest">Latest</option>
-                  <option value="popular">Popular</option>
-                </select>
-              </div>
+            <div className="mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">{getCategoryLabel(type)}</h1>
+              <p className="text-gray-400">Browse latest {getCategoryLabel(type).toLowerCase()} content</p>
             </div>
           </div>
 
