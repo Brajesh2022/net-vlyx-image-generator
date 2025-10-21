@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import { protectApiRoute } from "@/lib/api-protection"
 
-const BASE_URL = "https://www.vegamovies-nl.run/"
+const BASE_URL = "https://www.vegamovies-nl.autos/"
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
 interface Movie {
@@ -58,7 +58,22 @@ function parseVegaMoviesData(html: string, limit: number = 10): Movie[] {
 
     // NEW DESIGN: a.ct-media-container img | OLD DESIGN: div.blog-pic img.blog-picture
     const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
-    const image = $imageElement.attr("src") || ""
+    
+    // Check both src and data-src (lazy loading support)
+    // Also check srcset for responsive images
+    let image = $imageElement.attr("data-src") || $imageElement.attr("src") || ""
+    
+    // If image is empty or is a base64 placeholder, try srcset
+    if (!image || image.startsWith("data:image")) {
+      const srcset = $imageElement.attr("srcset") || ""
+      if (srcset) {
+        // Extract first URL from srcset
+        const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+        if (firstUrl && !firstUrl.startsWith("data:")) {
+          image = firstUrl
+        }
+      }
+    }
 
     // NOTE: We use the thumbnail URLs as-is (e.g., image-165x248.png)
     // These are optimized thumbnails that exist and load quickly

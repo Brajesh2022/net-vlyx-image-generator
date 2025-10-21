@@ -77,7 +77,7 @@ export default function LuxMoviePage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const srcHost = searchParams.get("src") || "https://www.vegamovies-nl.run/"
+  const srcHost = searchParams.get("src") || "https://www.vegamovies-nl.autos/"
   const slug = Array.isArray(params?.slug) ? params.slug.join("/") : (params?.slug as string) || ""
 
   const luxUrl = slug.endsWith(".html") ? `${srcHost}/${slug}` : `${srcHost}/${slug}/`

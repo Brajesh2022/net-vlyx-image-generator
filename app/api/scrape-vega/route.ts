@@ -5,7 +5,7 @@ import { protectApiRoute } from "@/lib/api-protection"
 const SOURCES = {
   vegaA: "https://vegamovise.biz",
   vegaB: "https://bollyhub.one",
-  luxLike: "https://www.vegamovies-nl.run/",
+  luxLike: "https://www.vegamovies-nl.autos/",
 }
 
 // CORS proxies to bypass restrictions
@@ -151,7 +151,7 @@ function parseVegaLike(html: string, base: string): Movie[] {
 }
 
 function parseLuxLike(html: string, base: string): Movie[] {
-  // Updated parser for vegamovies-nl.run new design (2025)
+  // Updated parser for vegamovies-nl.autos new design (2025)
   const $ = cheerio.load(html)
   const movies: Movie[] = []
   

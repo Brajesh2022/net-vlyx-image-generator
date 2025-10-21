@@ -193,7 +193,7 @@ function CategoryContent() {
                   const slug = createMovieSlug(movie)
                   if (!slug || slug.length < 2) return null
 
-                  let sourceUrl = "https://www.vegamovies-nl.run/"
+                  let sourceUrl = "https://www.vegamovies-nl.autos/"
                   if (movie.link) {
                     try {
                       const u = new URL(movie.link)

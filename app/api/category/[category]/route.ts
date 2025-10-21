@@ -8,20 +8,20 @@ const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 const LATEST_CATEGORIES = ["bollywood", "south-movies", "animation", "korean"]
 
 const CATEGORIES: Record<string, string> = {
-  "sci-fi": "https://www.vegamovies-nl.run/sci-fi/",
-  action: "https://www.vegamovies-nl.run/action/",
-  drama: "https://www.vegamovies-nl.run/drama/",
-  comedy: "https://www.vegamovies-nl.run/comedy/",
-  thriller: "https://www.vegamovies-nl.run/thriller/",
-  romance: "https://www.vegamovies-nl.run/romance/",
-  horror: "https://www.vegamovies-nl.run/horror/",
-  animation: "https://www.vegamovies-nl.run/animation/",
-  bollywood: "https://www.vegamovies-nl.run/bollywood/",
-  korean: "https://www.vegamovies-nl.run/korean/",
-  "south-movies": "https://www.vegamovies-nl.run/south-movies/",
-  "dual-audio-movies": "https://www.vegamovies-nl.run/dual-audio-movies/",
-  "dual-audio-series": "https://www.vegamovies-nl.run/dual-audio-series/",
-  "hindi-dubbed": "https://www.vegamovies-nl.run/hindi-dubbed/",
+  "sci-fi": "https://www.vegamovies-nl.autos/sci-fi/",
+  action: "https://www.vegamovies-nl.autos/action/",
+  drama: "https://www.vegamovies-nl.autos/drama/",
+  comedy: "https://www.vegamovies-nl.autos/comedy/",
+  thriller: "https://www.vegamovies-nl.autos/thriller/",
+  romance: "https://www.vegamovies-nl.autos/romance/",
+  horror: "https://www.vegamovies-nl.autos/horror/",
+  animation: "https://www.vegamovies-nl.autos/animation/",
+  bollywood: "https://www.vegamovies-nl.autos/bollywood/",
+  korean: "https://www.vegamovies-nl.autos/korean/",
+  "south-movies": "https://www.vegamovies-nl.autos/south-movies/",
+  "dual-audio-movies": "https://www.vegamovies-nl.autos/dual-audio-movies/",
+  "dual-audio-series": "https://www.vegamovies-nl.autos/dual-audio-series/",
+  "hindi-dubbed": "https://www.vegamovies-nl.autos/hindi-dubbed/",
 }
 
 interface Movie {
@@ -77,7 +77,22 @@ function parseVegaMoviesData(html: string, limit: number = 0): Movie[] {
 
     // NEW DESIGN: a.ct-media-container img | OLD DESIGN: div.blog-pic img.blog-picture
     const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
-    const image = $imageElement.attr("src") || ""
+    
+    // Check both src and data-src (lazy loading support)
+    // Also check srcset for responsive images
+    let image = $imageElement.attr("data-src") || $imageElement.attr("src") || ""
+    
+    // If image is empty or is a base64 placeholder, try srcset
+    if (!image || image.startsWith("data:image")) {
+      const srcset = $imageElement.attr("srcset") || ""
+      if (srcset) {
+        // Extract first URL from srcset
+        const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+        if (firstUrl && !firstUrl.startsWith("data:")) {
+          image = firstUrl
+        }
+      }
+    }
 
     // NOTE: We use the thumbnail URLs as-is (e.g., image-165x248.png)
     // These are optimized thumbnails that exist and load quickly

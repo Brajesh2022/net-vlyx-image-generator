@@ -2,20 +2,20 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import { protectApiRoute } from "@/lib/api-protection"
 
-const BASE_URL = "https://www.vegamovies-nl.run/"
+const BASE_URL = "https://www.vegamovies-nl.autos/"
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
 // Categories available on vegamovies-nl
 const CATEGORIES = {
-  home: "https://www.vegamovies-nl.run/",
-  bollywood: "https://www.vegamovies-nl.run/bollywood/",
-  "south-movies": "https://www.vegamovies-nl.run/south-movies/",
-  "dual-audio-movies": "https://www.vegamovies-nl.run/dual-audio-movies/",
-  "dual-audio-series": "https://www.vegamovies-nl.run/dual-audio-series/",
-  "hindi-dubbed": "https://www.vegamovies-nl.run/hindi-dubbed/",
-  animation: "https://www.vegamovies-nl.run/animation/",
-  horror: "https://www.vegamovies-nl.run/horror/",
-  "sci-fi": "https://www.vegamovies-nl.run/sci-fi/",
+  home: "https://www.vegamovies-nl.autos/",
+  bollywood: "https://www.vegamovies-nl.autos/bollywood/",
+  "south-movies": "https://www.vegamovies-nl.autos/south-movies/",
+  "dual-audio-movies": "https://www.vegamovies-nl.autos/dual-audio-movies/",
+  "dual-audio-series": "https://www.vegamovies-nl.autos/dual-audio-series/",
+  "hindi-dubbed": "https://www.vegamovies-nl.autos/hindi-dubbed/",
+  animation: "https://www.vegamovies-nl.autos/animation/",
+  horror: "https://www.vegamovies-nl.autos/horror/",
+  "sci-fi": "https://www.vegamovies-nl.autos/sci-fi/",
 }
 
 interface Movie {
@@ -83,7 +83,22 @@ function parseVegaMoviesData(html: string): ParsedMovieData {
     // NEW DESIGN: <a class="ct-media-container"><img class="wp-post-image" /></a>
     // OLD DESIGN: <div class="blog-pic"><img class="blog-picture" /></div>
     const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
-    const image = $imageElement.attr("src") || ""
+    
+    // Check both src and data-src (lazy loading support)
+    // Also check srcset for responsive images
+    let image = $imageElement.attr("data-src") || $imageElement.attr("src") || ""
+    
+    // If image is empty or is a base64 placeholder, try srcset
+    if (!image || image.startsWith("data:image")) {
+      const srcset = $imageElement.attr("srcset") || ""
+      if (srcset) {
+        // Extract first URL from srcset
+        const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+        if (firstUrl && !firstUrl.startsWith("data:")) {
+          image = firstUrl
+        }
+      }
+    }
     
     // NOTE: We use the thumbnail URLs as-is from vegamovies-nl (e.g., image-165x248.png)
     // These are the actual optimized thumbnails that exist and load quickly.
