@@ -103,6 +103,13 @@ export function VisitorAnalyticsEnhanced() {
   const [clearConfirmText, setClearConfirmText] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  
+  // Multi-select states
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
+  const [showDeleteMultipleConfirm, setShowDeleteMultipleConfirm] = useState(false)
+  const [deleteMultipleConfirmText, setDeleteMultipleConfirmText] = useState('')
 
   // Check if we're on the client side
   useEffect(() => {
@@ -448,6 +455,73 @@ export function VisitorAnalyticsEnhanced() {
     } catch (error) {
       console.error('Error deleting record:', error)
       alert('Error deleting record. Please try again.')
+    }
+  }
+
+  // Handle long press to start selection mode
+  const handleLongPressStart = (itemId: string) => {
+    const timer = setTimeout(() => {
+      setSelectionMode(true)
+      setSelectedItems(new Set([itemId]))
+    }, 500) // 500ms long press
+    setLongPressTimer(timer)
+  }
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+  }
+
+  // Toggle item selection
+  const toggleItemSelection = (itemId: string) => {
+    const newSelected = new Set(selectedItems)
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId)
+    } else {
+      newSelected.add(itemId)
+    }
+    setSelectedItems(newSelected)
+    
+    // Exit selection mode if no items selected
+    if (newSelected.size === 0) {
+      setSelectionMode(false)
+    }
+  }
+
+  // Cancel selection mode
+  const cancelSelection = () => {
+    setSelectionMode(false)
+    setSelectedItems(new Set())
+  }
+
+  // Delete multiple selected items
+  const handleDeleteMultiple = async () => {
+    if (deleteMultipleConfirmText.toLowerCase() !== 'clear') {
+      return
+    }
+
+    try {
+      const allItems = [...allVisitors, ...allImpressions]
+      const itemsToDelete = allItems.filter(item => selectedItems.has(item.id))
+      
+      // Delete each item
+      for (const item of itemsToDelete) {
+        const collectionName = item.type === 'unique' ? 'visitor-tracking' : 'visitor-impressions'
+        await deleteDoc(doc(db, collectionName, item.id))
+      }
+
+      setShowDeleteMultipleConfirm(false)
+      setDeleteMultipleConfirmText('')
+      setSelectionMode(false)
+      setSelectedItems(new Set())
+      fetchAnalytics()
+
+      alert(`Successfully deleted ${itemsToDelete.length} record(s)!`)
+    } catch (error) {
+      console.error('Error deleting records:', error)
+      alert('Error deleting records. Please try again.')
     }
   }
 
@@ -827,16 +901,58 @@ export function VisitorAnalyticsEnhanced() {
 
       {/* Recent Visits History - Complete Table */}
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 sm:p-6">
-        <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-green-400" />
-          All Visits History ({allVisitors.length + allImpressions.length} total)
-        </h3>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
+            <Clock className="w-5 h-5 text-green-400" />
+            All Visits History ({allVisitors.length + allImpressions.length} total)
+          </h3>
+          
+          {/* Selection Mode Controls */}
+          {selectionMode && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-purple-400">
+                {selectedItems.size} selected
+              </span>
+              <Button
+                onClick={() => setShowDeleteMultipleConfirm(true)}
+                disabled={selectedItems.size === 0}
+                className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Selected
+              </Button>
+              <Button
+                onClick={cancelSelection}
+                variant="outline"
+                className="border-white/30 text-white hover:bg-white/10 text-sm px-4 py-2"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+        </div>
         
         {/* Desktop Table View */}
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
+                {selectionMode && (
+                  <th className="text-left text-gray-400 text-sm font-medium py-3 px-4 w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.size === [...allVisitors, ...allImpressions].length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedItems(new Set([...allVisitors, ...allImpressions].map(v => v.id)))
+                        } else {
+                          setSelectedItems(new Set())
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-gray-600 bg-white/10 text-purple-500 focus:ring-purple-500"
+                    />
+                  </th>
+                )}
                 <th className="text-left text-gray-400 text-sm font-medium py-3 px-4">Type</th>
                 <th className="text-left text-gray-400 text-sm font-medium py-3 px-4">Date & Time</th>
                 <th className="text-left text-gray-400 text-sm font-medium py-3 px-4">Device Type</th>
@@ -854,9 +970,30 @@ export function VisitorAnalyticsEnhanced() {
                 .map((visit, index) => (
                   <tr 
                     key={visit.id} 
-                    className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                    className={`border-b border-white/5 hover:bg-white/5 transition-colors ${
+                      selectedItems.has(visit.id) ? 'bg-purple-500/10 border-purple-500/30' : ''
+                    }`}
+                    onMouseDown={() => handleLongPressStart(visit.id)}
+                    onMouseUp={handleLongPressEnd}
+                    onMouseLeave={handleLongPressEnd}
+                    onTouchStart={() => handleLongPressStart(visit.id)}
+                    onTouchEnd={handleLongPressEnd}
                   >
-                    <td className="py-3 px-4 cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>
+                    {selectionMode && (
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(visit.id)}
+                          onChange={() => toggleItemSelection(visit.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 rounded border-gray-600 bg-white/10 text-purple-500 focus:ring-purple-500"
+                        />
+                      </td>
+                    )}
+                    <td 
+                      className="py-3 px-4 cursor-pointer" 
+                      onClick={() => !selectionMode && viewDeviceDetails(visit.deviceId)}
+                    >
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         visit.type === 'unique' 
                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
@@ -865,10 +1002,16 @@ export function VisitorAnalyticsEnhanced() {
                         {visit.type === 'unique' ? 'Unique' : 'Impression'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-300 text-sm cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>
+                    <td 
+                      className="py-3 px-4 text-gray-300 text-sm cursor-pointer" 
+                      onClick={() => !selectionMode && viewDeviceDetails(visit.deviceId)}
+                    >
                       {new Date(visit.timestamp).toLocaleString()}
                     </td>
-                    <td className="py-3 px-4 text-gray-300 text-sm cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>
+                    <td 
+                      className="py-3 px-4 text-gray-300 text-sm cursor-pointer" 
+                      onClick={() => !selectionMode && viewDeviceDetails(visit.deviceId)}
+                    >
                       <div className="flex items-center gap-2">
                         {visit.deviceType === 'Mobile' ? <Smartphone className="w-4 h-4 text-blue-400" /> : 
                          visit.deviceType === 'Tablet' ? <Tablet className="w-4 h-4 text-purple-400" /> : 
@@ -876,8 +1019,14 @@ export function VisitorAnalyticsEnhanced() {
                         {visit.deviceType}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-gray-300 text-sm cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>{visit.browser}</td>
-                    <td className="py-3 px-4 text-gray-300 text-sm cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>{visit.os}</td>
+                    <td 
+                      className="py-3 px-4 text-gray-300 text-sm cursor-pointer" 
+                      onClick={() => !selectionMode && viewDeviceDetails(visit.deviceId)}
+                    >{visit.browser}</td>
+                    <td 
+                      className="py-3 px-4 text-gray-300 text-sm cursor-pointer" 
+                      onClick={() => !selectionMode && viewDeviceDetails(visit.deviceId)}
+                    >{visit.os}</td>
                     <td 
                       className="py-3 px-4 text-gray-300 text-sm font-mono cursor-pointer hover:text-blue-400 hover:bg-blue-500/10 transition-colors relative group"
                       onClick={(e) => copyIPToClipboard(visit.ipAddress, e)}
@@ -894,21 +1043,26 @@ export function VisitorAnalyticsEnhanced() {
                         )}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-400 text-xs font-mono cursor-pointer" onClick={() => viewDeviceDetails(visit.deviceId)}>
+                    <td 
+                      className="py-3 px-4 text-gray-400 text-xs font-mono cursor-pointer" 
+                      onClick={() => !selectionMode && viewDeviceDetails(visit.deviceId)}
+                    >
                       {visit.deviceId.substring(0, 20)}...
                     </td>
-                    <td className="py-3 px-4">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setShowDeleteConfirm(visit.id)
-                        }}
-                        className="p-2 rounded-lg bg-transparent border border-transparent text-transparent hover:bg-transparent hover:border-transparent transition-all opacity-0 cursor-default"
-                        title=""
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
+                    {!selectionMode && (
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowDeleteConfirm(visit.id)
+                          }}
+                          className="p-2 rounded-lg bg-transparent border border-transparent text-transparent hover:bg-transparent hover:border-transparent transition-all opacity-0 cursor-default"
+                          title=""
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
             </tbody>
@@ -923,16 +1077,35 @@ export function VisitorAnalyticsEnhanced() {
             .map((visit, index) => (
               <div 
                 key={visit.id}
-                className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition-all relative"
+                className={`bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition-all relative ${
+                  selectedItems.has(visit.id) ? 'bg-purple-500/10 border-purple-500/30 ring-2 ring-purple-500/50' : ''
+                }`}
+                onTouchStart={() => handleLongPressStart(visit.id)}
+                onTouchEnd={handleLongPressEnd}
+                onMouseDown={() => handleLongPressStart(visit.id)}
+                onMouseUp={handleLongPressEnd}
+                onMouseLeave={handleLongPressEnd}
+                onClick={() => selectionMode && toggleItemSelection(visit.id)}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    visit.type === 'unique' 
-                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                      : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                  }`}>
-                    {visit.type === 'unique' ? 'Unique' : 'Impression'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectionMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.has(visit.id)}
+                        onChange={() => toggleItemSelection(visit.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 rounded border-gray-600 bg-white/10 text-purple-500 focus:ring-purple-500"
+                      />
+                    )}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      visit.type === 'unique' 
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                    }`}>
+                      {visit.type === 'unique' ? 'Unique' : 'Impression'}
+                    </span>
+                  </div>
                   <span className="text-gray-400 text-xs">
                     {new Date(visit.timestamp).toLocaleString()}
                   </span>
@@ -973,16 +1146,18 @@ export function VisitorAnalyticsEnhanced() {
                     <span className="text-gray-400">Device ID: </span>
                     <span className="text-gray-500 font-mono">{visit.deviceId.substring(0, 30)}...</span>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setShowDeleteConfirm(visit.id)
-                    }}
-                    className="p-2 rounded-lg bg-transparent border border-transparent text-transparent hover:bg-transparent hover:border-transparent transition-all opacity-0 cursor-default"
-                    title=""
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!selectionMode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowDeleteConfirm(visit.id)
+                      }}
+                      className="p-2 rounded-lg bg-transparent border border-transparent text-transparent hover:bg-transparent hover:border-transparent transition-all opacity-0 cursor-default"
+                      title=""
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1219,6 +1394,70 @@ export function VisitorAnalyticsEnhanced() {
           </div>
         </div>
       )}
+      {/* Delete Multiple Items Confirmation Dialog */}
+      {showDeleteMultipleConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => {
+            setShowDeleteMultipleConfirm(false)
+            setDeleteMultipleConfirmText('')
+          }} />
+          <div className="relative bg-gradient-to-br from-red-900/90 to-red-950/90 backdrop-blur-xl border border-red-500/30 rounded-2xl p-6 sm:p-8 max-w-md w-full">
+            <button
+              onClick={() => {
+                setShowDeleteMultipleConfirm(false)
+                setDeleteMultipleConfirmText('')
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                Delete {selectedItems.size} Record(s)?
+              </h3>
+              <p className="text-gray-300 text-sm sm:text-base">
+                This action cannot be undone. All selected visit records will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="text-white text-sm font-medium mb-3 block">Type "clear" to confirm:</label>
+              <Input
+                value={deleteMultipleConfirmText}
+                onChange={(e) => setDeleteMultipleConfirmText(e.target.value)}
+                placeholder='Type "clear"'
+                className="bg-white/10 border-white/20 text-white"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowDeleteMultipleConfirm(false)
+                  setDeleteMultipleConfirmText('')
+                }}
+                variant="outline"
+                className="flex-1 border-white/30 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteMultiple}
+                disabled={deleteMultipleConfirmText.toLowerCase() !== 'clear'}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Delete {selectedItems.size} Record(s)
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Single Item Confirmation Dialog */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

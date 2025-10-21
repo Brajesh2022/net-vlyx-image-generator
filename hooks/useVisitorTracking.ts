@@ -133,6 +133,16 @@ export const useVisitorTracking = () => {
     // Only track once per session
     if (hasTracked.current) return
     
+    // IMPORTANT: Only track visitors from the official domain
+    // Do NOT track if accessing from other domains (proxies, mirrors, etc.)
+    const currentDomain = typeof window !== 'undefined' ? window.location.hostname : ''
+    const isOfficialDomain = currentDomain === 'netvlyx.vercel.app' || currentDomain === 'localhost'
+    
+    if (!isOfficialDomain) {
+      console.log('Visitor tracking skipped: not from official domain')
+      return
+    }
+    
     const trackVisitor = async () => {
       try {
         const deviceId = getDeviceId()

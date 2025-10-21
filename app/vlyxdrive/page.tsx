@@ -198,10 +198,15 @@ export default function VlyxDrivePage() {
     enabled: !!tmdbId && contentType === "tv" && vlyxDriveData?.type === "episode",
   })
 
-  // Check if a server is N-Cloud (formerly N-Cloud)
+  // Check if a server is N-Cloud (includes V-Cloud, N-Cloud, and Hub-Cloud)
   const isNCloudServer = (serverName: string): boolean => {
     const normalizedServerName = serverName.toLowerCase().replace(/[-\s[\]]/g, "")
-    return normalizedServerName.includes("vcloud") || normalizedServerName.includes("v-cloud") || normalizedServerName.includes("ncloud") || normalizedServerName.includes("n-cloud")
+    return (
+      normalizedServerName.includes("vcloud") || 
+      normalizedServerName.includes("ncloud") || 
+      normalizedServerName.includes("hubcloud") ||
+      normalizedServerName.includes("hub cloud")
+    )
   }
 
   const handleEpisodeClick = (episode: EpisodeDownload) => {
@@ -254,10 +259,12 @@ export default function VlyxDrivePage() {
   const isServerHighlighted = (serverName: string) => {
     const normalizedServerName = serverName.toLowerCase().replace(/[-\s[\]]/g, "")
 
-    // Always prioritize V-Cloud first, then G-Direct
+    // Always prioritize Hub-Cloud, V-Cloud, N-Cloud first, then G-Direct
     if (!server) {
       return (
+        normalizedServerName.includes("hubcloud") ||
         normalizedServerName.includes("vcloud") ||
+        normalizedServerName.includes("ncloud") ||
         normalizedServerName.includes("gdirect") ||
         normalizedServerName.includes("instant")
       )
@@ -273,8 +280,9 @@ export default function VlyxDrivePage() {
     // Special cases for common server name variations
     const serverMappings = {
       gdirect: ["gdirect", "instant", "direct"],
-      ncloud: ["vcloud", "ncloud", "cloud"],
-      vcloud: ["vcloud", "ncloud", "cloud"],
+      hubcloud: ["hubcloud", "vcloud", "ncloud", "cloud"],
+      ncloud: ["hubcloud", "vcloud", "ncloud", "cloud"],
+      vcloud: ["hubcloud", "vcloud", "ncloud", "cloud"],
       gdrive: ["gdrive", "gdtot", "drive"],
       gdtot: ["gdtot", "gdrive", "drive"],
     }
@@ -288,10 +296,10 @@ export default function VlyxDrivePage() {
     return false
   }
 
-  // Function to check if a URL is an N-Cloud link (any vcloud domain)
+  // Function to check if a URL is an N-Cloud link (any vcloud or hubcloud domain)
   const isNCloudLink = (url: string): boolean => {
-    // Check for vcloud in the URL hostname (matches vcloud.lol, vcloud.zip, vcloud.*, etc.)
-    return /vcloud\./i.test(url)
+    // Check for vcloud or hubcloud in the URL hostname (matches vcloud.lol, hubcloud.one, etc.)
+    return /vcloud\./i.test(url) || /hubcloud\./i.test(url)
   }
 
   // Function to extract N-Cloud ID from URL
@@ -305,7 +313,7 @@ export default function VlyxDrivePage() {
     }
   }
 
-  // Function to handle N-Cloud link click
+  // Function to handle N-Cloud/Hub-Cloud link click
   const handleNCloudClick = (url: string) => {
     const ncloudId = extractNCloudId(url)
     if (!ncloudId) {
@@ -324,7 +332,8 @@ export default function VlyxDrivePage() {
       const encodedKey = encodeNCloudParams({
         id: ncloudId,
         title: displayTitle,
-        ...(posterUrl && { poster: posterUrl })
+        ...(posterUrl && { poster: posterUrl }),
+        url: url // Pass the full URL so /ncloud knows which domain to use
       })
 
       // Add action parameter if present

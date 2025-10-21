@@ -126,10 +126,25 @@ function parseMovieDetails(html: string): MovieDetails {
 
   for (const selector of posterSelectors) {
     const posterEl = $(selector).first()
-    if (posterEl.length && posterEl.attr("src")) {
-      poster = posterEl.attr("src") || ""
-      // Skip if it's a screenshot (usually contains imgbb.top)
-      if (poster && !poster.includes("imgbb.top")) {
+    if (posterEl.length) {
+      // Check data-src first (lazy loading), then src, then srcset
+      let posterSrc = posterEl.attr("data-src") || posterEl.attr("src") || ""
+      
+      // If image is empty or is a base64 placeholder, try srcset
+      if (!posterSrc || posterSrc.startsWith("data:image")) {
+        const srcset = posterEl.attr("srcset") || ""
+        if (srcset) {
+          // Extract first URL from srcset
+          const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+          if (firstUrl && !firstUrl.startsWith("data:")) {
+            posterSrc = firstUrl
+          }
+        }
+      }
+      
+      poster = posterSrc
+      // Skip if it's a screenshot (usually contains imgbb.top) or base64
+      if (poster && !poster.includes("imgbb.top") && !poster.startsWith("data:image")) {
         break
       }
     }
@@ -204,8 +219,22 @@ function parseMovieDetails(html: string): MovieDetails {
 
   allImageSelectors.forEach((selector) => {
     $(selector).each((i, el) => {
-      const src = $(el).attr("src") || $(el).attr("data-src")
-      if (src && src !== poster) {
+      // Check data-src first (lazy loading), then src, then srcset
+      let src = $(el).attr("data-src") || $(el).attr("src") || ""
+      
+      // If image is empty or is a base64 placeholder, try srcset
+      if (!src || src.startsWith("data:image")) {
+        const srcset = $(el).attr("srcset") || ""
+        if (srcset) {
+          // Extract first URL from srcset
+          const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+          if (firstUrl && !firstUrl.startsWith("data:")) {
+            src = firstUrl
+          }
+        }
+      }
+      
+      if (src && src !== poster && !src.startsWith("data:image")) {
         // Clean up screenshot URLs
         let cleanSrc = src
         if (cleanSrc.startsWith("//")) {
@@ -239,12 +268,29 @@ function parseMovieDetails(html: string): MovieDetails {
   const synopsisMatch = content.match(/<h3[^>]*>.*?SYNOPSIS.*?<\/h3>(.*?)(?=<h[345]|<hr|$)/gi)
   if (synopsisMatch) {
     synopsisMatch.forEach((section: string) => {
-      const imgMatches = section.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi)
+      const imgMatches = section.match(/<img[^>]*(?:src|data-src)=["']([^"']+)["'][^>]*>/gi)
       if (imgMatches) {
         imgMatches.forEach((imgTag: string) => {
+          // Check data-src first, then src, then srcset
+          const dataSrcMatch = imgTag.match(/data-src=["']([^"']+)["']/i)
           const srcMatch = imgTag.match(/src=["']([^"']+)["']/i)
-          if (srcMatch && srcMatch[1]) {
-            let cleanSrc = srcMatch[1]
+          const srcsetMatch = imgTag.match(/srcset=["']([^"']+)["']/i)
+          
+          let cleanSrc = ""
+          
+          if (dataSrcMatch && dataSrcMatch[1] && !dataSrcMatch[1].startsWith("data:image")) {
+            cleanSrc = dataSrcMatch[1]
+          } else if (srcMatch && srcMatch[1] && !srcMatch[1].startsWith("data:image")) {
+            cleanSrc = srcMatch[1]
+          } else if (srcsetMatch && srcsetMatch[1]) {
+            // Extract first URL from srcset
+            const firstUrl = srcsetMatch[1].split(",")[0].trim().split(" ")[0]
+            if (firstUrl && !firstUrl.startsWith("data:")) {
+              cleanSrc = firstUrl
+            }
+          }
+          
+          if (cleanSrc) {
             if (cleanSrc.startsWith("//")) {
               cleanSrc = "https:" + cleanSrc
             }
@@ -304,7 +350,8 @@ function parseMovieDetails(html: string): MovieDetails {
   // Extract download sections with enhanced season detection
   const downloadSections: any[] = []
 
-  $(`${CONTENT_SCOPE} h3, ${CONTENT_SCOPE} h5`).each((i: number, el: any) => {
+  // Support h3, h4, and h5 headers for quality sections
+  $(`${CONTENT_SCOPE} h3, ${CONTENT_SCOPE} h4, ${CONTENT_SCOPE} h5`).each((i: number, el: any) => {
     const headerText = $(el).text().trim()
     const headerHtml = $(el).html() || ""
 
@@ -344,7 +391,7 @@ function parseMovieDetails(html: string): MovieDetails {
 
       const links: any[] = []
       $(el)
-        .nextUntil("h3, h5, hr")
+        .nextUntil("h3, h4, h5, hr")
         .each((_, block) => {
           $(block)
             .find("a[href]")
@@ -395,7 +442,8 @@ function parseMovieDetails(html: string): MovieDetails {
     }
   })
 
-  $(`${CONTENT_SCOPE} h3[style*='text-align: center'], ${CONTENT_SCOPE} h5[style*='text-align: center']`).each(
+  // Also check centered headers (h3, h4, h5) - common pattern in VegaMovies
+  $(`${CONTENT_SCOPE} h3[style*='text-align: center'], ${CONTENT_SCOPE} h4[style*='text-align: center'], ${CONTENT_SCOPE} h5[style*='text-align: center']`).each(
     (i: number, el: any) => {
       const headerText = $(el).text().trim()
       const headerHtml = $(el).html() || ""
@@ -427,7 +475,7 @@ function parseMovieDetails(html: string): MovieDetails {
 
         const links: any[] = []
         let nextEl = $(el).next()
-        while (nextEl.length && !nextEl.is("h3, h5, hr")) {
+        while (nextEl.length && !nextEl.is("h3, h4, h5, hr")) {
           if (nextEl.is("p, div, center")) {
             nextEl.find("a[href]").each((j, linkEl) => {
               const linkUrl = $(linkEl).attr("href")
@@ -485,8 +533,8 @@ function parseMovieDetails(html: string): MovieDetails {
     const url = $a.attr("href")
     if (!url) return
 
-    let header = $btn.closest("p, div, center").prevAll("h5, h3").first()
-    if (!header.length) header = $btn.closest(CONTENT_SCOPE).find("h5, h3").last()
+    let header = $btn.closest("p, div, center").prevAll("h5, h4, h3").first()
+    if (!header.length) header = $btn.closest(CONTENT_SCOPE).find("h5, h4, h3").last()
 
     const headerText = (header.text() || "").trim()
     const qualityMatch = headerText.match(/(480p|720p|1080p|2160p|4K)/i)
@@ -558,14 +606,14 @@ function parseMovieDetails(html: string): MovieDetails {
     const style = $a.find("button").attr("style") || $a.attr("style") || ""
 
     // Find the nearest preceding header for quality/size/season
-    let header = $a.closest("p, div, center").prevAll("h5, h3").first()
+    let header = $a.closest("p, div, center").prevAll("h5, h4, h3").first()
     if (!header.length) {
       // climb up DOM and try previous headers
-      header = $a.parents().prevAll("h5, h3").first()
+      header = $a.parents().prevAll("h5, h4, h3").first()
     }
     if (!header.length) {
       // fallback to last header inside our broader content scope
-      header = $(CONTENT_SCOPE).find("h5, h3").last()
+      header = $(CONTENT_SCOPE).find("h5, h4, h3").last()
     }
 
     const headerText = (header.text() || "").trim()
@@ -616,8 +664,8 @@ function parseMovieDetails(html: string): MovieDetails {
       const url = $a.attr("href")
       if (!url) return
 
-      let header = $btn.closest("p, div, center").prevAll("h5, h3").first()
-      if (!header.length) header = $btn.closest(CONTENT_SCOPE).find("h5, h3").last()
+      let header = $btn.closest("p, div, center").prevAll("h5, h4, h3").first()
+      if (!header.length) header = $btn.closest(CONTENT_SCOPE).find("h5, h4, h3").last()
       const headerText = (header.text() || "").trim()
 
       const qualityMatch = headerText.match(/(480p|720p|1080p|2160p|4K)/i)
@@ -696,9 +744,9 @@ export async function GET(request: NextRequest) {
     const CONTENT_SCOPE = ".single-service-content, .entry-inner, .entry-content"
 
     const selectorCounts = {
-      h3h5Total: $(`${CONTENT_SCOPE} h3, ${CONTENT_SCOPE} h5`).length,
+      h3h4h5Total: $(`${CONTENT_SCOPE} h3, ${CONTENT_SCOPE} h4, ${CONTENT_SCOPE} h5`).length,
       centeredHeaders: $(
-        `${CONTENT_SCOPE} h3[style*='text-align: center'], ${CONTENT_SCOPE} h5[style*='text-align: center']`,
+        `${CONTENT_SCOPE} h3[style*='text-align: center'], ${CONTENT_SCOPE} h4[style*='text-align: center'], ${CONTENT_SCOPE} h5[style*='text-align: center']`,
       ).length,
       dwdButtons: $(`${CONTENT_SCOPE} button.dwd-button`).length,
       anchors: $("a[href]").length,
@@ -706,12 +754,12 @@ export async function GET(request: NextRequest) {
       nexdriveAnchors: $(`a[href*='nexdrive.'], a[href*='nexdrive/']`).length,
       nexdriveAnchorsInScope: $(`${CONTENT_SCOPE} a[href*='nexdrive.'], ${CONTENT_SCOPE} a[href*='nexdrive/']`).length,
       // Global-only counts for clarity
-      globalH3H5Total: $("h3, h5").length,
+      globalH3H4H5Total: $("h3, h4, h5").length,
       globalDwdButtons: $("button.dwd-button").length,
     }
 
     const sampleHeaders: string[] = []
-    $(`${CONTENT_SCOPE} h5, ${CONTENT_SCOPE} h3`)
+    $(`${CONTENT_SCOPE} h5, ${CONTENT_SCOPE} h4, ${CONTENT_SCOPE} h3`)
       .slice(0, 5)
       .each((_, el) => sampleHeaders.push($(el).text().trim()))
 

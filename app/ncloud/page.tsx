@@ -40,7 +40,7 @@ export default function NCloudPage() {
   }
   
   // Decode parameters from key (backward compatible) or use direct URL
-  let params: { id: string; title: string; poster: string }
+  let params: { id: string; title: string; poster: string; sourceUrl?: string }
   
   if (directUrl) {
     // Direct URL fallback method
@@ -49,6 +49,7 @@ export default function NCloudPage() {
       id: extractedId || "",
       title: action === "stream" ? "N-Cloud Stream" : "N-Cloud Download",
       poster: "/placeholder.svg",
+      sourceUrl: directUrl, // Store the full URL
     }
   } else if (key) {
     // Try to decode the key
@@ -58,6 +59,7 @@ export default function NCloudPage() {
         id: decoded.id,
         title: decoded.title || "Unknown Title",
         poster: decoded.poster || "/placeholder.svg",
+        sourceUrl: decoded.url, // Get the full URL if available
       }
     } else {
       // If decoding fails, fallback to empty
@@ -76,7 +78,7 @@ export default function NCloudPage() {
     }
   }
   
-  const { id, title, poster } = params
+  const { id, title, poster, sourceUrl } = params
   
   // Apply branding replacement to title
   const displayTitle = replaceBrandingText(title)
@@ -135,13 +137,45 @@ export default function NCloudPage() {
       addLog(`Step 1: Processing N-Cloud ID: ${id}`)
 
       // Step 2: Fetch the intermediate page
-      const ncloudZipUrl = `https://vcloud.zip/${id}`
-      addLog(`Step 2: Fetching token page from ${ncloudZipUrl}...`)
+      // Hub-Cloud uses /drive/{id}, V-Cloud uses /{id}
+      let ncloudUrl: string
+      let isHubCloud = false
+      
+      // Check if sourceUrl is provided and contains hubcloud
+      if (sourceUrl) {
+        try {
+          const urlObj = new URL(sourceUrl)
+          const hostname = urlObj.hostname.toLowerCase()
+          
+          if (hostname.includes('hubcloud')) {
+            // Hub-Cloud format: https://hubcloud.one/drive/{id}
+            isHubCloud = true
+            ncloudUrl = `${urlObj.protocol}//${urlObj.hostname}/drive/${id}`
+          } else {
+            // V-Cloud format: https://vcloud.zip/{id}
+            ncloudUrl = `${urlObj.protocol}//${urlObj.hostname}/${id}`
+          }
+        } catch {
+          // If parsing fails, check if it contains hubcloud
+          if (sourceUrl.includes('hubcloud')) {
+            isHubCloud = true
+            ncloudUrl = `https://hubcloud.one/drive/${id}`
+          } else {
+            // Default to V-Cloud
+            ncloudUrl = `https://vcloud.zip/${id}`
+          }
+        }
+      } else {
+        // No sourceUrl provided, use default V-Cloud format
+        ncloudUrl = `https://vcloud.zip/${id}`
+      }
+      
+      addLog(`Step 2: Fetching token page from ${ncloudUrl}...`)
 
       const response1 = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: ncloudZipUrl }),
+        body: JSON.stringify({ url: ncloudUrl }),
       })
 
       if (!response1.ok) throw new Error("Failed to fetch N-Cloud page")

@@ -251,10 +251,13 @@ async function fetchViaExternalScraper(url: string, attempts?: Attempt[]): Promi
 }
 
 function extractServerName(buttonText: string): string {
-  const text = buttonText.replace(/⚡/g, "").trim()
+  const text = buttonText.replace(/⚡/g, "").replace(/🚀/g, "").trim()
 
+  // Check for Hub-Cloud / HubCloud (same as V-Cloud/NCloud)
+  if (text.includes("Hub-Cloud") || text.includes("HubCloud") || /\bHub[\s-]?Cloud\b/i.test(text)) return "Hub-Cloud"
   if (text.includes("V-Cloud")) return "V-Cloud"
   if (text.includes("GDToT")) return "GDToT"
+  if (text.includes("GDFlix") || /\bGDFlix\b/i.test(text)) return "GDFlix"
   if (text.includes("G-Direct") || /\bG[\s-]?Direct\b/i.test(text) || /\bInstant\b/i.test(text)) return "G-Direct"
   if (text.includes("Filepress") || /\bFilePress\b/i.test(text)) return "Filepress"
   if (text.includes("DropGalaxy")) return "DropGalaxy"
@@ -388,6 +391,9 @@ function parseNextDriveContent(html: string): NextDriveData {
         buttonText.includes("Filepress") ||
         buttonText.includes("DropGalaxy") ||
         buttonText.includes("V-Cloud") ||
+        buttonText.includes("Hub-Cloud") ||
+        buttonText.includes("HubCloud") ||
+        buttonText.includes("GDFlix") ||
         $link.find("button").length > 0)
     ) {
       const serverName = extractServerName(buttonText)
@@ -454,7 +460,7 @@ function parseNextDriveContentWithFallback(html: string): NextDriveData {
       const label = text
       if (!label) return
       const meaningful =
-        /G-Direct|V-Cloud|GDToT|Filepress|DropGalaxy|G-Drive|Download/i.test(label) || $a.find("button").length > 0
+        /G-Direct|V-Cloud|Hub-Cloud|HubCloud|GDFlix|GDToT|Filepress|DropGalaxy|G-Drive|Download/i.test(label) || $a.find("button").length > 0
       if (meaningful) {
         servers.push({ name: extractServerName(label), url: href, style: $a.find("button").attr("style") })
       }
@@ -583,6 +589,9 @@ export async function GET(request: NextRequest) {
         "h4.total": $("h4").length,
         "a.total": $("a[href]").length,
         "a.contains(V-Cloud)": $('a:contains("V-Cloud")').length,
+        "a.contains(Hub-Cloud)": $('a:contains("Hub-Cloud")').length,
+        "a.contains(HubCloud)": $('a:contains("HubCloud")').length,
+        "a.contains(GDFlix)": $('a:contains("GDFlix")').length,
         "a.contains(G-Direct)": $('a:contains("G-Direct")').length,
         "a.contains(GDToT)": $('a:contains("GDToT")').length,
         "a.contains(Filepress)": $('a:contains("Filepress")').length,

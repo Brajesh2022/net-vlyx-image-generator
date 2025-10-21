@@ -118,12 +118,14 @@ export function encodeNCloudParams(params: {
   id: string
   title?: string
   poster?: string
+  url?: string
 }): string {
   try {
     const cleanParams: Record<string, string> = {}
     cleanParams.id = params.id
     if (params.title) cleanParams.title = params.title
     if (params.poster) cleanParams.poster = params.poster
+    if (params.url) cleanParams.url = params.url
 
     const json = JSON.stringify(cleanParams)
     const base64 = btoa(json)
@@ -142,6 +144,7 @@ export function decodeNCloudParams(key: string): {
   id: string
   title?: string
   poster?: string
+  url?: string
 } | null {
   try {
     let base64 = key.replace(/-/g, '+').replace(/_/g, '/')
@@ -158,12 +161,16 @@ export function decodeNCloudParams(key: string): {
 }
 
 /**
- * Replaces VCloud variations with N-Cloud in any text
+ * Replaces VCloud/HubCloud variations with N-Cloud in any text
  */
 export function replaceVCloudText(text: string): string {
   if (!text) return text
   
   return text
+    .replace(/\bHub-Cloud\b/g, 'N-Cloud')
+    .replace(/\bHubCloud\b/g, 'N-Cloud')
+    .replace(/\bhub-cloud\b/gi, 'N-Cloud')
+    .replace(/\bHub cloud\b/g, 'N cloud')
     .replace(/\bV-Cloud\b/g, 'N-Cloud')
     .replace(/\bVCloud\b/g, 'N-Cloud')
     .replace(/\bvCloud\b/g, 'N-Cloud')
