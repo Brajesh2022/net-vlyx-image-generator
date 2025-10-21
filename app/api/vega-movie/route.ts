@@ -321,20 +321,20 @@ function parseMovieDetails(html: string): MovieDetails {
     if (!text) return null
     const cleanText = text.toLowerCase()
 
-    // Pattern 1: "Season 4", "Season-4", "Season_4" - most common and reliable
-    const seasonMatch1 = cleanText.match(/season[\s\-_]*(\d+)/i)
+    // Pattern 1: "[Season 4]" or "(Season 4)" - titles like "Hunter x Hunter [Season 4]"
+    const seasonMatch1 = cleanText.match(/[\[\(]season[\s\-_]*(\d+)[\]\)]/i)
     if (seasonMatch1) {
       return seasonMatch1[1]
     }
 
-    // Pattern 2: "4th season", "1st season" - should come before generic S pattern
-    const seasonMatch2 = cleanText.match(/(\d+)(?:st|nd|rd|th)?\s*season/i)
+    // Pattern 2: "Season 4", "Season-4", "Season_4" - most common and reliable
+    const seasonMatch2 = cleanText.match(/season[\s\-_]*(\d+)/i)
     if (seasonMatch2) {
       return seasonMatch2[1]
     }
 
-    // Pattern 3: "(Season 4)", "(S4)"
-    const seasonMatch3 = cleanText.match(/$$(?:season[\s\-_]*)?(\d+)$$/i)
+    // Pattern 3: "4th season", "1st season"
+    const seasonMatch3 = cleanText.match(/(\d+)(?:st|nd|rd|th)?\s*season/i)
     if (seasonMatch3) {
       return seasonMatch3[1]
     }

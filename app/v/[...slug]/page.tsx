@@ -425,31 +425,32 @@ export default function VegaMoviePage() {
 
   // Enhanced season extraction function
   const extractSeasonFromTitle = (title: string): string | null => {
+    if (!title) return null
     // Clean title for better matching
     const cleanTitle = title.toLowerCase()
 
-    // Pattern 1: "Season 4", "Season-4", "Season_4"
-    const seasonMatch1 = cleanTitle.match(/season[\s\-_]*(\d+)/i)
+    // Pattern 1: "[Season 4]" or "(Season 4)" - titles like "Hunter x Hunter [Season 4]"
+    const seasonMatch1 = cleanTitle.match(/[\[\(]season[\s\-_]*(\d+)[\]\)]/i)
     if (seasonMatch1) {
       return seasonMatch1[1]
     }
 
-    // Pattern 2: "S4", "S04", "S-4"
-    const seasonMatch2 = cleanTitle.match(/\bs[-_]*(\d+)/i)
+    // Pattern 2: "Season 4", "Season-4", "Season_4"
+    const seasonMatch2 = cleanTitle.match(/season[\s\-_]*(\d+)/i)
     if (seasonMatch2) {
       return seasonMatch2[1]
     }
 
-    // Pattern 3: "(Season 4)", "(S4)"
-    const seasonMatch3 = cleanTitle.match(/$$(?:season[\s\-_]*)?(\d+)$$/i)
+    // Pattern 3: "4th season", "1st season"
+    const seasonMatch3 = cleanTitle.match(/(\d+)(?:st|nd|rd|th)?\s*season/i)
     if (seasonMatch3) {
       return seasonMatch3[1]
     }
 
-    // Pattern 4: "season-1 panchayat", "4th season"
-    const seasonMatch4 = cleanTitle.match(/(?:season[\s\-_]*(\d+)|(\d+)(?:st|nd|rd|th)?\s*season)/i)
+    // Pattern 4: "S4", "S04", "S-4" - be careful to avoid false matches
+    const seasonMatch4 = cleanTitle.match(/(?:^|\s)s[\s\-_]*(\d+)(?:\s|$|[^\w])/i)
     if (seasonMatch4) {
-      return seasonMatch4[1] || seasonMatch4[2]
+      return seasonMatch4[1]
     }
 
     return null
@@ -681,12 +682,26 @@ export default function VegaMoviePage() {
         download.links.forEach((link) => {
           if (!isValidDownloadLink(link?.url)) return
 
+          // Extract season from multiple sources with priority
+          // Priority: section.season > link.season > extracted from section.title
+          let itemSeason = section.season || link.season
+          
+          // If still no season, try extracting from section title
+          if (!itemSeason && section.title) {
+            itemSeason = extractSeasonFromTitle(section.title)
+          }
+
           // If a season is selected, filter by that season
-          const itemSeason = section.season || link.season
-          if (selectedSeason !== null && itemSeason) {
-            const seasonNum = parseInt(itemSeason)
-            if (seasonNum !== selectedSeason) {
-              return // Skip items that don't match the selected season
+          if (selectedSeason !== null) {
+            if (itemSeason) {
+              const seasonNum = parseInt(itemSeason)
+              if (seasonNum !== selectedSeason) {
+                return // Skip items that don't match the selected season
+              }
+            } else {
+              // If no season info found and a season is selected, skip this item
+              // This prevents items without season info from appearing in season-specific views
+              return
             }
           }
 
@@ -706,14 +721,14 @@ export default function VegaMoviePage() {
               section: section.title,
               download,
               link,
-              season: section.season || link.season,
+              season: itemSeason,
             })
           } else {
             episodeDownloads.push({
               section: section.title,
               download,
               link,
-              season: section.season || link.season,
+              season: itemSeason,
             })
           }
         })
@@ -1936,16 +1951,32 @@ export default function VegaMoviePage() {
                     {displayNCloudEpisodeDownloads.length === 0 && displayNCloudBatchDownloads.length === 0 && displayOtherEpisodeDownloads.length === 0 && displayOtherBatchDownloads.length === 0 && (
                       <div>
                         {movieDetails.downloadSections
-                          .filter((section) =>
-                            section.downloads.some((download) => download.quality === selectedQuality),
-                          )
+                          .filter((section) => {
+                            // Filter by season if one is selected
+                            if (selectedSeason !== null) {
+                              const sectionSeason = section.season || extractSeasonFromTitle(section.title || "")
+                              if (sectionSeason && parseInt(sectionSeason) !== selectedSeason) {
+                                return false
+                              }
+                            }
+                            return section.downloads.some((download) => download.quality === selectedQuality)
+                          })
                           .map((section, sectionIndex) => (
                             <div key={sectionIndex}>
                               <h4 className="text-lg font-semibold text-blue-400 mb-3 text-center">{section.title}</h4>
                               {section.downloads
                                 .filter((download) => download.quality === selectedQuality)
                                 .map((download, downloadIndex) => {
-                                  const validLinks = download.links.filter((l) => isValidDownloadLink(l?.url))
+                                  let validLinks = download.links.filter((l) => isValidDownloadLink(l?.url))
+                                  
+                                  // Filter by season if one is selected
+                                  if (selectedSeason !== null) {
+                                    validLinks = validLinks.filter((link) => {
+                                      const linkSeason = link.season || section.season || extractSeasonFromTitle(section.title || "")
+                                      return linkSeason && parseInt(linkSeason) === selectedSeason
+                                    })
+                                  }
+                                  
                                   if (validLinks.length === 0) return null
                                   return (
                                     <div key={downloadIndex} className="space-y-3">
