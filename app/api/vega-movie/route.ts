@@ -347,37 +347,82 @@ function parseMovieDetails(html: string): MovieDetails {
     return null
   }
 
-  // Extract download sections with enhanced season detection
+  // Extract download sections with enhanced season detection and context tracking
   const downloadSections: any[] = []
 
+  // Track current season context as we parse through headers
+  let currentSeasonContext: string | null = null
+
+  // Get all headers in order to maintain proper season context
+  const allHeaders = $(`${CONTENT_SCOPE} h3, ${CONTENT_SCOPE} h4, ${CONTENT_SCOPE} h5, ${CONTENT_SCOPE} hr, ${CONTENT_SCOPE} p[style*='text-align: center']`).toArray()
+  
   // Support h3, h4, and h5 headers for quality sections
   $(`${CONTENT_SCOPE} h3, ${CONTENT_SCOPE} h4, ${CONTENT_SCOPE} h5`).each((i: number, el: any) => {
     const headerText = $(el).text().trim()
     const headerHtml = $(el).html() || ""
 
-    const isSeasonSection =
-      headerText.toLowerCase().includes("download") &&
-      (headerText.toLowerCase().includes("season") || headerText.match(/season\s*\d+/i))
+    // Check if this is a season header (e.g., "** Season 4 [Episodes 59 To 75 Added] **")
+    const isSeasonHeader = 
+      (headerText.toLowerCase().includes("season") && 
+       (headerText.match(/season\s*\d+/i) || headerText.match(/\*\*.*season.*\*\*/i))) ||
+      (headerText.toLowerCase().includes("download") && headerText.toLowerCase().includes("season"))
+
+    // Update season context if we found a season header
+    if (isSeasonHeader) {
+      const detectedSeason = extractSeasonFromText(headerText)
+      if (detectedSeason) {
+        currentSeasonContext = detectedSeason
+      }
+    }
 
     const isQualitySection =
       /(480p|720p|1080p|2160p|4K)/i.test(headerText) || /(480p|720p|1080p|2160p|4K)/i.test(headerHtml)
 
-    if (isSeasonSection || isQualitySection) {
+    if (isQualitySection) {
+      // First try to extract season from this specific header
       let seasonNumber = extractSeasonFromText(headerText)
 
+      // If not found in header, look at previous elements
       if (!seasonNumber) {
         let prevEl = $(el).prev()
         let searchDepth = 0
-        while (prevEl.length && searchDepth < 5) {
+        while (prevEl.length && searchDepth < 10) {
           const prevText = prevEl.text().trim()
-          if (prevText.toLowerCase().includes("download") && prevText.toLowerCase().includes("season")) {
-            seasonNumber = extractSeasonFromText(prevText)
-            break
+          
+          // Check if previous element is an HR - this often separates seasons
+          if (prevEl.is("hr")) {
+            // Look one more level back for season header before the HR
+            const beforeHr = prevEl.prev()
+            if (beforeHr.length) {
+              const beforeHrText = beforeHr.text().trim()
+              const beforeHrSeason = extractSeasonFromText(beforeHrText)
+              if (beforeHrSeason) {
+                seasonNumber = beforeHrSeason
+                break
+              }
+            }
           }
+          
+          // Check for season in previous text
+          if (prevText.toLowerCase().includes("season")) {
+            const prevSeason = extractSeasonFromText(prevText)
+            if (prevSeason) {
+              seasonNumber = prevSeason
+              break
+            }
+          }
+          
           prevEl = prevEl.prev()
           searchDepth++
         }
       }
+
+      // If still not found, use the season context we've been tracking
+      if (!seasonNumber && currentSeasonContext) {
+        seasonNumber = currentSeasonContext
+      }
+
+      // Last resort: check parent element
       if (!seasonNumber) {
         const surroundingText = $(el).parent().text()
         seasonNumber = extractSeasonFromText(surroundingText)
@@ -443,26 +488,75 @@ function parseMovieDetails(html: string): MovieDetails {
   })
 
   // Also check centered headers (h3, h4, h5) - common pattern in VegaMovies
-  $(`${CONTENT_SCOPE} h3[style*='text-align: center'], ${CONTENT_SCOPE} h4[style*='text-align: center'], ${CONTENT_SCOPE} h5[style*='text-align: center']`).each(
+  // Reset season context for centered headers parsing
+  currentSeasonContext = null
+  
+  $(`${CONTENT_SCOPE} h3[style*='text-align: center'], ${CONTENT_SCOPE} h4[style*='text-align: center'], ${CONTENT_SCOPE} h5[style*='text-align: center'], ${CONTENT_SCOPE} p[style*='text-align: center']`).each(
     (i: number, el: any) => {
       const headerText = $(el).text().trim()
       const headerHtml = $(el).html() || ""
+      
+      // Update season context if this is a season announcement
+      const isSeasonAnnouncement = 
+        (headerText.match(/\*\*.*season\s*\d+.*\*\*/i) || 
+         headerText.match(/season\s*\d+.*added/i) ||
+         headerText.match(/season\s*\d+.*episodes/i))
+      
+      if (isSeasonAnnouncement) {
+        const detectedSeason = extractSeasonFromText(headerText)
+        if (detectedSeason) {
+          currentSeasonContext = detectedSeason
+        }
+      }
+      
       const qualityPatterns = /(480p|720p|1080p|2160p|4K)/i
       const sizePatterns = /\[([^\]]+)\]/
 
       if (qualityPatterns.test(headerText) || qualityPatterns.test(headerHtml)) {
-        let seasonNumber: string | null = null
-        let prevEl = $(el).prev()
-        let searchDepth = 0
-        while (prevEl.length && searchDepth < 10) {
-          const prevText = prevEl.text().trim()
-          if (prevText.toLowerCase().includes("download") && prevText.toLowerCase().includes("season")) {
-            seasonNumber = extractSeasonFromText(prevText)
-            break
+        // First try to extract season from the header itself
+        let seasonNumber: string | null = extractSeasonFromText(headerText)
+        
+        // If not found, look backwards
+        if (!seasonNumber) {
+          let prevEl = $(el).prev()
+          let searchDepth = 0
+          while (prevEl.length && searchDepth < 15) {
+            const prevText = prevEl.text().trim()
+            
+            // Check if we hit an HR separator
+            if (prevEl.is("hr")) {
+              // Look one more level back
+              const beforeHr = prevEl.prev()
+              if (beforeHr.length) {
+                const beforeHrText = beforeHr.text().trim()
+                const beforeHrSeason = extractSeasonFromText(beforeHrText)
+                if (beforeHrSeason) {
+                  seasonNumber = beforeHrSeason
+                  break
+                }
+              }
+            }
+            
+            // Look for season markers
+            if (prevText.toLowerCase().includes("season")) {
+              const prevSeason = extractSeasonFromText(prevText)
+              if (prevSeason) {
+                seasonNumber = prevSeason
+                break
+              }
+            }
+            
+            prevEl = prevEl.prev()
+            searchDepth++
           }
-          prevEl = prevEl.prev()
-          searchDepth++
         }
+        
+        // Use tracked season context if still not found
+        if (!seasonNumber && currentSeasonContext) {
+          seasonNumber = currentSeasonContext
+        }
+        
+        // Last resort: check parent
         if (!seasonNumber) {
           const parentText = $(el).parent().text()
           seasonNumber = extractSeasonFromText(parentText)
@@ -541,7 +635,40 @@ function parseMovieDetails(html: string): MovieDetails {
     const sizeMatch = headerText.match(/\[([^\]]+)\]/)
     const quality = qualityMatch ? qualityMatch[1] : ""
     const size = sizeMatch ? sizeMatch[1] : ""
-    const seasonInHeader = extractSeasonFromText(headerText)
+    let seasonInHeader = extractSeasonFromText(headerText)
+
+    // If season not found in immediate header, search backwards
+    if (!seasonInHeader) {
+      let searchEl = header.prev()
+      let searchDepth = 0
+      while (searchEl.length && searchDepth < 15) {
+        const searchText = searchEl.text().trim()
+        
+        // Check for HR separators
+        if (searchEl.is("hr")) {
+          const beforeHr = searchEl.prev()
+          if (beforeHr.length) {
+            const beforeHrSeason = extractSeasonFromText(beforeHr.text().trim())
+            if (beforeHrSeason) {
+              seasonInHeader = beforeHrSeason
+              break
+            }
+          }
+        }
+        
+        // Look for season markers
+        if (searchText.toLowerCase().includes("season")) {
+          const foundSeason = extractSeasonFromText(searchText)
+          if (foundSeason) {
+            seasonInHeader = foundSeason
+            break
+          }
+        }
+        
+        searchEl = searchEl.prev()
+        searchDepth++
+      }
+    }
 
     const linkObj = {
       label: ($btn.text() || "Download").trim(),
@@ -621,7 +748,40 @@ function parseMovieDetails(html: string): MovieDetails {
     const sizeMatch = headerText.match(/\[([^\]]+)\]/)
     const quality = qualityMatch ? qualityMatch[1] : ""
     const size = sizeMatch ? sizeMatch[1] : ""
-    const seasonInHeader = extractSeasonFromText(headerText)
+    let seasonInHeader = extractSeasonFromText(headerText)
+
+    // If season not found in immediate header, search backwards more thoroughly
+    if (!seasonInHeader) {
+      let searchEl = header.prev()
+      let searchDepth = 0
+      while (searchEl.length && searchDepth < 15) {
+        const searchText = searchEl.text().trim()
+        
+        // Check for HR separators
+        if (searchEl.is("hr")) {
+          const beforeHr = searchEl.prev()
+          if (beforeHr.length) {
+            const beforeHrSeason = extractSeasonFromText(beforeHr.text().trim())
+            if (beforeHrSeason) {
+              seasonInHeader = beforeHrSeason
+              break
+            }
+          }
+        }
+        
+        // Look for season markers
+        if (searchText.toLowerCase().includes("season")) {
+          const foundSeason = extractSeasonFromText(searchText)
+          if (foundSeason) {
+            seasonInHeader = foundSeason
+            break
+          }
+        }
+        
+        searchEl = searchEl.prev()
+        searchDepth++
+      }
+    }
 
     const sectionTitle =
       seasonInHeader && !headerText.toLowerCase().includes("season")
@@ -672,12 +832,41 @@ function parseMovieDetails(html: string): MovieDetails {
       const sizeMatch = headerText.match(/\[([^\]]+)\]/)
       const quality = qualityMatch ? qualityMatch[1] : ""
       const size = sizeMatch ? sizeMatch[1] : ""
+      let seasonFromHeader = extractSeasonFromText(headerText)
+
+      // Search backwards for season if not found in header
+      if (!seasonFromHeader) {
+        let searchEl = header.prev()
+        let searchDepth = 0
+        while (searchEl.length && searchDepth < 15) {
+          const searchText = searchEl.text().trim()
+          if (searchEl.is("hr")) {
+            const beforeHr = searchEl.prev()
+            if (beforeHr.length) {
+              const beforeHrSeason = extractSeasonFromText(beforeHr.text().trim())
+              if (beforeHrSeason) {
+                seasonFromHeader = beforeHrSeason
+                break
+              }
+            }
+          }
+          if (searchText.toLowerCase().includes("season")) {
+            const foundSeason = extractSeasonFromText(searchText)
+            if (foundSeason) {
+              seasonFromHeader = foundSeason
+              break
+            }
+          }
+          searchEl = searchEl.prev()
+          searchDepth++
+        }
+      }
 
       const link = {
         label: ($btn.text() || "Download").trim(),
         url,
         style: $btn.attr("style") || $a.attr("style") || "",
-        season: extractSeasonFromText(headerText),
+        season: seasonFromHeader,
       }
 
       // Merge into fallbackDownloads by quality/size

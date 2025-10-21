@@ -578,13 +578,32 @@ export default function VegaMoviePage() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [showScreenshotModal, displayImages])
 
-  // Get unique qualities from download sections
+  // Get unique qualities from download sections (season-aware)
   const getAvailableQualities = () => {
     if (!movieDetails?.downloadSections) return []
 
     const qualities = new Set<string>()
     movieDetails.downloadSections.forEach((section) => {
+      // If a season is selected, only include qualities from that season
+      if (selectedSeason !== null) {
+        const sectionSeason = section.season
+        if (sectionSeason && parseInt(sectionSeason) !== selectedSeason) {
+          return // Skip sections from other seasons
+        }
+      }
+
       section.downloads.forEach((download) => {
+        // Double-check links also have matching season
+        if (selectedSeason !== null && download.links && download.links.length > 0) {
+          const hasMatchingSeasonLink = download.links.some((link) => {
+            const linkSeason = link.season || section.season
+            return !linkSeason || parseInt(linkSeason) === selectedSeason
+          })
+          if (!hasMatchingSeasonLink) {
+            return // Skip if no links match the selected season
+          }
+        }
+
         if (download.quality) {
           qualities.add(download.quality)
         }
@@ -597,10 +616,25 @@ export default function VegaMoviePage() {
     })
   }
 
-  // Get size for quality
+  // Get size for quality (season-aware)
   const getSizeForQuality = (quality: string): string => {
     if (!movieDetails?.downloadSections) return "Unknown"
 
+    // If a season is selected, prioritize getting size from that season
+    if (selectedSeason !== null) {
+      for (const section of movieDetails.downloadSections) {
+        const sectionSeason = section.season
+        if (sectionSeason && parseInt(sectionSeason) === selectedSeason) {
+          for (const download of section.downloads) {
+            if (download.quality === quality && download.size) {
+              return download.size
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback to any matching quality
     for (const section of movieDetails.downloadSections) {
       for (const download of section.downloads) {
         if (download.quality === quality && download.size) {
