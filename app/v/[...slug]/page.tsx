@@ -44,9 +44,11 @@ interface MovieDetails {
   }
   plot: string
   screenshots: string[]
+  watchOnlineUrl?: string | null // NEW: For movies4u watch online feature
   downloadSections: {
     title: string
-    downloads: {
+    quality?: string // NEW: For movies4u quality detection
+    downloads?: {
       quality: string
       size: string
       links: {
@@ -55,6 +57,9 @@ interface MovieDetails {
         style: string
       }[]
     }[]
+    // NEW: For movies4u structure
+    downloadUrl?: string
+    batchUrl?: string | null
   }[]
   hasBloggerImages: boolean
 }
@@ -89,7 +94,7 @@ export default function VegaMoviePage() {
   
   // Try to decode the URL first (new format)
   let slug = encodedSlug
-  let srcHost = searchParams.get("src") || "https://vegamovise.biz"
+  let srcHost = searchParams.get("src") || "https://movies4u.contact" // CHANGED: Now using movies4u by default
   
   const decodedUrl = decodeMovieUrl(encodedSlug)
   if (decodedUrl) {
@@ -99,23 +104,27 @@ export default function VegaMoviePage() {
   } else if (searchParams.get("src")) {
     // Fallback to old format if src parameter exists
     slug = encodedSlug
-    srcHost = searchParams.get("src") || "https://vegamovise.biz"
+    srcHost = searchParams.get("src") || "https://movies4u.contact" // CHANGED: Now using movies4u by default
   }
   // If neither works, use defaults (already set above)
   
   const debugMode = searchParams.get("debug") === "1" // enable debug panel when ?debug=1
 
   // Build URL respecting .html endings (no trailing slash when .html)
-  const vegaUrl = slug.endsWith(".html") ? `${srcHost}/${slug}` : `${srcHost}/${slug}/`
+  const movieUrl = slug.endsWith(".html") ? `${srcHost}/${slug}` : `${srcHost}/${slug}/`
 
   const {
     data: movieDetails,
     isLoading,
     error,
   } = useQuery<MovieDetails>({
-    queryKey: ["vega-movie", vegaUrl, debugMode], // include debug in cache key
+    queryKey: ["movies4u-movie", movieUrl, debugMode], // CHANGED: Using movies4u API
     queryFn: async () => {
-      const url = `/api/vega-movie?url=${encodeURIComponent(vegaUrl)}${debugMode ? "&debug=1" : ""}` // pass debug flag
+      // CHANGED: Determine which API to use based on source host
+      const isMovies4U = srcHost.includes("movies4u")
+      const apiEndpoint = isMovies4U ? "/api/movies4u-movie" : "/api/vega-movie"
+      const url = `${apiEndpoint}?url=${encodeURIComponent(movieUrl)}${debugMode ? "&debug=1" : ""}`
+      
       const response = await fetch(url)
       if (!response.ok) {
         const text = await response.text().catch(() => "")
@@ -123,7 +132,7 @@ export default function VegaMoviePage() {
         throw new Error("Failed to fetch movie details")
       }
       const json = await response.json()
-      console.log("Successfully fetched content")
+      console.log("Successfully fetched content from", isMovies4U ? "movies4u" : "vegamovies")
       return json
     },
     enabled: !!slug,
@@ -385,7 +394,11 @@ export default function VegaMoviePage() {
   const handleContinuePlayHere = () => {
     const imdbId = getImdbId()
     if (imdbId) {
-      window.location.href = `/play-here?id=${imdbId}`
+      // NEW: Add extra parameter if watchOnlineUrl exists (movies4u feature)
+      const extraParam = movieDetails?.watchOnlineUrl 
+        ? `&extra=${encodeURIComponent(movieDetails.watchOnlineUrl)}` 
+        : ''
+      window.location.href = `/play-here?id=${imdbId}${extraParam}`
     }
   }
 
@@ -497,7 +510,7 @@ export default function VegaMoviePage() {
   }
 
   // Enhanced Vlyx-Drive URL generation function with encoding
-  const generateVlyxDriveUrl = (url: string, label: string, sectionSeason?: string | null, action?: "stream" | "download"): string => {
+  const generateVlyxDriveUrl = (url: string, label: string, sectionSeason?: string | null, action?: "stream" | "download", quality?: string): string => {
     // Check if it's an N-Cloud URL (vcloud.zip)
     const isNCloudUrl = /vcloud\.zip/i.test(url)
     
@@ -513,7 +526,8 @@ export default function VegaMoviePage() {
           const encodedKey = encodeNCloudParams({
             id: ncloudId,
             title: movieDetails?.title,
-            poster: displayPoster
+            poster: displayPoster,
+            url: url // Pass full URL so ncloud knows the domain
           })
           
           const actionParam = action ? `&action=${action}` : ''
@@ -522,6 +536,29 @@ export default function VegaMoviePage() {
       } catch (error) {
         console.error('Error extracting N-Cloud ID:', error)
       }
+    }
+    
+    // NEW: Check if it's an m4ulinks URL (movies4u download links)
+    const isM4ULinks = /m4ulinks\.com/i.test(url)
+    
+    if (isM4ULinks) {
+      const tmdbType = tmdbDetails?.contentType === "tv" ? "tv" : "movie"
+      const tmdbIdWithType = `${tmdbType}${movieDetails?.imdbLink?.match(/tt(\d+)/)?.[1] || ""}`
+      let seasonNumber = sectionSeason
+      if (!seasonNumber) {
+        seasonNumber = extractSeasonFromTitle(movieDetails?.title || "")
+      }
+      
+      // Use encoding for security and pass quality parameter
+      const encodedKey = encodeVlyxDriveParams({
+        link: url,
+        tmdbid: tmdbIdWithType,
+        ...(seasonNumber && { season: seasonNumber }),
+        ...(quality && { quality: quality }) // NEW: Pass quality for filtering
+      })
+      
+      const actionParam = action ? `&action=${action}` : ''
+      return `/vlyxdrive?key=${encodedKey}${actionParam}`
     }
     
     // Check if it's ANY nextdrive URL (broader pattern to catch all nextdrive domains)
@@ -548,7 +585,7 @@ export default function VegaMoviePage() {
       return `/vlyxdrive?key=${encodedKey}${actionParam}`
     }
     
-    // For non-nextdrive links, return original URL
+    // For non-nextdrive/non-m4ulinks links, return original URL
     return url
   }
 

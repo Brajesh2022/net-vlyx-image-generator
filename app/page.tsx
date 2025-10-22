@@ -185,17 +185,17 @@ export default function Home() {
   }, [searchTerm, selectedCategory])
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: [searchTerm ? "/api/scrape-vega" : "/api/scrape", searchTerm, selectedCategory],
+    queryKey: [searchTerm ? "/api/movies4u-search" : "/api/scrape", searchTerm, selectedCategory],
     queryFn: async () => {
-      // Use search2 (aggregated) for search, search1 (vegamovies-nl) for browsing
-      const apiEndpoint = searchTerm ? "/api/scrape-vega" : "/api/scrape"
+      // Use movies4u for search, keep browsing for now (will update later)
+      const apiEndpoint = searchTerm ? "/api/movies4u-search" : "/api/scrape"
       let url = apiEndpoint
       const params = new URLSearchParams()
       
       if (searchTerm) {
         params.append("s", searchTerm)
       } else {
-        // Browsing mode - use vegamovies-nl with categories
+        // Browsing mode - use vegamovies-nl with categories (TODO: update to movies4u)
         params.append("category", selectedCategory)
       }
       
@@ -208,6 +208,11 @@ export default function Home() {
         throw new Error("Failed to fetch movies")
       }
       const result = await response.json()
+      
+      // movies4u-search returns { results: [], total: 0 }, need to adapt
+      if (searchTerm && result.results) {
+        return { movies: result.results }
+      }
       
       return result
     },
