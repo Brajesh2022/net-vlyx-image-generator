@@ -393,12 +393,6 @@ export default function VlyxDrivePage() {
 
   // Function to handle N-Cloud/Hub-Cloud link click
   const handleNCloudClick = (url: string) => {
-    const ncloudId = extractNCloudId(url)
-    if (!ncloudId) {
-      window.open(url, "_blank")
-      return
-    }
-
     const displayPoster = hasTmdbData ? tmdbDetails?.poster || tmdbDetails?.poster_path : null
     const posterUrl = displayPoster 
       ? displayPoster.startsWith('http') 
@@ -407,11 +401,12 @@ export default function VlyxDrivePage() {
       : ""
 
     try {
+      // NEW: Always pass the full URL (critical for hubcloud with /video/, /drive/, etc.)
       const encodedKey = encodeNCloudParams({
-        id: ncloudId,
+        id: "", // ID not needed when we have full URL
         title: displayTitle,
         ...(posterUrl && { poster: posterUrl }),
-        url: url // Pass the full URL so /ncloud knows which domain to use
+        url: url // CRITICAL: Pass the FULL URL as-is
       })
 
       // Add action parameter if present

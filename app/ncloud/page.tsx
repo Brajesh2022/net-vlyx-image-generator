@@ -28,25 +28,13 @@ export default function NCloudPage() {
   const directUrl = searchParams.get("url")
   const action = searchParams.get("action") as "stream" | "download" | null
   
-  // Helper function to extract NCloud ID from URL
-  const extractNCloudIdFromUrl = (url: string): string | null => {
-    try {
-      const urlObj = new URL(url)
-      const pathParts = urlObj.pathname.split('/').filter(Boolean)
-      return pathParts[pathParts.length - 1] || null
-    } catch {
-      return null
-    }
-  }
-  
   // Decode parameters from key (backward compatible) or use direct URL
   let params: { id: string; title: string; poster: string; sourceUrl?: string }
   
   if (directUrl) {
-    // Direct URL fallback method
-    const extractedId = extractNCloudIdFromUrl(directUrl)
+    // Direct URL fallback method - use the full URL
     params = {
-      id: extractedId || "",
+      id: "", // Not needed when we have full URL
       title: action === "stream" ? "N-Cloud Stream" : "N-Cloud Download",
       poster: "/placeholder.svg",
       sourceUrl: directUrl, // Store the full URL
@@ -54,12 +42,21 @@ export default function NCloudPage() {
   } else if (key) {
     // Try to decode the key
     const decoded = decodeNCloudParams(key)
-    if (decoded && decoded.id) {
+    if (decoded && decoded.url) {
+      // If we have the full URL, use it (PREFERRED)
+      params = {
+        id: decoded.id || "",
+        title: decoded.title || "Unknown Title",
+        poster: decoded.poster || "/placeholder.svg",
+        sourceUrl: decoded.url, // Use the full URL from the encoded params
+      }
+    } else if (decoded && decoded.id) {
+      // Fallback to ID only (legacy)
       params = {
         id: decoded.id,
         title: decoded.title || "Unknown Title",
         poster: decoded.poster || "/placeholder.svg",
-        sourceUrl: decoded.url, // Get the full URL if available
+        sourceUrl: undefined,
       }
     } else {
       // If decoding fails, fallback to empty
@@ -71,10 +68,12 @@ export default function NCloudPage() {
     }
   } else {
     // Legacy direct parameters
+    const legacyUrl = searchParams.get("url")
     params = {
       id: searchParams.get("id") || "",
       title: searchParams.get("title") || "Unknown Title",
       poster: searchParams.get("poster") || "/placeholder.svg",
+      sourceUrl: legacyUrl || undefined,
     }
   }
   
@@ -123,8 +122,9 @@ export default function NCloudPage() {
   }
 
   const processNCloudLink = async () => {
-    if (!id) {
-      setError("Missing N-Cloud ID")
+    // Check if we have either sourceUrl or id
+    if (!sourceUrl && !id) {
+      setError("Missing N-Cloud URL or ID")
       setIsProcessing(false)
       return
     }
@@ -133,59 +133,28 @@ export default function NCloudPage() {
       setIsProcessing(true)
       addLog("Starting N-Cloud link processing...")
       
-      // Step 1: Extract N-Cloud ID
-      addLog(`Step 1: Processing N-Cloud ID: ${id}`)
-
-      // Step 2: Fetch the intermediate page
-      // Hub-Cloud uses /drive/{id}, V-Cloud uses /{id}
+      // Step 1: Determine the URL to fetch
       let ncloudUrl: string
-      let isHubCloud = false
-      let isVCloud = false
       
-      // Check if sourceUrl is provided and contains hubcloud or vcloud
       if (sourceUrl) {
-        try {
-          const urlObj = new URL(sourceUrl)
-          const hostname = urlObj.hostname.toLowerCase()
-          
-          if (hostname.includes('hubcloud')) {
-            // Hub-Cloud format: https://hubcloud.fit/drive/{id} (domain may vary)
-            isHubCloud = true
-            ncloudUrl = `${urlObj.protocol}//${urlObj.hostname}/drive/${id}`
-            addLog(`Detected Hub-Cloud URL: ${hostname}`)
-          } else if (hostname.includes('vcloud')) {
-            // V-Cloud format: https://vcloud.zip/{id}
-            isVCloud = true
-            ncloudUrl = `${urlObj.protocol}//${urlObj.hostname}/${id}`
-            addLog(`Detected V-Cloud URL: ${hostname}`)
-          } else {
-            // Default V-Cloud format
-            isVCloud = true
-            ncloudUrl = `${urlObj.protocol}//${urlObj.hostname}/${id}`
-          }
-        } catch {
-          // If parsing fails, check if it contains hubcloud or vcloud
-          if (sourceUrl.includes('hubcloud')) {
-            isHubCloud = true
-            // Try to extract domain from sourceUrl
-            const domainMatch = sourceUrl.match(/https?:\/\/([^\/]+)/)
-            const domain = domainMatch ? domainMatch[1] : 'hubcloud.fit'
-            ncloudUrl = `https://${domain}/drive/${id}`
-          } else if (sourceUrl.includes('vcloud')) {
-            isVCloud = true
-            const domainMatch = sourceUrl.match(/https?:\/\/([^\/]+)/)
-            const domain = domainMatch ? domainMatch[1] : 'vcloud.zip'
-            ncloudUrl = `https://${domain}/${id}`
-          } else {
-            // Default to V-Cloud
-            isVCloud = true
-            ncloudUrl = `https://vcloud.zip/${id}`
-          }
+        // PREFERRED: Use the full URL directly (no reconstruction needed!)
+        ncloudUrl = sourceUrl
+        addLog(`Step 1: Using provided URL: ${ncloudUrl}`)
+        
+        // Detect type for logging
+        const hostname = new URL(sourceUrl).hostname.toLowerCase()
+        if (hostname.includes('hubcloud')) {
+          addLog(`Detected Hub-Cloud URL`)
+        } else if (hostname.includes('vcloud')) {
+          addLog(`Detected V-Cloud URL`)
         }
+      } else if (id) {
+        // FALLBACK: Reconstruct URL from ID (legacy support)
+        addLog(`Step 1: Reconstructing URL from ID: ${id}`)
+        ncloudUrl = `https://vcloud.zip/${id}` // Default to vcloud
+        addLog(`⚠️ Warning: Using fallback URL construction. Prefer passing full URL.`)
       } else {
-        // No sourceUrl provided, use default V-Cloud format
-        isVCloud = true
-        ncloudUrl = `https://vcloud.zip/${id}`
+        throw new Error("No URL or ID provided")
       }
       
       addLog(`Step 2: Fetching token page from ${ncloudUrl}...`)
@@ -359,12 +328,12 @@ export default function NCloudPage() {
     setSelectedLink(null)
   }
 
-  if (!id) {
+  if (!id && !sourceUrl) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Invalid URL</h1>
-          <p className="text-gray-400 mb-6">Missing N-Cloud ID parameter</p>
+          <p className="text-gray-400 mb-6">Missing N-Cloud URL or ID parameter</p>
           <Button 
             onClick={() => router.back()}
             className="bg-gradient-to-r from-blue-600 to-purple-600"
