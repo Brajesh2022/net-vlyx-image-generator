@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 export default function PlayHerePage() {
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
+  const extraWatchUrl = searchParams.get('extra') // NEW: Watch Online URL from movies4u
   
   const [isMobile, setIsMobile] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -113,6 +114,23 @@ export default function PlayHerePage() {
                 />
               )}
             </div>
+            
+            {/* Alternative Watch Online Button - NEW */}
+            {extraWatchUrl && (
+              <div className="mt-4">
+                <a 
+                  href={extraWatchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full block"
+                >
+                  <Button className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white py-4 rounded-xl">
+                    <Film className="h-5 w-5 mr-2" />
+                    If above player not work then click me
+                  </Button>
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Playback Tips Section */}

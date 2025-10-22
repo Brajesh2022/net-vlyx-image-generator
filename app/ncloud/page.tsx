@@ -140,33 +140,51 @@ export default function NCloudPage() {
       // Hub-Cloud uses /drive/{id}, V-Cloud uses /{id}
       let ncloudUrl: string
       let isHubCloud = false
+      let isVCloud = false
       
-      // Check if sourceUrl is provided and contains hubcloud
+      // Check if sourceUrl is provided and contains hubcloud or vcloud
       if (sourceUrl) {
         try {
           const urlObj = new URL(sourceUrl)
           const hostname = urlObj.hostname.toLowerCase()
           
           if (hostname.includes('hubcloud')) {
-            // Hub-Cloud format: https://hubcloud.one/drive/{id}
+            // Hub-Cloud format: https://hubcloud.fit/drive/{id} (domain may vary)
             isHubCloud = true
             ncloudUrl = `${urlObj.protocol}//${urlObj.hostname}/drive/${id}`
-          } else {
+            addLog(`Detected Hub-Cloud URL: ${hostname}`)
+          } else if (hostname.includes('vcloud')) {
             // V-Cloud format: https://vcloud.zip/{id}
+            isVCloud = true
+            ncloudUrl = `${urlObj.protocol}//${urlObj.hostname}/${id}`
+            addLog(`Detected V-Cloud URL: ${hostname}`)
+          } else {
+            // Default V-Cloud format
+            isVCloud = true
             ncloudUrl = `${urlObj.protocol}//${urlObj.hostname}/${id}`
           }
         } catch {
-          // If parsing fails, check if it contains hubcloud
+          // If parsing fails, check if it contains hubcloud or vcloud
           if (sourceUrl.includes('hubcloud')) {
             isHubCloud = true
-            ncloudUrl = `https://hubcloud.one/drive/${id}`
+            // Try to extract domain from sourceUrl
+            const domainMatch = sourceUrl.match(/https?:\/\/([^\/]+)/)
+            const domain = domainMatch ? domainMatch[1] : 'hubcloud.fit'
+            ncloudUrl = `https://${domain}/drive/${id}`
+          } else if (sourceUrl.includes('vcloud')) {
+            isVCloud = true
+            const domainMatch = sourceUrl.match(/https?:\/\/([^\/]+)/)
+            const domain = domainMatch ? domainMatch[1] : 'vcloud.zip'
+            ncloudUrl = `https://${domain}/${id}`
           } else {
             // Default to V-Cloud
+            isVCloud = true
             ncloudUrl = `https://vcloud.zip/${id}`
           }
         }
       } else {
         // No sourceUrl provided, use default V-Cloud format
+        isVCloud = true
         ncloudUrl = `https://vcloud.zip/${id}`
       }
       
