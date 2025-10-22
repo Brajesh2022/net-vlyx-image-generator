@@ -484,10 +484,26 @@ export default function VegaMoviePage() {
     return ""
   }
 
-  // Function to check if a link is N-Cloud (formerly v-cloud)
-  const isNCloudLink = (label: string): boolean => {
+  // Function to check if a link is N-Cloud (formerly v-cloud, includes hubcloud)
+  const isNCloudLink = (label: string, url?: string): boolean => {
     const lowerLabel = label.toLowerCase()
-    return lowerLabel.includes("v-cloud") || lowerLabel.includes("vcloud") || lowerLabel.includes("n-cloud") || lowerLabel.includes("ncloud")
+    const lowerUrl = url?.toLowerCase() || ""
+    
+    // Check label
+    const labelMatch = lowerLabel.includes("v-cloud") || 
+                       lowerLabel.includes("vcloud") || 
+                       lowerLabel.includes("n-cloud") || 
+                       lowerLabel.includes("ncloud") ||
+                       lowerLabel.includes("hubcloud") ||
+                       lowerLabel.includes("hub-cloud") ||
+                       lowerLabel.includes("gdflix")
+    
+    // Check URL
+    const urlMatch = lowerUrl.includes("vcloud.") || 
+                     lowerUrl.includes("hubcloud.") ||
+                     lowerUrl.includes("gdlink.dev")
+    
+    return labelMatch || urlMatch
   }
   
   // Clean server/link names with branding replacement
@@ -509,8 +525,8 @@ export default function VegaMoviePage() {
 
   // Enhanced Vlyx-Drive URL generation function with encoding
   const generateVlyxDriveUrl = (url: string, label: string, sectionSeason?: string | null, action?: "stream" | "download", quality?: string): string => {
-    // Check if it's an N-Cloud URL (vcloud.zip)
-    const isNCloudUrl = /vcloud\.zip/i.test(url)
+    // Check if it's an N-Cloud URL (vcloud.zip, hubcloud.*, gdlink.dev, etc.)
+    const isNCloudUrl = /vcloud\./i.test(url) || /hubcloud\./i.test(url) || /gdlink\.dev/i.test(url)
     
     if (isNCloudUrl) {
       // Extract N-Cloud ID from URL
@@ -1741,7 +1757,8 @@ export default function VegaMoviePage() {
                                       item.link.url,
                                       item.link.label,
                                       item.season,
-                                      action
+                                      action,
+                                      item.download.quality
                                     )
                                     router.push(nextdriveUrl)
                                   }}
@@ -1815,7 +1832,8 @@ export default function VegaMoviePage() {
                                       item.link.url,
                                       item.link.label,
                                       item.season,
-                                      action
+                                      action,
+                                      item.download.quality
                                     )
                                     router.push(nextdriveUrl)
                                   }}
@@ -1882,7 +1900,8 @@ export default function VegaMoviePage() {
                                       item.link.url,
                                       item.link.label,
                                       item.season,
-                                      action
+                                      action,
+                                      item.download.quality
                                     )
                                     window.open(nextdriveUrl, "_blank")
                                   }}
@@ -1954,7 +1973,8 @@ export default function VegaMoviePage() {
                                       item.link.url,
                                       item.link.label,
                                       item.season,
-                                      action
+                                      action,
+                                      item.download.quality
                                     )
                                     window.open(nextdriveUrl, "_blank")
                                   }}
@@ -2049,7 +2069,8 @@ export default function VegaMoviePage() {
                                                   link.url,
                                                   link.label,
                                                   link.season,
-                                                  action
+                                                  action,
+                                                  download.quality
                                                 )
                                                 window.open(nextdriveUrl, "_blank")
                                               }}
@@ -2185,7 +2206,8 @@ export default function VegaMoviePage() {
                       selectedDownload.link.url,
                       selectedDownload.link.label,
                       selectedDownload.season,
-                      action
+                      action,
+                      selectedDownload.download.quality
                     )
                     window.open(nextdriveUrl, "_blank")
                     setShowConfirmModal(false)

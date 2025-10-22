@@ -59,12 +59,12 @@ function parseM4ULinks(html: string): LinkData[] {
       episodeNumber = parseInt(episodeMatch[1])
     }
     
-    // Try to extract quality from title
-    // Patterns: "480p [2.6GB]", "Season 4 720p"
+    // Try to extract FULL quality from title including HEVC, 4K, etc.
+    // Patterns: "480p [2.6GB]", "Season 4 720p HEVC", "1080p 4K"
     let quality: string | undefined
-    const qualityMatch = title.match(/(480p|720p|1080p|2160p|4K)/i)
+    const qualityMatch = title.match(/(\d+p(?:\s+(?:HEVC|4K|HDR|10bit))?)/i)
     if (qualityMatch) {
-      quality = qualityMatch[1]
+      quality = qualityMatch[1].trim()
     }
     
     // Find the download buttons in the next sibling div
@@ -80,9 +80,16 @@ function parseM4ULinks(html: string): LinkData[] {
         const name = $link.text().trim()
         
         if (url) {
-          // Check if it's a vcloud or hubcloud link
-          const isVCloud = url.includes("vcloud.") || name.toLowerCase().includes("vcloud") || name.toLowerCase().includes("gdflix")
-          const isHubCloud = url.includes("hubcloud.") || name.toLowerCase().includes("hubcloud") || name.toLowerCase().includes("hub-cloud")
+          // Check if it's a vcloud or hubcloud link by URL or name
+          const isVCloud = url.includes("vcloud.") || 
+                          url.includes("gdlink.dev") ||
+                          name.toLowerCase().includes("vcloud") || 
+                          name.toLowerCase().includes("gdflix")
+                          
+          const isHubCloud = url.includes("hubcloud.") || 
+                            url.includes("dgdrive.pro") ||
+                            name.toLowerCase().includes("hubcloud") || 
+                            name.toLowerCase().includes("hub-cloud")
           
           links.push({
             name,

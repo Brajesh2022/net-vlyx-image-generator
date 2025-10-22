@@ -141,12 +141,24 @@ function parseMovies4UMovie(html: string): MovieDetails {
 
   // Extract screenshots from div.container.ss-img as per user's example
   const screenshots: string[] = []
-  $("div.container.ss-img img, div.ss-img img").each((i, el) => {
+  // More specific selector to avoid getting posters
+  $("div.container.ss-img img").each((i, el) => {
     const src = $(el).attr("src") || $(el).attr("data-src") || ""
-    if (src && !screenshots.includes(src)) {
+    // Filter out posters and ads - screenshots are usually from ibb.co or similar
+    if (src && !screenshots.includes(src) && !src.includes("poster") && !src.includes("banner")) {
       screenshots.push(src)
     }
   })
+  
+  // Fallback to div.ss-img if container.ss-img didn't work
+  if (screenshots.length === 0) {
+    $("div.ss-img img").each((i, el) => {
+      const src = $(el).attr("src") || $(el).attr("data-src") || ""
+      if (src && !screenshots.includes(src) && !src.includes("poster") && !src.includes("banner")) {
+        screenshots.push(src)
+      }
+    })
+  }
 
   // Extract "Watch Online" URL from div.watch-links-div as per user's example
   let watchOnlineUrl: string | null = null
@@ -163,14 +175,15 @@ function parseMovies4UMovie(html: string): MovieDetails {
     const $header = $(el)
     const headerText = $header.text().trim()
     
-    // Extract quality from the header
-    // Example: "Season 4 <span>Single Episodes</span> 480p [120MB/E]"
-    const qualityMatch = headerText.match(/(480p|720p|1080p|2160p|4K)/i)
+    // Extract FULL quality from the header including HEVC, etc.
+    // Examples: "720p HEVC", "1080p", "2160p 4K", "720p"
+    // Match pattern: [number]p followed by optional HEVC/4K
+    const qualityMatch = headerText.match(/(\d+p(?:\s+(?:HEVC|4K|HDR|10bit))?)/i)
     if (!qualityMatch) return // Skip if no quality found
     
-    const quality = qualityMatch[1]
+    const quality = qualityMatch[1].trim() // e.g., "720p HEVC" or "1080p"
     
-    // Extract size from header (e.g., [120MB/E])
+    // Extract size from header (e.g., [120MB/E] or [1.4GB/E])
     const sizeMatch = headerText.match(/\[([^\]]+)\]/)
     const size = sizeMatch ? sizeMatch[1] : ""
     

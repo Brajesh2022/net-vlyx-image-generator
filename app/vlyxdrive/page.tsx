@@ -158,10 +158,40 @@ export default function VlyxDrivePage() {
         }
         const data = await response.json()
         
+        // Helper function to match quality strings (fuzzy match)
+        const matchesQuality = (itemQuality: string | undefined, targetQuality: string | undefined): boolean => {
+          if (!targetQuality || !itemQuality) return true
+          
+          // Normalize both strings for comparison
+          const normalize = (q: string) => q.toLowerCase().replace(/[\s\-_]/g, '')
+          const normalizedItem = normalize(itemQuality)
+          const normalizedTarget = normalize(targetQuality)
+          
+          // Exact match
+          if (normalizedItem === normalizedTarget) return true
+          
+          // Partial match (e.g., "720p" matches "720p HEVC")
+          if (normalizedItem.includes(normalizedTarget) || normalizedTarget.includes(normalizedItem)) {
+            return true
+          }
+          
+          return false
+        }
+        
+        // Filter data by quality parameter if provided
+        let filteredLinkData = data.linkData
+        if (quality) {
+          const qualityMatches = data.linkData.filter((item: any) => matchesQuality(item.quality, quality))
+          if (qualityMatches.length > 0) {
+            filteredLinkData = qualityMatches
+          }
+          // If no matches, show all (user may need to select manually)
+        }
+        
         // Convert m4ulinks data to VlyxDrive format
         if (data.type === "episode") {
           // Episode-wise structure
-          const episodes: EpisodeDownload[] = data.linkData
+          const episodes: EpisodeDownload[] = filteredLinkData
             .filter((item: any) => item.episodeNumber)
             .map((item: any) => ({
               episodeNumber: item.episodeNumber,
@@ -174,12 +204,12 @@ export default function VlyxDrivePage() {
           
           return {
             type: "episode" as const,
-            title: "Episode Downloads",
+            title: quality ? `Episode Downloads (${quality})` : "Episode Downloads",
             episodes,
           }
         } else {
           // Quality-wise structure (treat as movie)
-          const servers = data.linkData.flatMap((item: any) => 
+          const servers = filteredLinkData.flatMap((item: any) => 
             item.links.map((link: any) => ({
               name: `${link.name}${item.quality ? ` (${item.quality})` : ''}`,
               url: link.url,
@@ -189,7 +219,7 @@ export default function VlyxDrivePage() {
           
           return {
             type: "movie" as const,
-            title: "Download Options",
+            title: quality ? `Download Options (${quality})` : "Download Options",
             movie: { servers },
           }
         }
