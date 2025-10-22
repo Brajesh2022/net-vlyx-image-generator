@@ -26,12 +26,17 @@ interface MovieDetails {
   watchOnlineUrl: string | null // NEW: Watch Online URL
   downloadSections: {
     title: string
-    quality: string
     downloads: {
-      downloadUrl: string // Link to m4ulinks.com
-      batchUrl: string | null // Batch/ZIP link if available
-    }
+      quality: string
+      size: string
+      links: {
+        label: string
+        url: string
+        style: string
+      }[]
+    }[]
   }[]
+  hasBloggerImages: boolean
 }
 
 async function fetchMovies4UHTML(url: string): Promise<string> {
@@ -151,6 +156,7 @@ function parseMovies4UMovie(html: string): MovieDetails {
   }
 
   // Extract download sections from div.download-links-div
+  // Convert to vegamovies-compatible format
   const downloadSections: any[] = []
   
   $("div.download-links-div h4, div.download-links-div h5").each((i, el) => {
@@ -164,26 +170,47 @@ function parseMovies4UMovie(html: string): MovieDetails {
     
     const quality = qualityMatch[1]
     
+    // Extract size from header (e.g., [120MB/E])
+    const sizeMatch = headerText.match(/\[([^\]]+)\]/)
+    const size = sizeMatch ? sizeMatch[1] : ""
+    
     // Find the download buttons in the next sibling div
     const $downloadDiv = $header.next("div.downloads-btns-div")
     
     if ($downloadDiv.length) {
+      const links: any[] = []
+      
       // Extract "Download Links" URL (class="btn")
       const $downloadLink = $downloadDiv.find('a.btn:not(.btn-zip)').first()
       const downloadUrl = $downloadLink.attr("href") || ""
+      if (downloadUrl) {
+        links.push({
+          label: "Download Links",
+          url: downloadUrl,
+          style: "",
+        })
+      }
       
       // Extract "BATCH/ZIP" URL (class="btn-zip")
       const $batchLink = $downloadDiv.find('a.btn-zip').first()
-      const batchUrl = $batchLink.attr("href") || null
+      const batchUrl = $batchLink.attr("href")
+      if (batchUrl) {
+        links.push({
+          label: "BATCH/ZIP",
+          url: batchUrl,
+          style: "",
+        })
+      }
       
-      if (downloadUrl) {
+      if (links.length > 0) {
+        // Format compatible with vegamovies structure
         downloadSections.push({
           title: headerText,
-          quality,
-          downloads: {
-            downloadUrl,
-            batchUrl,
-          },
+          downloads: [{
+            quality,
+            size,
+            links,
+          }],
         })
       }
     }
@@ -199,6 +226,7 @@ function parseMovies4UMovie(html: string): MovieDetails {
     screenshots,
     watchOnlineUrl,
     downloadSections,
+    hasBloggerImages: false, // movies4u doesn't use blogger images
   }
 }
 

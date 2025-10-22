@@ -47,19 +47,17 @@ interface MovieDetails {
   watchOnlineUrl?: string | null // NEW: For movies4u watch online feature
   downloadSections: {
     title: string
-    quality?: string // NEW: For movies4u quality detection
-    downloads?: {
+    downloads: {
       quality: string
       size: string
       links: {
         label: string
         url: string
         style: string
+        season?: string | null
       }[]
     }[]
-    // NEW: For movies4u structure
-    downloadUrl?: string
-    batchUrl?: string | null
+    season?: string | null
   }[]
   hasBloggerImages: boolean
 }
