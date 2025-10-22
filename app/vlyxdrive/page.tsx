@@ -82,14 +82,19 @@ export default function VlyxDrivePage() {
     tmdbid: searchParams.get("tmdbid") || undefined,
     season: searchParams.get("season") || undefined,
     server: searchParams.get("server") || undefined,
+    quality: searchParams.get("quality") || undefined, // NEW: Quality parameter for filtering
   }
   
-  const { driveid, link, tmdbid, season, server } = params
+  const { driveid, link, tmdbid, season, server, quality } = params
+  
+  // Detect if this is an m4ulinks URL
+  const isM4ULinks = link && /m4ulinks\.com/i.test(link)
 
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeDownload | null>(null)
   const [showDownloadModal, setShowDownloadModal] = useState(false)
   const [showNCloudConfirm, setShowNCloudConfirm] = useState(false)
   const [selectedNCloudServer, setSelectedNCloudServer] = useState<{name: string, url: string} | null>(null)
+  const [showAllOptions, setShowAllOptions] = useState(false) // NEW: Toggle to show all quality options
 
   // Smart back navigation handler
   const handleBackNavigation = () => {
@@ -135,15 +140,62 @@ export default function VlyxDrivePage() {
     return replaceBrandingText(name)
   }
 
-  // Fetch VlyxDrive content
+  // Fetch VlyxDrive or M4ULinks content
   const {
     data: vlyxDriveData,
     isLoading: vlyxDriveLoading,
     error: vlyxDriveError,
   } = useQuery<VlyxDriveData>({
-    queryKey: ["vlyxdrive", driveid ?? null, link ?? null],
+    queryKey: ["vlyxdrive", driveid ?? null, link ?? null, isM4ULinks],
     queryFn: async () => {
       if (!driveid && !link) throw new Error("Drive ID or link is required")
+      
+      // NEW: Use m4ulinks-scraper for m4ulinks URLs
+      if (isM4ULinks && link) {
+        const response = await fetch(`/api/m4ulinks-scraper?url=${encodeURIComponent(link)}`)
+        if (!response.ok) {
+          throw new Error("Failed to fetch M4ULinks data")
+        }
+        const data = await response.json()
+        
+        // Convert m4ulinks data to VlyxDrive format
+        if (data.type === "episode") {
+          // Episode-wise structure
+          const episodes: EpisodeDownload[] = data.linkData
+            .filter((item: any) => item.episodeNumber)
+            .map((item: any) => ({
+              episodeNumber: item.episodeNumber,
+              servers: item.links.map((link: any) => ({
+                name: link.name,
+                url: link.url,
+                style: "",
+              })),
+            }))
+          
+          return {
+            type: "episode" as const,
+            title: "Episode Downloads",
+            episodes,
+          }
+        } else {
+          // Quality-wise structure (treat as movie)
+          const servers = data.linkData.flatMap((item: any) => 
+            item.links.map((link: any) => ({
+              name: `${link.name}${item.quality ? ` (${item.quality})` : ''}`,
+              url: link.url,
+              style: "",
+            }))
+          )
+          
+          return {
+            type: "movie" as const,
+            title: "Download Options",
+            movie: { servers },
+          }
+        }
+      }
+      
+      // Original nextdrive logic
       const qs = driveid ? `driveid=${encodeURIComponent(driveid)}` : `link=${encodeURIComponent(link as string)}`
       const response = await fetch(`/api/nextdrive-scraper?${qs}`)
       if (!response.ok) {
@@ -199,14 +251,40 @@ export default function VlyxDrivePage() {
   })
 
   // Check if a server is N-Cloud (includes V-Cloud, N-Cloud, and Hub-Cloud)
-  const isNCloudServer = (serverName: string): boolean => {
+  const isNCloudServer = (serverName: string, url?: string): boolean => {
     const normalizedServerName = serverName.toLowerCase().replace(/[-\s[\]]/g, "")
+    const normalizedUrl = url?.toLowerCase() || ""
     return (
       normalizedServerName.includes("vcloud") || 
       normalizedServerName.includes("ncloud") || 
       normalizedServerName.includes("hubcloud") ||
-      normalizedServerName.includes("hub cloud")
+      normalizedServerName.includes("hubcloud") ||
+      normalizedUrl.includes("vcloud.") ||
+      normalizedUrl.includes("hubcloud.")
     )
+  }
+  
+  // NEW: Filter and sort servers to prioritize vcloud/hubcloud
+  const prioritizeCloudServers = (servers: Array<{name: string, url: string, style?: string}>) => {
+    // Separate cloud servers from others
+    const cloudServers = servers.filter(s => isNCloudServer(s.name, s.url))
+    const otherServers = servers.filter(s => !isNCloudServer(s.name, s.url))
+    
+    // If quality parameter is set and we have cloud servers, only show cloud servers by default
+    if (quality && cloudServers.length > 0) {
+      return { 
+        priority: cloudServers,
+        others: otherServers,
+        hasHidden: otherServers.length > 0
+      }
+    }
+    
+    // Otherwise show cloud first, then others
+    return {
+      priority: cloudServers,
+      others: otherServers,
+      hasHidden: false
+    }
   }
 
   const handleEpisodeClick = (episode: EpisodeDownload) => {
@@ -664,6 +742,11 @@ export default function VlyxDrivePage() {
               <div className="space-y-6">
                 {vlyxDriveData.episodes?.map((episode, index) => {
                   const tmdbEpisode = episodeData?.episodes?.find((ep) => ep.episode_number === episode.episodeNumber)
+                  
+                  // NEW: Prioritize cloud servers
+                  const { priority: cloudServers, others: otherServers, hasHidden } = prioritizeCloudServers(episode.servers)
+                  const displayServers = showAllOptions ? [...cloudServers, ...otherServers] : cloudServers
+                  const hasOtherOptions = otherServers.length > 0
 
                   return (
                     <div
@@ -714,20 +797,29 @@ export default function VlyxDrivePage() {
                               </div>
                             )}
                             <Badge variant="secondary" className="bg-gray-700 text-gray-300">
-                              {episode.servers.length} servers
+                              {cloudServers.length} cloud server{cloudServers.length !== 1 ? 's' : ''}
+                              {hasOtherOptions && ` +${otherServers.length} more`}
                             </Badge>
                           </div>
                         </div>
 
                         {/* Access Button */}
-                        <div className="lg:col-span-4">
+                        <div className="lg:col-span-4 space-y-2">
                           <Button
-                            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                            className="w-full px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
                             onClick={() => handleEpisodeClick(episode)}
                           >
                             <Eye className="h-5 w-5 mr-2" />
-                            Get Episode
+                            ⚡ Get Episode (Cloud)
                           </Button>
+                          {hasOtherOptions && !showAllOptions && (
+                            <button
+                              onClick={() => setShowAllOptions(true)}
+                              className="w-full text-sm text-gray-400 hover:text-white transition-colors"
+                            >
+                              Show {otherServers.length} more option{otherServers.length !== 1 ? 's' : ''}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -871,34 +963,58 @@ export default function VlyxDrivePage() {
             </DialogHeader>
 
             <div className="space-y-4 mt-6">
-              {(selectedEpisode ? selectedEpisode.servers : vlyxDriveData?.movie?.servers || []).map((server, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 bg-gray-800/50 rounded-xl border border-gray-700"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-3 h-3 rounded-full ${isNCloudServer(server.name) ? "bg-yellow-500" : "bg-green-500"}`}
-                    />
-                    <span className="text-white font-medium">{cleanServerName(server.name)}</span>
-                    {isNCloudServer(server.name) && (
-                      <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold shadow-lg">
-                        ⚡ Preferred
-                      </Badge>
+              {(() => {
+                // Get servers and prioritize cloud servers
+                const allServers = selectedEpisode ? selectedEpisode.servers : vlyxDriveData?.movie?.servers || []
+                const { priority: cloudServers, others: otherServers } = prioritizeCloudServers(allServers)
+                const serversToShow = [...cloudServers, ...(showAllOptions ? otherServers : [])]
+                
+                return (
+                  <>
+                    {serversToShow.map((server, index) => {
+                      const isCloud = isNCloudServer(server.name, server.url)
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 bg-gray-800/50 rounded-xl border border-gray-700"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-3 h-3 rounded-full ${isCloud ? "bg-yellow-500" : "bg-green-500"}`}
+                            />
+                            <span className="text-white font-medium">{cleanServerName(server.name)}</span>
+                            {isCloud && (
+                              <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold shadow-lg">
+                                ⚡ Preferred
+                              </Badge>
+                            )}
+                            {isServerHighlighted(server.name) && !isCloud && (
+                              <Badge className="bg-green-600/20 text-green-400 border-green-600/50">Recommended</Badge>
+                            )}
+                          </div>
+                          <Button
+                            onClick={() => handleServerClick(server.url)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Continue
+                          </Button>
+                        </div>
+                      )
+                    })}
+                    
+                    {/* Show More Options Button */}
+                    {!showAllOptions && otherServers.length > 0 && (
+                      <button
+                        onClick={() => setShowAllOptions(true)}
+                        className="w-full text-center py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white transition-all duration-300 text-sm font-medium"
+                      >
+                        Show {otherServers.length} More Option{otherServers.length > 1 ? 's' : ''}
+                      </button>
                     )}
-                    {isServerHighlighted(server.name) && !isNCloudServer(server.name) && (
-                      <Badge className="bg-green-600/20 text-green-400 border-green-600/50">Recommended</Badge>
-                    )}
-                  </div>
-                  <Button
-                    onClick={() => handleServerClick(server.url)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Continue
-                  </Button>
-                </div>
-              ))}
+                  </>
+                )
+              })()}
             </div>
           </div>
         </DialogContent>

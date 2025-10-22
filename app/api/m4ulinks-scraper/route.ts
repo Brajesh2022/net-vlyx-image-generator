@@ -6,6 +6,8 @@ const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
 interface LinkData {
   title: string // e.g., "Episodes: 1:" or "480p [2.6GB]"
+  episodeNumber?: number // Extracted episode number if it's an episode
+  quality?: string // Extracted quality if it's a quality section
   links: {
     name: string
     url: string
@@ -49,6 +51,22 @@ function parseM4ULinks(html: string): LinkData[] {
     const $header = $(el)
     const title = $header.text().trim()
     
+    // Try to extract episode number from title
+    // Patterns: "-:Episodes: 1:-", "Episodes: 2:", "Episode 3"
+    let episodeNumber: number | undefined
+    const episodeMatch = title.match(/-?:?Episodes?:?\s*(\d+)\s*:-?/i)
+    if (episodeMatch) {
+      episodeNumber = parseInt(episodeMatch[1])
+    }
+    
+    // Try to extract quality from title
+    // Patterns: "480p [2.6GB]", "Season 4 720p"
+    let quality: string | undefined
+    const qualityMatch = title.match(/(480p|720p|1080p|2160p|4K)/i)
+    if (qualityMatch) {
+      quality = qualityMatch[1]
+    }
+    
     // Find the download buttons in the next sibling div
     const $downloadDiv = $header.next("div.downloads-btns-div")
     
@@ -78,6 +96,8 @@ function parseM4ULinks(html: string): LinkData[] {
       if (links.length > 0) {
         linkData.push({
           title,
+          episodeNumber,
+          quality,
           links,
         })
       }
@@ -106,8 +126,16 @@ export async function GET(request: NextRequest) {
     console.log("Successfully fetched m4ulinks page")
 
     const linkData = parseM4ULinks(html)
-
-    return NextResponse.json({ linkData })
+    
+    // Determine if this is episode-wise or quality-wise structure
+    const hasEpisodes = linkData.some(item => item.episodeNumber !== undefined)
+    const hasQualities = linkData.some(item => item.quality !== undefined)
+    
+    return NextResponse.json({ 
+      linkData,
+      type: hasEpisodes ? "episode" : (hasQualities ? "quality" : "unknown"),
+      totalEpisodes: hasEpisodes ? Math.max(...linkData.filter(i => i.episodeNumber).map(i => i.episodeNumber!)) : 0
+    })
   } catch (error: any) {
     console.error("Error in m4ulinks scraper API:", error)
     return NextResponse.json(
