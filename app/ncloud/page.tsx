@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import { decodeNCloudParams, replaceBrandingText } from "@/lib/utils"
 import { ChevronLeft, Download, Play, Sparkles, Loader2, CheckCircle2, AlertCircle, X, Star } from "lucide-react"
@@ -112,153 +112,162 @@ export default function NCloudPage() {
     { name: "FSL Server", regex: /fsl\.blockxpiracy\.org/i },
   ]
 
-  const addLog = (message: string, type: "info" | "success" | "error" = "info") => {
-    setLogs((prev) => [...prev, { message, type, timestamp: new Date() }])
-    setTimeout(() => {
-      if (statusRef.current) {
-        statusRef.current.scrollTop = statusRef.current.scrollHeight
-      }
-    }, 100)
-  }
-
-  const processNCloudLink = async () => {
-    // Check if we have either sourceUrl or id
-    if (!sourceUrl && !id) {
-      setError("Missing N-Cloud URL or ID")
-      setIsProcessing(false)
-      return
-    }
-
-    try {
-      setIsProcessing(true)
-      addLog("Starting N-Cloud link processing...")
-      
-      // Step 1: Determine the URL to fetch
-      let ncloudUrl: string
-      
-      if (sourceUrl) {
-        // PREFERRED: Use the full URL directly (no reconstruction needed!)
-        ncloudUrl = sourceUrl
-        addLog(`Step 1: Using provided URL: ${ncloudUrl}`)
-        
-        // Detect type for logging
-        const hostname = new URL(sourceUrl).hostname.toLowerCase()
-        if (hostname.includes('hubcloud')) {
-          addLog(`Detected Hub-Cloud URL`)
-        } else if (hostname.includes('vcloud')) {
-          addLog(`Detected V-Cloud URL`)
-        }
-      } else if (id) {
-        // FALLBACK: Reconstruct URL from ID (legacy support)
-        addLog(`Step 1: Reconstructing URL from ID: ${id}`)
-        ncloudUrl = `https://vcloud.zip/${id}` // Default to vcloud
-        addLog(`⚠️ Warning: Using fallback URL construction. Prefer passing full URL.`)
-      } else {
-        throw new Error("No URL or ID provided")
-      }
-      
-      addLog(`Step 2: Fetching token page from ${ncloudUrl}...`)
-
-      const response1 = await fetch("/api/scrape", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: ncloudUrl }),
-      })
-
-      if (!response1.ok) throw new Error("Failed to fetch N-Cloud page")
-
-      const data1 = await response1.json()
-      addLog("Received response from N-Cloud page")
-
-      // Extract the tokenized final URL
-      const urlRegex = /var\s+url\s*=\s*'(.*?)'/
-      const match1 = data1.html?.match(urlRegex)
-
-      if (!match1 || !match1[1]) throw new Error("Could not find the tokenized URL")
-
-      const finalUrl = match1[1]
-      addLog("Found tokenized URL, fetching final download page...")
-
-      // Step 3: Fetch the final page with download links
-      addLog("Step 3: Fetching final download page...")
-
-      const response2 = await fetch("/api/scrape", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: finalUrl }),
-      })
-
-      if (!response2.ok) throw new Error("Failed to fetch download page")
-
-      const data2 = await response2.json()
-      const pageTitle = data2.title || ""
-      addLog(`Found title: ${pageTitle}`)
-
-      const isZip = pageTitle.toLowerCase().endsWith(".zip")
-      setIsZipFile(isZip)
-
-      if (isZip) {
-        addLog("File type detected as ZIP, download only.")
-      } else {
-        addLog("Playable media detected, offering stream/download options.")
-      }
-
-      addLog("Parsing and sorting links...")
-
-      // Parse HTML and extract download links
-      const parser = new DOMParser()
-      const doc = parser.parseFromString(data2.html, "text/html")
-      const allLinks = Array.from(doc.querySelectorAll("a.btn"))
-
-      const links: DownloadLink[] = []
-
-      allLinks.forEach((link) => {
-        const linkElement = link as HTMLAnchorElement
-        const linkText = linkElement.textContent?.trim() || ""
-
-        // Skip Telegram links
-        if (linkText.includes("Telegram")) return
-
-        const url = linkElement.href
-        const hostMatch = trustedPatterns.find((p) => p.regex.test(url))
-
-      // Extract label from text
-      const bracketMatch = linkText.match(/\[(.*?)\]/)
-      const shortText = bracketMatch && bracketMatch[1] ? bracketMatch[1].trim() : linkText.replace(/\s+/g, " ")
-
-      links.push({
-        url,
-        label: replaceBrandingText(shortText),
-        isTrusted: !!hostMatch,
-        originalText: linkText,
-      })
-      })
-
-      if (links.length === 0) {
-        throw new Error("No valid download links found after filtering")
-      }
-
-      // Sort: trusted first
-      const sortedLinks = [
-        ...links.filter((l) => l.isTrusted),
-        ...links.filter((l) => !l.isTrusted),
-      ]
-
-      setDownloadLinks(sortedLinks)
-      addLog("Process completed successfully!", "success")
-      setIsProcessing(false)
-    } catch (err: any) {
-      console.error("Processing failed:", err)
-      addLog(`Error: ${err.message}`, "error")
-      setError(err.message)
-      setIsProcessing(false)
-    }
-  }
-
+  // Process the N-Cloud link on mount or when parameters change
   useEffect(() => {
-    if (id || sourceUrl) {
-      processNCloudLink()
+    // Define addLog inside useEffect to avoid closure issues
+    const addLog = (message: string, type: "info" | "success" | "error" = "info") => {
+      setLogs((prev) => [...prev, { message, type, timestamp: new Date() }])
+      setTimeout(() => {
+        if (statusRef.current) {
+          statusRef.current.scrollTop = statusRef.current.scrollHeight
+        }
+      }, 100)
     }
+    
+    const processLink = async () => {
+      console.log("useEffect triggered - id:", id, "sourceUrl:", sourceUrl)
+      
+      // Check if we have either sourceUrl or id
+      if (!sourceUrl && !id) {
+        console.log("NOT processing - missing both id and sourceUrl")
+        setError("Missing N-Cloud URL or ID")
+        setIsProcessing(false)
+        return
+      }
+
+      try {
+        console.log("Starting processing...")
+        setIsProcessing(true)
+        setError(null)
+        addLog("Starting N-Cloud link processing...")
+        
+        // Step 1: Determine the URL to fetch
+        let ncloudUrl: string
+        
+        if (sourceUrl) {
+          // PREFERRED: Use the full URL directly (no reconstruction needed!)
+          ncloudUrl = sourceUrl
+          addLog(`Step 1: Using provided URL: ${ncloudUrl}`)
+          
+          // Detect type for logging
+          try {
+            const hostname = new URL(sourceUrl).hostname.toLowerCase()
+            if (hostname.includes('hubcloud')) {
+              addLog(`Detected Hub-Cloud URL`)
+            } else if (hostname.includes('vcloud')) {
+              addLog(`Detected V-Cloud URL`)
+            }
+          } catch (e) {
+            console.error("Error parsing URL:", e)
+          }
+        } else if (id) {
+          // FALLBACK: Reconstruct URL from ID (legacy support)
+          addLog(`Step 1: Reconstructing URL from ID: ${id}`)
+          ncloudUrl = `https://vcloud.zip/${id}` // Default to vcloud
+          addLog(`⚠️ Warning: Using fallback URL construction. Prefer passing full URL.`)
+        } else {
+          throw new Error("No URL or ID provided")
+        }
+        
+        addLog(`Step 2: Fetching token page from ${ncloudUrl}...`)
+
+        const response1 = await fetch("/api/scrape", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: ncloudUrl }),
+        })
+
+        if (!response1.ok) throw new Error("Failed to fetch N-Cloud page")
+
+        const data1 = await response1.json()
+        addLog("Received response from N-Cloud page")
+
+        // Extract the tokenized final URL
+        const urlRegex = /var\s+url\s*=\s*'(.*?)'/
+        const match1 = data1.html?.match(urlRegex)
+
+        if (!match1 || !match1[1]) throw new Error("Could not find the tokenized URL")
+
+        const finalUrl = match1[1]
+        addLog("Found tokenized URL, fetching final download page...")
+
+        // Step 3: Fetch the final page with download links
+        addLog("Step 3: Fetching final download page...")
+
+        const response2 = await fetch("/api/scrape", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: finalUrl }),
+        })
+
+        if (!response2.ok) throw new Error("Failed to fetch download page")
+
+        const data2 = await response2.json()
+        const pageTitle = data2.title || ""
+        addLog(`Found title: ${pageTitle}`)
+
+        const isZip = pageTitle.toLowerCase().endsWith(".zip")
+        setIsZipFile(isZip)
+
+        if (isZip) {
+          addLog("File type detected as ZIP, download only.")
+        } else {
+          addLog("Playable media detected, offering stream/download options.")
+        }
+
+        addLog("Parsing and sorting links...")
+
+        // Parse HTML and extract download links
+        const parser = new DOMParser()
+        const doc = parser.parseFromString(data2.html, "text/html")
+        const allLinks = Array.from(doc.querySelectorAll("a.btn"))
+
+        const links: DownloadLink[] = []
+
+        allLinks.forEach((link) => {
+          const linkElement = link as HTMLAnchorElement
+          const linkText = linkElement.textContent?.trim() || ""
+
+          // Skip Telegram links
+          if (linkText.includes("Telegram")) return
+
+          const url = linkElement.href
+          const hostMatch = trustedPatterns.find((p) => p.regex.test(url))
+
+          // Extract label from text
+          const bracketMatch = linkText.match(/\[(.*?)\]/)
+          const shortText = bracketMatch && bracketMatch[1] ? bracketMatch[1].trim() : linkText.replace(/\s+/g, " ")
+
+          links.push({
+            url,
+            label: replaceBrandingText(shortText),
+            isTrusted: !!hostMatch,
+            originalText: linkText,
+          })
+        })
+
+        if (links.length === 0) {
+          throw new Error("No valid download links found after filtering")
+        }
+
+        // Sort: trusted first
+        const sortedLinks = [
+          ...links.filter((l) => l.isTrusted),
+          ...links.filter((l) => !l.isTrusted),
+        ]
+
+        setDownloadLinks(sortedLinks)
+        addLog("Process completed successfully!", "success")
+        setIsProcessing(false)
+      } catch (err: any) {
+        console.error("Processing failed:", err)
+        addLog(`Error: ${err.message}`, "error")
+        setError(err.message)
+        setIsProcessing(false)
+      }
+    }
+
+    processLink()
   }, [id, sourceUrl])
 
   const handleLinkClick = (link: DownloadLink) => {
