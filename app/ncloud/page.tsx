@@ -256,10 +256,10 @@ export default function NCloudPage() {
   }
 
   useEffect(() => {
-    if (id) {
+    if (id || sourceUrl) {
       processNCloudLink()
     }
-  }, [id])
+  }, [id, sourceUrl])
 
   const handleLinkClick = (link: DownloadLink) => {
     if (isZipFile) {
