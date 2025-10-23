@@ -113,13 +113,6 @@ export default function VlyxDrivePage() {
   const [showOtherQualities, setShowOtherQualities] = useState(!quality) // ✅ Auto-expand if quality missing
   const [showMoreServers, setShowMoreServers] = useState(false) // NEW: Toggle to show more servers for selected quality
   const [expandedQuality, setExpandedQuality] = useState<string | null>(null) // NEW: Track which quality section is expanded
-  
-  // ✅ Auto-expand if quality doesn't match after data loads
-  useEffect(() => {
-    if (vlyxDriveData && quality && !vlyxDriveData.hasQualityMatch) {
-      setShowOtherQualities(true) // Auto-expand when quality mismatch detected
-    }
-  }, [vlyxDriveData, quality])
 
   // Smart back navigation handler
   const handleBackNavigation = () => {
@@ -306,6 +299,13 @@ export default function VlyxDrivePage() {
     },
     enabled: !!tmdbId && contentType === "tv" && vlyxDriveData?.type === "episode",
   })
+
+  // ✅ Auto-expand if quality doesn't match after data loads
+  useEffect(() => {
+    if (vlyxDriveData && quality && !vlyxDriveData.hasQualityMatch) {
+      setShowOtherQualities(true) // Auto-expand when quality mismatch detected
+    }
+  }, [vlyxDriveData, quality])
 
   // Check if a server is N-Cloud (includes V-Cloud, N-Cloud, and Hub-Cloud)
   const isNCloudServer = (serverName: string, url?: string): boolean => {
