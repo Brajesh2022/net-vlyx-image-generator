@@ -237,10 +237,43 @@ export default function VlyxDrivePage() {
             })),
           }))
           
+          // Sort quality groups by resolution and variants
+          const sortedQualityGroups = qualityGroups.sort((a, b) => {
+            // Extract resolution number (480, 720, 1080, 2160)
+            const getResolution = (quality: string): number => {
+              const match = quality.match(/(\d+)p/i)
+              return match ? parseInt(match[1]) : 0
+            }
+            
+            // Check if quality is a base quality (no variants like HEVC, HQ, etc.)
+            const isBaseQuality = (quality: string): boolean => {
+              const normalized = quality.toLowerCase().replace(/[\s\-_]/g, '')
+              return /^\d+p$/.test(normalized)
+            }
+            
+            const resA = getResolution(a.quality)
+            const resB = getResolution(b.quality)
+            
+            // Sort by resolution first
+            if (resA !== resB) {
+              return resA - resB
+            }
+            
+            // Same resolution - base quality first, then variants
+            const isBaseA = isBaseQuality(a.quality)
+            const isBaseB = isBaseQuality(b.quality)
+            
+            if (isBaseA && !isBaseB) return -1
+            if (!isBaseA && isBaseB) return 1
+            
+            // Both variants - sort alphabetically
+            return a.quality.localeCompare(b.quality)
+          })
+          
           // Check if selected quality exists
           let hasQualityMatch = false
           if (quality) {
-            hasQualityMatch = qualityGroups.some(group => 
+            hasQualityMatch = sortedQualityGroups.some(group => 
               matchesQuality(group.quality, quality)
             )
           }
@@ -248,7 +281,7 @@ export default function VlyxDrivePage() {
           return {
             type: "movie" as const,
             title: "Download Options",
-            qualityGroups, // NEW: Preserve quality grouping
+            qualityGroups: sortedQualityGroups, // Sorted quality groups
             selectedQuality: quality || null,
             hasQualityMatch,
           }

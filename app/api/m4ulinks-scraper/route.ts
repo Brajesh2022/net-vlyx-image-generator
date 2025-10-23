@@ -150,8 +150,43 @@ export async function GET(request: NextRequest) {
     const hasEpisodes = linkData.some(item => item.episodeNumber !== undefined)
     const hasQualities = linkData.some(item => item.quality !== undefined)
     
+    // Sort quality-wise data by resolution and variants
+    const sortedLinkData = hasQualities && !hasEpisodes ? linkData.sort((a, b) => {
+      // Extract resolution number (480, 720, 1080, 2160)
+      const getResolution = (quality: string | undefined): number => {
+        if (!quality) return 0
+        const match = quality.match(/(\d+)p/i)
+        return match ? parseInt(match[1]) : 0
+      }
+      
+      // Check if quality is a base quality (no variants like HEVC, HQ, etc.)
+      const isBaseQuality = (quality: string | undefined): boolean => {
+        if (!quality) return false
+        const normalized = quality.toLowerCase().replace(/[\s\-_]/g, '')
+        return /^\d+p$/.test(normalized)
+      }
+      
+      const resA = getResolution(a.quality)
+      const resB = getResolution(b.quality)
+      
+      // Sort by resolution first
+      if (resA !== resB) {
+        return resA - resB
+      }
+      
+      // Same resolution - base quality first, then variants
+      const isBaseA = isBaseQuality(a.quality)
+      const isBaseB = isBaseQuality(b.quality)
+      
+      if (isBaseA && !isBaseB) return -1
+      if (!isBaseA && isBaseB) return 1
+      
+      // Both variants - sort alphabetically
+      return (a.quality || "").localeCompare(b.quality || "")
+    }) : linkData
+    
     return NextResponse.json({ 
-      linkData,
+      linkData: sortedLinkData,
       type: hasEpisodes ? "episode" : (hasQualities ? "quality" : "unknown"),
       totalEpisodes: hasEpisodes ? Math.max(...linkData.filter(i => i.episodeNumber).map(i => i.episodeNumber!)) : 0
     })

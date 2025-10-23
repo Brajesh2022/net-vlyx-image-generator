@@ -714,9 +714,43 @@ export default function VegaMoviePage() {
       })
     })
 
-    return Array.from(qualities).sort((a, b) => {
-      const qualityOrder = ["480p", "720p", "1080p", "2160p", "4K"]
-      return qualityOrder.indexOf(a) - qualityOrder.indexOf(b)
+    // Sort qualities in correct order
+    return sortQualities(Array.from(qualities))
+  }
+  
+  // Sort qualities in correct order (480p, 720p, 720p HEVC, 1080p, 1080p HQ, 2160p, etc.)
+  const sortQualities = (qualities: string[]): string[] => {
+    return qualities.sort((a, b) => {
+      // Extract resolution number (480, 720, 1080, 2160)
+      const getResolution = (quality: string): number => {
+        const match = quality.match(/(\d+)p/i)
+        return match ? parseInt(match[1]) : 0
+      }
+      
+      // Check if quality is a base quality (no variants like HEVC, HQ, etc.)
+      const isBaseQuality = (quality: string): boolean => {
+        const normalized = quality.toLowerCase().replace(/[\s\-_]/g, '')
+        // Base quality is just the resolution number + 'p' (e.g., "480p", "720p", "1080p")
+        return /^\d+p$/.test(normalized)
+      }
+      
+      const resA = getResolution(a)
+      const resB = getResolution(b)
+      
+      // First, sort by resolution number
+      if (resA !== resB) {
+        return resA - resB
+      }
+      
+      // Same resolution - base quality comes first, then variants alphabetically
+      const isBaseA = isBaseQuality(a)
+      const isBaseB = isBaseQuality(b)
+      
+      if (isBaseA && !isBaseB) return -1  // Base quality first
+      if (!isBaseA && isBaseB) return 1   // Variant quality second
+      
+      // Both are variants or both are base - sort alphabetically
+      return a.localeCompare(b)
     })
   }
 
