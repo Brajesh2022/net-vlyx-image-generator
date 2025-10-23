@@ -32,11 +32,23 @@ interface MovieDownload {
   }>
 }
 
+interface QualityGroup {
+  quality: string
+  size: string
+  servers: Array<{
+    name: string
+    url: string
+    style?: string
+  }>
+}
+
 interface VlyxDriveData {
   type: "episode" | "movie"
   title: string
   episodes?: EpisodeDownload[]
   movie?: MovieDownload
+  qualityGroups?: QualityGroup[] // NEW: For m4ulinks multi-quality structure
+  selectedQuality?: string | null // NEW: From URL parameter
   hasQualityMatch?: boolean // Track if quality parameter matched
 }
 
@@ -96,6 +108,9 @@ export default function VlyxDrivePage() {
   const [showNCloudConfirm, setShowNCloudConfirm] = useState(false)
   const [selectedNCloudServer, setSelectedNCloudServer] = useState<{name: string, url: string} | null>(null)
   const [showAllOptions, setShowAllOptions] = useState(false) // NEW: Toggle to show all quality options
+  const [showOtherQualities, setShowOtherQualities] = useState(false) // NEW: Toggle to show other qualities
+  const [showMoreServers, setShowMoreServers] = useState(false) // NEW: Toggle to show more servers for selected quality
+  const [expandedQuality, setExpandedQuality] = useState<string | null>(null) // NEW: Track which quality section is expanded
 
   // Smart back navigation handler
   const handleBackNavigation = () => {
@@ -179,22 +194,10 @@ export default function VlyxDrivePage() {
           return false
         }
         
-        // Filter data by quality parameter if provided
-        let filteredLinkData = data.linkData
-        let hasQualityMatch = false
-        if (quality) {
-          const qualityMatches = data.linkData.filter((item: any) => matchesQuality(item.quality, quality))
-          if (qualityMatches.length > 0) {
-            filteredLinkData = qualityMatches
-            hasQualityMatch = true
-          }
-          // If no matches, show all (user may need to select manually)
-        }
-        
         // Convert m4ulinks data to VlyxDrive format
         if (data.type === "episode") {
           // Episode-wise structure
-          const episodes: EpisodeDownload[] = filteredLinkData
+          const episodes: EpisodeDownload[] = data.linkData
             .filter((item: any) => item.episodeNumber)
             .map((item: any) => ({
               episodeNumber: item.episodeNumber,
@@ -207,25 +210,35 @@ export default function VlyxDrivePage() {
           
           return {
             type: "episode" as const,
-            title: quality ? `Episode Downloads (${quality})` : "Episode Downloads",
+            title: "Episode Downloads",
             episodes,
-            hasQualityMatch, // Track if quality parameter matched
           }
         } else {
-          // Quality-wise structure (treat as movie)
-          const servers = filteredLinkData.flatMap((item: any) => 
-            item.links.map((link: any) => ({
-              name: `${link.name}${item.quality ? ` (${item.quality})` : ''}`,
+          // Quality-wise structure - Preserve quality grouping for m4ulinks
+          const qualityGroups: QualityGroup[] = data.linkData.map((item: any) => ({
+            quality: item.quality || "Unknown Quality",
+            size: item.size || "",
+            servers: item.links.map((link: any) => ({
+              name: link.name,
               url: link.url,
-              style: "",
-            }))
-          )
+              style: link.style || "",
+            })),
+          }))
+          
+          // Check if selected quality exists
+          let hasQualityMatch = false
+          if (quality) {
+            hasQualityMatch = qualityGroups.some(group => 
+              matchesQuality(group.quality, quality)
+            )
+          }
           
           return {
             type: "movie" as const,
-            title: quality ? `Download Options (${quality})` : "Download Options",
-            movie: { servers },
-            hasQualityMatch, // Track if quality parameter matched
+            title: "Download Options",
+            qualityGroups, // NEW: Preserve quality grouping
+            selectedQuality: quality || null,
+            hasQualityMatch,
           }
         }
       }
@@ -635,54 +648,91 @@ export default function VlyxDrivePage() {
               <div>
                 <div className="text-center mb-8">
                   <h2 className="text-2xl font-bold mb-2">Download Options</h2>
-                  <p className="text-gray-400">Choose your preferred download server</p>
+                  <p className="text-gray-400">
+                    Choose your preferred download server
+                    {vlyxDriveData.selectedQuality && vlyxDriveData.hasQualityMatch && (
+                      <span className="text-green-400"> • {vlyxDriveData.selectedQuality}</span>
+                    )}
+                  </p>
                 </div>
 
-                <div className="max-w-2xl mx-auto">
-                  <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {vlyxDriveData.movie?.servers.map((server, index) => (
-                        <Button
-                          key={index}
-                          className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
-                          onClick={() => handleServerClick(server.url)}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          {isNCloudServer(server.name) && <span className="mr-1">⚡</span>}
-                          {cleanServerName(server.name)}
-                          {isNCloudServer(server.name) && (
-                            <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
-                          )}
-                          <ExternalLink className="h-4 w-4 ml-2" />
-                        </Button>
+                <div className="max-w-2xl mx-auto space-y-4">
+                  {/* NEW: Handle quality groups if available */}
+                  {vlyxDriveData.qualityGroups && vlyxDriveData.qualityGroups.length > 0 ? (
+                    <div className="space-y-4">
+                      {vlyxDriveData.qualityGroups.map((group, index) => (
+                        <div key={index} className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
+                          <h3 className="text-xl font-bold mb-4 text-center text-white">
+                            {group.quality} {group.size && `[${group.size}]`}
+                          </h3>
+                          <div className="flex flex-wrap justify-center gap-3">
+                            {group.servers.map((server, serverIndex) => (
+                              <Button
+                                key={serverIndex}
+                                className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                                onClick={() => handleServerClick(server.url)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                {isNCloudServer(server.name, server.url) && <span className="mr-1">⚡</span>}
+                                {cleanServerName(server.name)}
+                                {isNCloudServer(server.name, server.url) && (
+                                  <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
+                                )}
+                                <ExternalLink className="h-4 w-4 ml-2" />
+                              </Button>
+                            ))}
+                          </div>
+                          {index < vlyxDriveData.qualityGroups.length - 1 && <hr className="border-gray-700 my-6" />}
+                        </div>
                       ))}
                     </div>
-
-                    {vlyxDriveData.movie?.alternatives && vlyxDriveData.movie.alternatives.length > 0 && (
-                      <div className="mt-6 pt-6 border-t border-gray-700">
-                        <h4 className="text-lg font-semibold mb-4 text-center text-gray-300">Alternative Sources</h4>
-                        <div className="space-y-2">
-                          {vlyxDriveData.movie.alternatives.map((alt, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
-                            >
-                              <span className="text-gray-300">{alt.name}</span>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => window.open(alt.url, "_blank")}
-                                className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                              >
-                                <ExternalLink className="h-4 w-4 mr-1" />
-                                Open
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
+                  ) : (
+                    // FALLBACK: Old format
+                    <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
+                      <div className="flex flex-wrap justify-center gap-3">
+                        {vlyxDriveData.movie?.servers.map((server, index) => (
+                          <Button
+                            key={index}
+                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                            onClick={() => handleServerClick(server.url)}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            {isNCloudServer(server.name) && <span className="mr-1">⚡</span>}
+                            {cleanServerName(server.name)}
+                            {isNCloudServer(server.name) && (
+                              <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
+                            )}
+                            <ExternalLink className="h-4 w-4 ml-2" />
+                          </Button>
+                        ))}
                       </div>
-                    )}
-                  </div>
+
+                      {vlyxDriveData.movie?.alternatives && vlyxDriveData.movie.alternatives.length > 0 && (
+                        <div className="mt-6 pt-6 border-t border-gray-700">
+                          <h4 className="text-lg font-semibold mb-4 text-center text-gray-300">Alternative Sources</h4>
+                          <div className="space-y-2">
+                            {vlyxDriveData.movie.alternatives.map((alt, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
+                              >
+                                <span className="text-gray-300">{alt.name}</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(alt.url, "_blank")}
+                                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                                >
+                                  <ExternalLink className="h-4 w-4 mr-1" />
+                                  Open
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -882,28 +932,208 @@ export default function VlyxDrivePage() {
                 <h2 className="text-4xl font-bold mb-4">Access Options</h2>
                 <p className="text-gray-400 text-lg">
                   Watch or Download
-                  {quality && vlyxDriveData.hasQualityMatch && (
-                    <span className="ml-2 text-green-400">• Filtered by {quality}</span>
+                  {vlyxDriveData.selectedQuality && vlyxDriveData.hasQualityMatch && (
+                    <span className="ml-2 text-green-400">• {vlyxDriveData.selectedQuality}</span>
                   )}
-                  {quality && !vlyxDriveData.hasQualityMatch && (
-                    <span className="ml-2 text-yellow-400">• {quality} not found, showing all options</span>
+                  {vlyxDriveData.selectedQuality && !vlyxDriveData.hasQualityMatch && (
+                    <span className="ml-2 text-yellow-400">• {vlyxDriveData.selectedQuality} not found</span>
                   )}
                 </p>
               </div>
 
-              <div className="max-w-2xl mx-auto">
+              <div className="max-w-3xl mx-auto space-y-4">
                 {(() => {
+                  // NEW: Handle quality groups (m4ulinks format)
+                  if (vlyxDriveData.qualityGroups && vlyxDriveData.qualityGroups.length > 0) {
+                    const selectedQualityParam = vlyxDriveData.selectedQuality
+                    const hasMatch = vlyxDriveData.hasQualityMatch
+                    
+                    // Helper to match quality
+                    const matchesQuality = (itemQuality: string, targetQuality: string | null | undefined): boolean => {
+                      if (!targetQuality || !itemQuality) return false
+                      const normalize = (q: string) => q.toLowerCase().replace(/[\s\-_]/g, '')
+                      const normalizedItem = normalize(itemQuality)
+                      const normalizedTarget = normalize(targetQuality)
+                      return normalizedItem === normalizedTarget || 
+                             normalizedItem.includes(normalizedTarget) || 
+                             normalizedTarget.includes(normalizedItem)
+                    }
+                    
+                    // Find the matching quality group
+                    const matchingGroup = selectedQualityParam && hasMatch
+                      ? vlyxDriveData.qualityGroups.find(g => matchesQuality(g.quality, selectedQualityParam))
+                      : null
+                    
+                    const otherGroups = matchingGroup
+                      ? vlyxDriveData.qualityGroups.filter(g => g.quality !== matchingGroup.quality)
+                      : vlyxDriveData.qualityGroups
+                    
+                    return (
+                      <div className="space-y-4">
+                        {/* Show matching quality group first (if exists) */}
+                        {matchingGroup && (
+                          <div className="bg-gray-900/50 rounded-2xl p-6 border-2 border-green-600/50">
+                            <div className="mb-4">
+                              <h3 className="text-2xl font-bold text-white mb-2">
+                                {matchingGroup.quality} {matchingGroup.size && `[${matchingGroup.size}]`}
+                              </h3>
+                              <Badge className="bg-green-600 text-white">Selected Quality</Badge>
+                            </div>
+                            
+                            {(() => {
+                              const ncloudServers = matchingGroup.servers.filter(s => isNCloudServer(s.name, s.url))
+                              const otherServers = matchingGroup.servers.filter(s => !isNCloudServer(s.name, s.url))
+                              
+                              return (
+                                <div className="space-y-4">
+                                  {/* Show N-Cloud button prominently */}
+                                  {ncloudServers.length > 0 && (
+                                    <div className="space-y-3">
+                                      <Button
+                                        className="w-full px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+                                        onClick={() => handleServerClick(ncloudServers[0].url)}
+                                      >
+                                        <Eye className="h-5 w-5 mr-2" />
+                                        ⚡ Continue with {cleanServerName(ncloudServers[0].name)}
+                                      </Button>
+                                      
+                                      {/* Show more N-Cloud servers if available */}
+                                      {ncloudServers.length > 1 && (
+                                        <div className="space-y-2">
+                                          {ncloudServers.slice(1).map((server, idx) => (
+                                            <Button
+                                              key={idx}
+                                              className="w-full px-6 py-3 bg-gradient-to-r from-yellow-600/80 to-orange-600/80 hover:from-yellow-600 hover:to-orange-600 text-white rounded-xl"
+                                              onClick={() => handleServerClick(server.url)}
+                                            >
+                                              <ExternalLink className="h-4 w-4 mr-2" />
+                                              {cleanServerName(server.name)}
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Show more servers button */}
+                                  {otherServers.length > 0 && (
+                                    <div className="space-y-3">
+                                      <button
+                                        onClick={() => setShowMoreServers(!showMoreServers)}
+                                        className="w-full text-center py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                                      >
+                                        {showMoreServers ? '▲ Hide other servers' : `▼ Show ${otherServers.length} more server${otherServers.length > 1 ? 's' : ''}`}
+                                      </button>
+                                      
+                                      {showMoreServers && (
+                                        <div className="space-y-2">
+                                          {otherServers.map((server, idx) => (
+                                            <Button
+                                              key={idx}
+                                              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl"
+                                              onClick={() => handleServerClick(server.url)}
+                                            >
+                                              <ExternalLink className="h-4 w-4 mr-2" />
+                                              {cleanServerName(server.name)}
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {/* If no N-Cloud, show all servers */}
+                                  {ncloudServers.length === 0 && (
+                                    <div className="space-y-2">
+                                      {matchingGroup.servers.map((server, idx) => (
+                                        <Button
+                                          key={idx}
+                                          className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl"
+                                          onClick={() => handleServerClick(server.url)}
+                                        >
+                                          <ExternalLink className="h-4 w-4 mr-2" />
+                                          {cleanServerName(server.name)}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        )}
+                        
+                        {/* Show other qualities button */}
+                        {otherGroups.length > 0 && (
+                          <div className="space-y-4">
+                            <button
+                              onClick={() => setShowOtherQualities(!showOtherQualities)}
+                              className="w-full text-center py-3 px-4 rounded-xl bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white transition-all duration-300"
+                            >
+                              {showOtherQualities ? '▲ Hide other qualities' : `▼ Show ${otherGroups.length} other ${otherGroups.length > 1 ? 'qualities' : 'quality'}`}
+                            </button>
+                            
+                            {/* Show other quality groups as collapsible */}
+                            {showOtherQualities && (
+                              <div className="space-y-3">
+                                {otherGroups.map((group, index) => (
+                                  <div key={index} className="bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden">
+                                    <button
+                                      onClick={() => setExpandedQuality(expandedQuality === group.quality ? null : group.quality)}
+                                      className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-800/50 transition-colors"
+                                    >
+                                      <div>
+                                        <h4 className="text-lg font-bold text-white">
+                                          {group.quality} {group.size && `[${group.size}]`}
+                                        </h4>
+                                        <p className="text-sm text-gray-400">{group.servers.length} server{group.servers.length > 1 ? 's' : ''} available</p>
+                                      </div>
+                                      <span className="text-gray-400">{expandedQuality === group.quality ? '▲' : '▼'}</span>
+                                    </button>
+                                    
+                                    {expandedQuality === group.quality && (
+                                      <div className="px-6 pb-4 space-y-2">
+                                        {group.servers.map((server, serverIdx) => (
+                                          <Button
+                                            key={serverIdx}
+                                            className={`w-full px-6 py-3 rounded-xl text-white ${
+                                              isNCloudServer(server.name, server.url)
+                                                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600'
+                                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                                            }`}
+                                            onClick={() => handleServerClick(server.url)}
+                                          >
+                                            {isNCloudServer(server.name, server.url) && <span className="mr-2">⚡</span>}
+                                            <ExternalLink className="h-4 w-4 mr-2 inline" />
+                                            {cleanServerName(server.name)}
+                                          </Button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* If no matching quality and param was provided, show warning */}
+                        {!matchingGroup && selectedQualityParam && (
+                          <div className="p-4 bg-yellow-900/30 border border-yellow-600/50 rounded-xl">
+                            <p className="text-yellow-300 text-sm text-center">
+                              ⚠️ {selectedQualityParam} quality not found. Please select from available qualities below.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                  
+                  // FALLBACK: Old format (for backward compatibility)
                   const hasNCloud = vlyxDriveData.movie?.servers.some(s => isNCloudServer(s.name))
                   
                   return hasNCloud ? (
                     <div className="text-center space-y-4">
-                      {quality && vlyxDriveData.hasQualityMatch && (
-                        <div className="mb-4 p-4 bg-green-900/30 border border-green-600/50 rounded-xl">
-                          <p className="text-green-300 text-sm">
-                            ✓ Found {quality} quality with N-Cloud. Click below to continue.
-                          </p>
-                        </div>
-                      )}
                       <Button
                         className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
                         onClick={handleMovieNCloudClick}
