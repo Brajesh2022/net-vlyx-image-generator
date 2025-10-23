@@ -107,20 +107,17 @@ function CategoryContent() {
 
   const getCategoryLabel = (cat: string) => {
     const labels: Record<string, string> = {
-      "sci-fi": "Sci-Fi",
       action: "Action",
-      drama: "Drama",
-      comedy: "Comedy",
-      thriller: "Thriller",
-      romance: "Romance",
-      horror: "Horror",
-      animation: "Animation",
+      anime: "Anime",
       bollywood: "Bollywood",
+      drama: "Drama",
+      horror: "Horror",
       korean: "Korean",
-      "south-movies": "South Movies",
-      "dual-audio-movies": "Dual Audio Movies",
-      "dual-audio-series": "Dual Audio Series",
-      "hindi-dubbed": "Hindi Dubbed",
+      "south-hindi-movies": "South Hindi Movies",
+      "south-movies": "South Hindi Movies",
+      hollywood: "Hollywood",
+      animation: "Anime",
+      "sci-fi": "Action",
     }
     return labels[cat] || cat
   }
@@ -193,7 +190,7 @@ function CategoryContent() {
                   const slug = createMovieSlug(movie)
                   if (!slug || slug.length < 2) return null
 
-                  let sourceUrl = "https://www.vegamovies-nl.autos/"
+                  let sourceUrl = "https://movies4u.rip/"
                   if (movie.link) {
                     try {
                       const u = new URL(movie.link)

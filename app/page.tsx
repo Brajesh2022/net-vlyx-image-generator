@@ -32,17 +32,17 @@ interface ParsedMovieData {
   totalMovies: number
 }
 
-// Categories for vegamovies-nl
+// Categories for movies4u.rip
 const VEGA_CATEGORIES = [
   { label: "Home", value: "home" },
   { label: "Bollywood", value: "bollywood" },
-  { label: "South Movies", value: "south-movies" },
-  { label: "Dual Audio Movies", value: "dual-audio-movies" },
-  { label: "Dual Audio Series", value: "dual-audio-series" },
-  { label: "Hindi Dubbed", value: "hindi-dubbed" },
-  { label: "Animation", value: "animation" },
+  { label: "Hollywood", value: "hollywood" },
+  { label: "South Movies", value: "south-hindi-movies" },
+  { label: "Korean", value: "korean" },
+  { label: "Anime", value: "anime" },
+  { label: "Action", value: "action" },
+  { label: "Drama", value: "drama" },
   { label: "Horror", value: "horror" },
-  { label: "Sci-Fi", value: "sci-fi" },
 ]
 
 export default function Home() {
@@ -115,16 +115,16 @@ export default function Home() {
     const fetchHomepageContent = async () => {
       try {
         // Fetch in parallel for better performance (limit=10 for home page sections)
-        const [latestRes, popularRes, bollywoodRes, southRes, animationRes, koreanRes, actionRes, horrorRes, sciFiRes, dramaRes] = await Promise.all([
+        const [latestRes, popularRes, bollywoodRes, hollywoodRes, southRes, animeRes, koreanRes, actionRes, horrorRes, dramaRes] = await Promise.all([
           fetch('/api/category/latest'),
           fetch('/api/tmdb-popular-india'),
           fetch('/api/category/bollywood?limit=10'),
-          fetch('/api/category/south-movies?limit=10'),
-          fetch('/api/category/animation?limit=10'),
+          fetch('/api/category/hollywood?limit=10'),
+          fetch('/api/category/south-hindi-movies?limit=10'),
+          fetch('/api/category/anime?limit=10'),
           fetch('/api/category/korean?limit=10'),
           fetch('/api/category/action?limit=10'),
           fetch('/api/category/horror?limit=10'),
-          fetch('/api/category/sci-fi?limit=10'),
           fetch('/api/category/drama?limit=10'),
         ])
 
@@ -143,13 +143,17 @@ export default function Home() {
           const bollywoodData = await bollywoodRes.json()
           categories['bollywood'] = bollywoodData.movies || []
         }
+        if (hollywoodRes.ok) {
+          const hollywoodData = await hollywoodRes.json()
+          categories['hollywood'] = hollywoodData.movies || []
+        }
         if (southRes.ok) {
           const southData = await southRes.json()
-          categories['south-movies'] = southData.movies || []
+          categories['south-hindi-movies'] = southData.movies || []
         }
-        if (animationRes.ok) {
-          const animationData = await animationRes.json()
-          categories['animation'] = animationData.movies || []
+        if (animeRes.ok) {
+          const animeData = await animeRes.json()
+          categories['anime'] = animeData.movies || []
         }
         if (koreanRes.ok) {
           const koreanData = await koreanRes.json()
@@ -162,10 +166,6 @@ export default function Home() {
         if (horrorRes.ok) {
           const horrorData = await horrorRes.json()
           categories['horror'] = horrorData.movies || []
-        }
-        if (sciFiRes.ok) {
-          const sciFiData = await sciFiRes.json()
-          categories['sci-fi'] = sciFiData.movies || []
         }
         if (dramaRes.ok) {
           const dramaData = await dramaRes.json()
@@ -195,7 +195,7 @@ export default function Home() {
       if (searchTerm) {
         params.append("s", searchTerm)
       } else {
-        // Browsing mode - use vegamovies-nl with categories (TODO: update to movies4u)
+        // Browsing mode - use movies4u with categories
         params.append("category", selectedCategory)
       }
       
@@ -962,12 +962,21 @@ export default function Home() {
               />
             )}
 
-            {/* South Movies - Latest */}
-            {categoryMovies['south-movies'] && categoryMovies['south-movies'].length > 0 && (
+            {/* Hollywood - Latest */}
+            {categoryMovies['hollywood'] && categoryMovies['hollywood'].length > 0 && (
               <CategoryRow
-                title="Latest South Movies"
-                movies={categoryMovies['south-movies']}
-                viewAllLink="/category?type=south-movies"
+                title="Latest Hollywood Movies"
+                movies={categoryMovies['hollywood']}
+                viewAllLink="/category?type=hollywood"
+              />
+            )}
+
+            {/* South Movies - Latest */}
+            {categoryMovies['south-hindi-movies'] && categoryMovies['south-hindi-movies'].length > 0 && (
+              <CategoryRow
+                title="Latest South Hindi Movies"
+                movies={categoryMovies['south-hindi-movies']}
+                viewAllLink="/category?type=south-hindi-movies"
               />
             )}
 
@@ -980,12 +989,12 @@ export default function Home() {
               />
             )}
 
-            {/* Animation - Latest */}
-            {categoryMovies['animation'] && categoryMovies['animation'].length > 0 && (
+            {/* Anime - Latest */}
+            {categoryMovies['anime'] && categoryMovies['anime'].length > 0 && (
               <CategoryRow
-                title="Latest Animation"
-                movies={categoryMovies['animation']}
-                viewAllLink="/category?type=animation"
+                title="Latest Anime"
+                movies={categoryMovies['anime']}
+                viewAllLink="/category?type=anime"
               />
             )}
 
@@ -1004,15 +1013,6 @@ export default function Home() {
                 title="Latest in Horror"
                 movies={categoryMovies['horror']}
                 viewAllLink="/category?type=horror"
-              />
-            )}
-
-            {/* Sci-Fi - Latest */}
-            {categoryMovies['sci-fi'] && categoryMovies['sci-fi'].length > 0 && (
-              <CategoryRow
-                title="Latest in Sci-Fi"
-                movies={categoryMovies['sci-fi']}
-                viewAllLink="/category?type=sci-fi"
               />
             )}
 
@@ -1121,7 +1121,7 @@ export default function Home() {
                 if (!slug || slug.length < 2) return null // Skip invalid movies
                 
                 // Determine source URL for the movie
-                let sourceUrl = "https://www.vegamovies-nl.autos/" // Default fallback
+                let sourceUrl = "https://movies4u.rip/" // Default fallback
                 if (movie.link) {
                   try {
                     const u = new URL(movie.link)
@@ -1338,7 +1338,7 @@ export default function Home() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/category?type=south-movies">
+                  <Link href="/category?type=south-hindi-movies">
                     <button className="hover:text-white transition-colors">South Movies</button>
                   </Link>
                 </li>
@@ -1348,8 +1348,8 @@ export default function Home() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/category?type=animation">
-                    <button className="hover:text-white transition-colors">Animation</button>
+                  <Link href="/category?type=anime">
+                    <button className="hover:text-white transition-colors">Anime</button>
                   </Link>
                 </li>
                 <li>

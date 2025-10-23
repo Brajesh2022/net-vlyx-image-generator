@@ -2,20 +2,23 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import { protectApiRoute } from "@/lib/api-protection"
 
-const BASE_URL = "https://www.vegamovies-nl.autos/"
+const BASE_URL = "https://movies4u.rip/"
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
-// Categories available on vegamovies-nl
+// Categories available on movies4u.rip
 const CATEGORIES = {
-  home: "https://www.vegamovies-nl.autos/",
-  bollywood: "https://www.vegamovies-nl.autos/bollywood/",
-  "south-movies": "https://www.vegamovies-nl.autos/south-movies/",
-  "dual-audio-movies": "https://www.vegamovies-nl.autos/dual-audio-movies/",
-  "dual-audio-series": "https://www.vegamovies-nl.autos/dual-audio-series/",
-  "hindi-dubbed": "https://www.vegamovies-nl.autos/hindi-dubbed/",
-  animation: "https://www.vegamovies-nl.autos/animation/",
-  horror: "https://www.vegamovies-nl.autos/horror/",
-  "sci-fi": "https://www.vegamovies-nl.autos/sci-fi/",
+  home: "https://movies4u.rip/",
+  action: "https://movies4u.rip/category/action/",
+  anime: "https://movies4u.rip/category/anime/",
+  bollywood: "https://movies4u.rip/category/bollywood/",
+  drama: "https://movies4u.rip/category/drama/",
+  horror: "https://movies4u.rip/category/horror/",
+  korean: "https://movies4u.rip/category/korean/",
+  "south-hindi-movies": "https://movies4u.rip/category/south-hindi-movies/",
+  "south-movies": "https://movies4u.rip/category/south-hindi-movies/",
+  hollywood: "https://movies4u.rip/category/hollywood/",
+  animation: "https://movies4u.rip/category/anime/",
+  "sci-fi": "https://movies4u.rip/category/action/",
 }
 
 interface Movie {
@@ -33,8 +36,8 @@ interface ParsedMovieData {
   hasMore?: boolean
 }
 
-// Fetch HTML from vegamovies-nl using the scraping API
-async function fetchVegaMoviesHTML(url: string): Promise<string> {
+// Fetch HTML from movies4u using the scraping API
+async function fetchMovies4UHTML(url: string): Promise<string> {
   const apiUrl = `${SCRAPING_API}?url=${encodeURIComponent(url)}`
 
   try {
@@ -61,48 +64,27 @@ async function fetchVegaMoviesHTML(url: string): Promise<string> {
   }
 }
 
-// Parse vegamovies-nl HTML to extract movie data
-function parseVegaMoviesData(html: string): ParsedMovieData {
+// Parse movies4u HTML to extract movie data
+function parseMovies4UData(html: string): ParsedMovieData {
   const $ = cheerio.load(html)
   const movies: Movie[] = []
   const categories = new Set<string>()
 
-  // Parse movie items - NEW DESIGN (2025): vegamovies-nl uses article.entry-card
-  // OLD DESIGN: article.post-item (keeping for backward compatibility)
-  $("article.entry-card, article.post-item").each((index, element) => {
+  // Parse movie items - movies4u.rip uses: <article id="post-XXXXX" class="post">
+  $("article.post").each((index, element) => {
     const $element = $(element)
 
-    // Extract title and link
-    // NEW DESIGN: <h2 class="entry-title"><a>Title</a></h2>
-    // OLD DESIGN: <h3 class="post-title"><a>Title</a></h3>
-    const $titleElement = $element.find("h2.entry-title > a, h3.entry-title > a, h3.post-title > a").first()
-    const title = ($titleElement.attr("title") || $titleElement.text() || "").trim()
+    // Extract title and link from: <h2 class="entry-title"><a>Title</a></h2>
+    const $titleElement = $element.find("h2.entry-title > a").first()
+    const title = ($titleElement.text() || "").trim()
     const link = $titleElement.attr("href") || ""
 
-    // Extract image
-    // NEW DESIGN: <a class="ct-media-container"><img class="wp-post-image" /></a>
-    // OLD DESIGN: <div class="blog-pic"><img class="blog-picture" /></div>
-    const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
-    
-    // Check both src and data-src (lazy loading support)
-    // Also check srcset for responsive images
-    let image = $imageElement.attr("data-src") || $imageElement.attr("src") || ""
-    
-    // If image is empty or is a base64 placeholder, try srcset
-    if (!image || image.startsWith("data:image")) {
-      const srcset = $imageElement.attr("srcset") || ""
-      if (srcset) {
-        // Extract first URL from srcset
-        const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
-        if (firstUrl && !firstUrl.startsWith("data:")) {
-          image = firstUrl
-        }
-      }
-    }
-    
-    // NOTE: We use the thumbnail URLs as-is from vegamovies-nl (e.g., image-165x248.png)
-    // These are the actual optimized thumbnails that exist and load quickly.
-    // Do NOT remove resolution suffix - the full-res versions may not exist!
+    // Extract image from: <img src="...">
+    const $imageElement = $element.find("figure img").first()
+    let image = $imageElement.attr("src") || ""
+
+    // Extract video quality label if present: <span class="video-label">HDTS</span> or WEB-DL
+    const videoLabel = $element.find("span.video-label").text().trim()
 
     if (!title || !link) return
 
@@ -144,7 +126,7 @@ function parseVegaMoviesData(html: string): ParsedMovieData {
     }
 
     movies.push({
-      title,
+      title: videoLabel ? `${title} [${videoLabel}]` : title,
       image,
       link,
       description: title,
@@ -179,29 +161,29 @@ export async function GET(request: NextRequest) {
 
     // Handle search
     if (searchTerm) {
-      // vegamovies-nl search format
+      // movies4u.rip search format
       targetUrl = `${BASE_URL}?s=${encodeURIComponent(searchTerm)}`
       if (page > 1) {
-        targetUrl += `&page=${page}`
+        targetUrl += `&paged=${page}`
       }
     } else {
       // Handle category browsing
       const categoryUrl = CATEGORIES[category as keyof typeof CATEGORIES] || BASE_URL
 
       if (page > 1) {
-        // Add pagination - vegamovies-nl uses /page/N/ format
+        // Add pagination - movies4u.rip uses /page/N/ format
         targetUrl = `${categoryUrl}page/${page}/`
       } else {
         targetUrl = categoryUrl
       }
     }
 
-    console.log("Fetching content...")
+    console.log("Fetching content from movies4u.rip...")
 
-    const html = await fetchVegaMoviesHTML(targetUrl)
+    const html = await fetchMovies4UHTML(targetUrl)
     console.log("Successfully fetched content")
 
-    const parsedData = parseVegaMoviesData(html)
+    const parsedData = parseMovies4UData(html)
     console.log("Parsed data:", {
       moviesCount: parsedData.movies.length,
       categoriesCount: parsedData.categories.length,
@@ -243,7 +225,7 @@ export async function POST(request: NextRequest) {
 
     console.log("Fetching content...")
 
-    const html = await fetchVegaMoviesHTML(url)
+    const html = await fetchMovies4UHTML(url)
     console.log("Successfully fetched content")
 
     // Extract title from HTML

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import { protectApiRoute } from "@/lib/api-protection"
 
-const MOVIES4U_BASE = "https://movies4u.contact"
+const MOVIES4U_BASE = "https://movies4u.rip"
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
 interface SearchResult {
@@ -100,10 +100,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Build search URL for movies4u.contact
+    // Build search URL for movies4u.rip
     const searchUrl = `${MOVIES4U_BASE}/?s=${encodeURIComponent(searchQuery)}`
     
-    console.log(`Searching movies4u.contact for: "${searchQuery}"`)
+    console.log(`Searching movies4u.rip for: "${searchQuery}"`)
     console.log(`URL: ${searchUrl}`)
 
     const html = await fetchMovies4UHTML(searchUrl)

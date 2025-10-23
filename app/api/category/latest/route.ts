@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import { protectApiRoute } from "@/lib/api-protection"
 
-const BASE_URL = "https://www.vegamovies-nl.autos/"
+const BASE_URL = "https://movies4u.rip/"
 const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
 interface Movie {
@@ -13,8 +13,8 @@ interface Movie {
   category: string
 }
 
-// Fetch HTML from vegamovies-nl using the scraping API
-async function fetchVegaMoviesHTML(url: string): Promise<string> {
+// Fetch HTML from movies4u using the scraping API
+async function fetchMovies4UHTML(url: string): Promise<string> {
   const apiUrl = `${SCRAPING_API}?url=${encodeURIComponent(url)}`
 
   try {
@@ -40,43 +40,28 @@ async function fetchVegaMoviesHTML(url: string): Promise<string> {
   }
 }
 
-// Parse vegamovies-nl HTML to extract movie data
-function parseVegaMoviesData(html: string, limit: number = 10): Movie[] {
+// Parse movies4u HTML to extract movie data
+function parseMovies4UData(html: string, limit: number = 10): Movie[] {
   const $ = cheerio.load(html)
   const movies: Movie[] = []
 
-  // NEW DESIGN (2025): article.entry-card | OLD DESIGN: article.post-item
-  $("article.entry-card, article.post-item").each((index, element) => {
+  // movies4u.rip uses: <article id="post-XXXXX" class="post">
+  $("article.post").each((index, element) => {
     if (limit > 0 && movies.length >= limit) return false // Stop when we have enough (only if limit is set)
 
     const $element = $(element)
 
-    // NEW DESIGN: h2.entry-title > a | OLD DESIGN: h3.post-title > a
-    const $titleElement = $element.find("h2.entry-title > a, h3.entry-title > a, h3.post-title > a").first()
-    const title = ($titleElement.attr("title") || $titleElement.text() || "").trim()
+    // Extract title from: <h2 class="entry-title"><a>Title</a></h2>
+    const $titleElement = $element.find("h2.entry-title > a").first()
+    const title = ($titleElement.text() || "").trim()
     const link = $titleElement.attr("href") || ""
 
-    // NEW DESIGN: a.ct-media-container img | OLD DESIGN: div.blog-pic img.blog-picture
-    const $imageElement = $element.find("a.ct-media-container img, img.wp-post-image, div.blog-pic img.blog-picture, img.blog-picture").first()
-    
-    // Check both src and data-src (lazy loading support)
-    // Also check srcset for responsive images
-    let image = $imageElement.attr("data-src") || $imageElement.attr("src") || ""
-    
-    // If image is empty or is a base64 placeholder, try srcset
-    if (!image || image.startsWith("data:image")) {
-      const srcset = $imageElement.attr("srcset") || ""
-      if (srcset) {
-        // Extract first URL from srcset
-        const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
-        if (firstUrl && !firstUrl.startsWith("data:")) {
-          image = firstUrl
-        }
-      }
-    }
+    // Extract image from: <img src="...">
+    const $imageElement = $element.find("figure img").first()
+    let image = $imageElement.attr("src") || ""
 
-    // NOTE: We use the thumbnail URLs as-is (e.g., image-165x248.png)
-    // These are optimized thumbnails that exist and load quickly
+    // Extract video quality label if present: <span class="video-label">HDTS</span>
+    const videoLabel = $element.find("span.video-label").text().trim()
 
     if (!title || !link) return
 
@@ -94,7 +79,7 @@ function parseVegaMoviesData(html: string, limit: number = 10): Movie[] {
     }
 
     movies.push({
-      title,
+      title: videoLabel ? `${title} [${videoLabel}]` : title,
       image,
       link,
       description: title,
@@ -112,10 +97,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log("Fetching latest content from home...")
+    console.log("Fetching latest content from movies4u.rip home...")
 
-    const html = await fetchVegaMoviesHTML(BASE_URL)
-    const movies = parseVegaMoviesData(html, 10)
+    const html = await fetchMovies4UHTML(BASE_URL)
+    const movies = parseMovies4UData(html, 10)
 
     console.log(`Successfully fetched ${movies.length} latest items`)
     return NextResponse.json({ movies })

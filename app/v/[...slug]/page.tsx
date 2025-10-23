@@ -92,7 +92,7 @@ export default function VegaMoviePage() {
   
   // Try to decode the URL first (new format)
   let slug = encodedSlug
-  let srcHost = searchParams.get("src") || "https://movies4u.contact" // CHANGED: Now using movies4u by default
+  let srcHost = searchParams.get("src") || "https://movies4u.rip" // CHANGED: Now using movies4u by default
   
   const decodedUrl = decodeMovieUrl(encodedSlug)
   if (decodedUrl) {
@@ -102,7 +102,7 @@ export default function VegaMoviePage() {
   } else if (searchParams.get("src")) {
     // Fallback to old format if src parameter exists
     slug = encodedSlug
-    srcHost = searchParams.get("src") || "https://movies4u.contact" // CHANGED: Now using movies4u by default
+    srcHost = searchParams.get("src") || "https://movies4u.rip" // CHANGED: Now using movies4u by default
   }
   // If neither works, use defaults (already set above)
   
