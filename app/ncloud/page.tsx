@@ -169,7 +169,8 @@ export default function NCloudPage() {
           throw new Error("No URL or ID provided")
         }
         
-        addLog(`Step 2: Fetching token page from ${ncloudUrl}...`)
+        addLog(`Step 2: Fetching N-Cloud page...`)
+        addLog(`🔗 Source URL: ${ncloudUrl}`, "info")
 
         const response1 = await fetch("/api/scrape", {
           method: "POST",
@@ -204,7 +205,7 @@ export default function NCloudPage() {
 
         const data2 = await response2.json()
         const pageTitle = data2.title || ""
-        addLog(`Found title: ${pageTitle}`)
+        addLog(`📄 Page Title: ${pageTitle}`, "success")
 
         const isZip = pageTitle.toLowerCase().endsWith(".zip")
         setIsZipFile(isZip)
