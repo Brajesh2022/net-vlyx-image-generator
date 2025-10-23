@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { Download, Star, ChevronLeft, ExternalLink, AlertCircle, Eye, Calendar, Clock } from "lucide-react"
@@ -113,6 +113,13 @@ export default function VlyxDrivePage() {
   const [showOtherQualities, setShowOtherQualities] = useState(!quality) // ✅ Auto-expand if quality missing
   const [showMoreServers, setShowMoreServers] = useState(false) // NEW: Toggle to show more servers for selected quality
   const [expandedQuality, setExpandedQuality] = useState<string | null>(null) // NEW: Track which quality section is expanded
+  
+  // ✅ Auto-expand if quality doesn't match after data loads
+  useEffect(() => {
+    if (vlyxDriveData && quality && !vlyxDriveData.hasQualityMatch) {
+      setShowOtherQualities(true) // Auto-expand when quality mismatch detected
+    }
+  }, [vlyxDriveData, quality])
 
   // Smart back navigation handler
   const handleBackNavigation = () => {
