@@ -588,11 +588,6 @@ export default function VlyxDrivePage() {
                     ✓ Filtered by {quality}
                   </Badge>
                 )}
-                {quality && !vlyxDriveData.hasQualityMatch && (
-                  <Badge className="bg-yellow-600/90 backdrop-blur-sm text-white">
-                    {quality} not found - showing all
-                  </Badge>
-                )}
               </div>
             </div>
           </div>
@@ -937,9 +932,6 @@ export default function VlyxDrivePage() {
                   {vlyxDriveData.selectedQuality && vlyxDriveData.hasQualityMatch && (
                     <span className="ml-2 text-green-400">• {vlyxDriveData.selectedQuality}</span>
                   )}
-                  {vlyxDriveData.selectedQuality && !vlyxDriveData.hasQualityMatch && (
-                    <span className="ml-2 text-yellow-400">• {vlyxDriveData.selectedQuality} not found</span>
-                  )}
                 </p>
               </div>
 
@@ -1111,15 +1103,6 @@ export default function VlyxDrivePage() {
                                 ))}
                               </div>
                             )}
-                          </div>
-                        )}
-                        
-                        {/* If no matching quality and param was provided, show warning */}
-                        {!matchingGroup && selectedQualityParam && (
-                          <div className="p-4 bg-yellow-900/30 border border-yellow-600/50 rounded-xl">
-                            <p className="text-yellow-300 text-sm text-center">
-                              ⚠️ {selectedQualityParam} quality not found. Please select from available qualities below.
-                            </p>
                           </div>
                         )}
                       </div>
