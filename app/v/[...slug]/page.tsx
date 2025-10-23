@@ -171,6 +171,8 @@ export default function VegaMoviePage() {
   const [playerSelection, setPlayerSelection] = useState<"playHere" | "externalPlayer" | null>(null) // Player selection for watch mode
   const [showPlayHereWarning, setShowPlayHereWarning] = useState(false) // Warning modal for Play Here option
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null) // Selected season for multi-season series
+  const [clientScreenshots, setClientScreenshots] = useState<string[]>([]) // Client-side scraped screenshots
+  const [screenshotLoadingStatus, setScreenshotLoadingStatus] = useState<string>("")
 
   // Touch handling for mobile swipe
   const touchStartX = useRef<number>(0)
@@ -197,23 +199,86 @@ export default function VegaMoviePage() {
   // TMDB gallery images (separate from Vega collage)
   const tmdbGalleryImages = hasTmdbImages ? tmdbDetails.images : []
   
-  // Display images for the modal - combine blogger image with TMDB gallery
+  // Client-side screenshot scraping (EXACT method from user's HTML example)
+  useEffect(() => {
+    async function fetchScreenshotsClientSide() {
+      if (!movieUrl) return
+      
+      setScreenshotLoadingStatus("Scraping source code...")
+      
+      const apiUrl = `https://vlyx-scrapping.vercel.app/api/index?url=${encodeURIComponent(movieUrl)}`
+      
+      try {
+        // Fetch raw HTML source
+        const response = await fetch(apiUrl)
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`)
+        }
+        
+        const htmlSource = await response.text() // Get raw HTML
+        
+        // Parse HTML using DOMParser (exact same as user's method)
+        setScreenshotLoadingStatus("Parsing source code for screenshots...")
+        const parser = new DOMParser()
+        const doc = parser.parseFromString(htmlSource, 'text/html')
+        
+        // Select the specific .ss-img container
+        const screenshotContainer = doc.querySelector('.ss-img')
+        
+        if (!screenshotContainer) {
+          console.log("No .ss-img container found")
+          setScreenshotLoadingStatus("")
+          return
+        }
+        
+        // Find all <img> tags within that container
+        const images = screenshotContainer.querySelectorAll('img')
+        
+        if (images.length === 0) {
+          console.log("Found .ss-img container but no images inside")
+          setScreenshotLoadingStatus("")
+          return
+        }
+        
+        // Extract src from all images
+        const screenshotUrls = Array.from(images).map(img => img.src).filter(src => src && src.trim() !== '')
+        
+        setClientScreenshots(screenshotUrls)
+        setScreenshotLoadingStatus(`Success! Found ${screenshotUrls.length} screenshots`)
+        console.log(`✅ Client-side scraped ${screenshotUrls.length} screenshots`)
+        
+      } catch (err: any) {
+        console.error("Screenshot scraping error:", err)
+        setScreenshotLoadingStatus("")
+      }
+    }
+    
+    // Only run if we don't already have screenshots
+    if (movieUrl && clientScreenshots.length === 0) {
+      fetchScreenshotsClientSide()
+    }
+  }, [movieUrl, clientScreenshots.length])
+  
+  // Display images for the modal - combine client screenshots, blogger image, and TMDB gallery
   const displayImages = (() => {
     const images = []
     
-    // Add blogger image first if available
-    if (hasBloggerImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0) {
-      images.push(movieDetails.screenshots[0])
+    // PRIORITY 1: Add client-side scraped screenshots (best quality, direct from source)
+    if (clientScreenshots.length > 0) {
+      images.push(...clientScreenshots)
+    }
+    // PRIORITY 2: Add blogger image if available and no client screenshots
+    else if (hasBloggerImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0) {
+      images.push(...movieDetails.screenshots)
+    }
+    // PRIORITY 3: If no blogger/client images, add Vega collage if available
+    else if (!hasBloggerImages && hasVegaCollage) {
+      images.push(vegaCollageImage)
     }
     
-    // Add TMDB images if available
+    // Add TMDB images at the end (additional gallery images)
     if (hasTmdbImages) {
       images.push(...tmdbDetails.images)
-    }
-    
-    // If no blogger images, add Vega collage if available
-    if (!hasBloggerImages && hasVegaCollage) {
-      images.unshift(vegaCollageImage)
     }
     
     // Last resort: use vegamovies screenshots (non-blogger)
@@ -1005,16 +1070,49 @@ export default function VegaMoviePage() {
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold mb-4">Gallery</h2>
               <p className="text-gray-400 text-lg">
-                {hasBloggerImages 
-                  ? "High quality screenshots from the movie"
-                  : hasVegaCollage 
-                    ? "Screenshot collage and high quality images from the movie"
-                    : "High quality images and scenes from the movie"}
+                {clientScreenshots.length > 0
+                  ? `${clientScreenshots.length} high quality screenshots from the movie`
+                  : hasBloggerImages 
+                    ? "High quality screenshots from the movie"
+                    : hasVegaCollage 
+                      ? "Screenshot collage and high quality images from the movie"
+                      : "High quality images and scenes from the movie"}
               </p>
+              {screenshotLoadingStatus && (
+                <p className="text-cyan-400 text-sm mt-2">{screenshotLoadingStatus}</p>
+              )}
             </div>
 
-            {/* Show Blogger image from Vegamovies in full width/height when available */}
-            {hasBloggerImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0 && (
+            {/* Client-side scraped screenshots in grid layout (EXACT method from user's HTML) */}
+            {clientScreenshots.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+                {clientScreenshots.map((screenshot, index) => (
+                  <div
+                    key={index}
+                    className="bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform transition-all duration-300 hover:scale-105 hover:z-10"
+                    onClick={() => {
+                      setSelectedScreenshot(index)
+                      setShowScreenshotModal(true)
+                    }}
+                  >
+                    <img
+                      src={screenshot}
+                      alt={`Screenshot ${index + 1}`}
+                      className="w-full h-auto object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.alt = "Failed to load image"
+                        target.src = "https://placehold.co/600x400/ef4444/white?text=Failed+to+Load"
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Show Blogger image from Vegamovies in full width/height when available (only if no client screenshots) */}
+            {!clientScreenshots.length && hasBloggerImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0 && (
               <div className="mb-8">
                 <div 
                   className="relative w-full overflow-hidden rounded-2xl cursor-pointer transform transition-all duration-300 hover:scale-[1.01] shadow-2xl group"
@@ -1153,8 +1251,8 @@ export default function VegaMoviePage() {
               </>
             )}
 
-            {/* Fallback: Show screenshots if no blogger images, no Vega collage and no TMDB images */}
-            {!hasBloggerImages && !hasVegaCollage && !hasTmdbImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0 && (
+            {/* Fallback: Show screenshots if no client screenshots, no blogger images, no Vega collage and no TMDB images */}
+            {!clientScreenshots.length && !hasBloggerImages && !hasVegaCollage && !hasTmdbImages && movieDetails?.screenshots && movieDetails.screenshots.length > 0 && (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                   {movieDetails.screenshots.map((image, index) => (
