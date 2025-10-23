@@ -154,8 +154,24 @@ export default function VlyxDrivePage() {
 
   const { imdbId, type: contentType } = extractImdbInfo(tmdbid)
 
-  // Clean server/link names with branding replacement
-  const cleanServerName = (name: string): string => {
+  // Clean server/link names with branding replacement and N-Cloud detection
+  const cleanServerName = (name: string, url?: string): string => {
+    // If the URL is actually vcloud/hubcloud, rename it to reflect that
+    if (url) {
+      const urlLower = url.toLowerCase()
+      if (urlLower.includes('hubcloud.')) {
+        return '⚡ Hub-Cloud'
+      }
+      if (urlLower.includes('vcloud.')) {
+        return '⚡ V-Cloud'
+      }
+      // Also check for gdlink.dev which is often V-Cloud
+      if (urlLower.includes('gdlink.dev')) {
+        return '⚡ V-Cloud (GDFlix)'
+      }
+    }
+    
+    // Otherwise apply branding replacement
     return replaceBrandingText(name)
   }
 
@@ -341,8 +357,8 @@ export default function VlyxDrivePage() {
   const handleEpisodeClick = (episode: EpisodeDownload) => {
     setSelectedEpisode(episode)
     
-    // Check for N-Cloud servers
-    const ncloudServers = episode.servers.filter(s => isNCloudServer(s.name))
+    // Check for N-Cloud servers (by both name AND URL)
+    const ncloudServers = episode.servers.filter(s => isNCloudServer(s.name, s.url))
     
     if (ncloudServers.length > 0) {
       // If there's N-Cloud, show confirmation modal
@@ -357,7 +373,7 @@ export default function VlyxDrivePage() {
   const handleMovieNCloudClick = () => {
     if (!vlyxDriveData?.movie) return
     
-    const ncloudServers = vlyxDriveData.movie.servers.filter(s => isNCloudServer(s.name))
+    const ncloudServers = vlyxDriveData.movie.servers.filter(s => isNCloudServer(s.name, s.url))
     if (ncloudServers.length > 0) {
       // Directly go to N-Cloud page for movies (no confirmation popup)
       handleServerClick(ncloudServers[0].url)
@@ -488,11 +504,11 @@ export default function VlyxDrivePage() {
   }
 
   // Enhanced server style with v-cloud preference
-  const getEnhancedServerStyle = (serverName: string, isHighlighted: boolean) => {
+  const getEnhancedServerStyle = (serverName: string, isHighlighted: boolean, url?: string) => {
     const baseStyle = "px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
 
     // N-Cloud gets special treatment with yellow/orange gradient and lightning icon
-    if (isNCloudServer(serverName)) {
+    if (isNCloudServer(serverName, url)) {
       return `${baseStyle} bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-yellow-400`
     }
 
@@ -621,13 +637,12 @@ export default function VlyxDrivePage() {
                         {episode.servers.map((server, serverIndex) => (
                           <Button
                             key={serverIndex}
-                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name), server.url)}
                             onClick={() => handleServerClick(server.url)}
                           >
                             <Download className="h-4 w-4 mr-2" />
-                            {isNCloudServer(server.name) && <span className="mr-1">⚡</span>}
-                            {cleanServerName(server.name)}
-                            {isNCloudServer(server.name) && (
+                            {cleanServerName(server.name, server.url)}
+                            {isNCloudServer(server.name, server.url) && (
                               <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
                             )}
                             <ExternalLink className="h-4 w-4 ml-2" />
@@ -700,7 +715,7 @@ export default function VlyxDrivePage() {
                                             onClick={() => handleServerClick(server.url)}
                                           >
                                             <Download className="h-4 w-4 mr-2" />
-                                            ⚡ {cleanServerName(server.name)}
+                                            {cleanServerName(server.name, server.url)}
                                             <ExternalLink className="h-4 w-4 ml-2" />
                                           </Button>
                                         ))}
@@ -708,11 +723,11 @@ export default function VlyxDrivePage() {
                                         {otherServers.map((server, serverIndex) => (
                                           <Button
                                             key={`other-${serverIndex}`}
-                                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name), server.url)}
                                             onClick={() => handleServerClick(server.url)}
                                           >
                                             <Download className="h-4 w-4 mr-2" />
-                                            {cleanServerName(server.name)}
+                                            {cleanServerName(server.name, server.url)}
                                             <ExternalLink className="h-4 w-4 ml-2" />
                                           </Button>
                                         ))}
@@ -727,11 +742,11 @@ export default function VlyxDrivePage() {
                                 {group.servers.map((server, serverIndex) => (
                                   <Button
                                     key={serverIndex}
-                                    className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                                    className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name), server.url)}
                                     onClick={() => handleServerClick(server.url)}
                                   >
                                     <Download className="h-4 w-4 mr-2" />
-                                    {cleanServerName(server.name)}
+                                    {cleanServerName(server.name, server.url)}
                                     <ExternalLink className="h-4 w-4 ml-2" />
                                   </Button>
                                 ))}
@@ -750,13 +765,12 @@ export default function VlyxDrivePage() {
                         {vlyxDriveData.movie?.servers.map((server, index) => (
                           <Button
                             key={index}
-                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name), server.url)}
                             onClick={() => handleServerClick(server.url)}
                           >
                             <Download className="h-4 w-4 mr-2" />
-                            {isNCloudServer(server.name) && <span className="mr-1">⚡</span>}
-                            {cleanServerName(server.name)}
-                            {isNCloudServer(server.name) && (
+                            {cleanServerName(server.name, server.url)}
+                            {isNCloudServer(server.name, server.url) && (
                               <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
                             )}
                             <ExternalLink className="h-4 w-4 ml-2" />
@@ -1067,7 +1081,7 @@ export default function VlyxDrivePage() {
                                                   onClick={() => handleServerClick(server.url)}
                                                 >
                                                   <ExternalLink className="h-4 w-4 mr-2" />
-                                                  ⚡ {cleanServerName(server.name)}
+                                                  ⚡ {cleanServerName(server.name, server.url)}
                                                 </Button>
                                               ))}
                                               {/* Other servers */}
@@ -1078,7 +1092,7 @@ export default function VlyxDrivePage() {
                                                   onClick={() => handleServerClick(server.url)}
                                                 >
                                                   <ExternalLink className="h-4 w-4 mr-2" />
-                                                  {cleanServerName(server.name)}
+                                                  {cleanServerName(server.name, server.url)}
                                                 </Button>
                                               ))}
                                             </div>
@@ -1098,7 +1112,7 @@ export default function VlyxDrivePage() {
                                           onClick={() => handleServerClick(server.url)}
                                         >
                                           <ExternalLink className="h-4 w-4 mr-2" />
-                                          {cleanServerName(server.name)}
+                                          {cleanServerName(server.name, server.url)}
                                         </Button>
                                       ))}
                                     </div>
@@ -1177,7 +1191,7 @@ export default function VlyxDrivePage() {
                                                               onClick={() => handleServerClick(server.url)}
                                                             >
                                                               <ExternalLink className="h-4 w-4 mr-2" />
-                                                              ⚡ {cleanServerName(server.name)}
+                                                              ⚡ {cleanServerName(server.name, server.url)}
                                                             </Button>
                                                           ))}
                                                           {/* Other servers */}
@@ -1188,7 +1202,7 @@ export default function VlyxDrivePage() {
                                                               onClick={() => handleServerClick(server.url)}
                                                             >
                                                               <ExternalLink className="h-4 w-4 mr-2" />
-                                                              {cleanServerName(server.name)}
+                                                              {cleanServerName(server.name, server.url)}
                                                             </Button>
                                                           ))}
                                                         </div>
@@ -1208,7 +1222,7 @@ export default function VlyxDrivePage() {
                                                       onClick={() => handleServerClick(server.url)}
                                                     >
                                                       <ExternalLink className="h-4 w-4 mr-2" />
-                                                      {cleanServerName(server.name)}
+                                                      {cleanServerName(server.name, server.url)}
                                                     </Button>
                                                   ))}
                                                 </div>
@@ -1229,7 +1243,7 @@ export default function VlyxDrivePage() {
                   }
                   
                   // FALLBACK: Old format (for backward compatibility)
-                  const hasNCloud = vlyxDriveData.movie?.servers.some(s => isNCloudServer(s.name))
+                  const hasNCloud = vlyxDriveData.movie?.servers.some(s => isNCloudServer(s.name, s.url))
                   
                   return hasNCloud ? (
                     <div className="text-center space-y-4">
@@ -1254,11 +1268,11 @@ export default function VlyxDrivePage() {
                         {vlyxDriveData.movie?.servers.map((server, index) => (
                           <Button
                             key={index}
-                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name), server.url)}
                             onClick={() => handleServerClick(server.url)}
                           >
                             <Eye className="h-4 w-4 mr-2" />
-                            {cleanServerName(server.name)}
+                            {cleanServerName(server.name, server.url)}
                             <ExternalLink className="h-4 w-4 ml-2" />
                           </Button>
                         ))}
@@ -1374,7 +1388,7 @@ export default function VlyxDrivePage() {
                             <div
                               className={`w-3 h-3 rounded-full ${isCloud ? "bg-yellow-500" : "bg-green-500"}`}
                             />
-                            <span className="text-white font-medium">{cleanServerName(server.name)}</span>
+                            <span className="text-white font-medium">{cleanServerName(server.name, server.url)}</span>
                             {isCloud && (
                               <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold shadow-lg">
                                 ⚡ Preferred
