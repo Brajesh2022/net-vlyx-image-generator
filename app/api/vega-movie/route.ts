@@ -38,66 +38,33 @@ interface MovieDetails {
   hasBloggerImages: boolean
 }
 
-const CORS_PROXIES = [
-  "https://thingproxy.freeboard.io/fetch/",
-  "https://api.codetabs.com/v1/proxy?quest=",
-  "https://api.allorigins.win/raw?url=",
-  "https://corsproxy.io/?",
-  "https://cors-anywhere.herokuapp.com/",
-]
+const SCRAPING_API = "https://vlyx-scrapping.vercel.app/api/index"
 
-const USER_AGENTS = [
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-]
-
-function getRandomUserAgent(): string {
-  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
-}
-
-function getBrowserHeaders(): Record<string, string> {
-  return {
-    "User-Agent": getRandomUserAgent(),
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    DNT: "1",
-    Connection: "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-  }
-}
-
-async function fetchWithProxy(url: string, proxyIndex = 0): Promise<string> {
-  if (proxyIndex >= CORS_PROXIES.length) {
-    try {
-      const response = await fetch(url, { headers: getBrowserHeaders() })
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-      return await response.text()
-    } catch (error) {
-      throw new Error(`All proxy attempts failed. Last error: ${error}`)
-    }
-  }
-
-  const proxy = CORS_PROXIES[proxyIndex]
-  const proxyUrl = proxy + encodeURIComponent(url)
+// Improved fetching using dedicated scraping API (same as user's method)
+async function fetchVegaMovieHTML(url: string): Promise<string> {
+  const apiUrl = `${SCRAPING_API}?url=${encodeURIComponent(url)}`
 
   try {
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(apiUrl, {
       method: "GET",
-      headers: getBrowserHeaders(),
       signal: AbortSignal.timeout(30000),
     })
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    const html = await response.text()
-
-    if (html.includes("Just a moment...") || html.includes("cf-browser-verification")) {
-      throw new Error("Cloudflare challenge detected")
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    return html
+    const htmlSource = await response.text()
+
+    // Basic validation
+    if (!htmlSource || htmlSource.length < 100) {
+      throw new Error("Invalid HTML response - too short")
+    }
+
+    return htmlSource
   } catch (error) {
-    return fetchWithProxy(url, proxyIndex + 1)
+    console.error("Error fetching from scraping API:", error)
+    throw error
   }
 }
 
@@ -202,32 +169,42 @@ function parseMovieDetails(html: string): MovieDetails {
 
   // Extract screenshots - specifically look for screenshot sections
   const screenshots: string[] = []
+  const bloggerImages: string[] = [] // Track blogger/ss-img images separately
   
-  // Strategy 1: Look for .ss-img container (most reliable for screenshots)
-  const ssImgScreenshots: string[] = []
-  $(".ss-img img, .container.ss-img img").each((i, el) => {
-    let src = $(el).attr("data-src") || $(el).attr("src") || ""
-    
-    if (!src || src.startsWith("data:image")) {
-      const srcset = $(el).attr("srcset") || ""
-      if (srcset) {
-        const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
-        if (firstUrl && !firstUrl.startsWith("data:")) {
-          src = firstUrl
+  // Strategy 1: Look for .ss-img container (most reliable for screenshots - BEST METHOD)
+  // This is the container that vegamovies uses specifically for screenshots
+  const ssImgContainer = $(".ss-img, .container.ss-img")
+  
+  if (ssImgContainer.length > 0) {
+    // Find ALL <img> tags within the .ss-img container
+    ssImgContainer.find("img").each((i, el) => {
+      let src = $(el).attr("data-src") || $(el).attr("src") || ""
+      
+      // Handle lazy-loaded images with srcset
+      if (!src || src.startsWith("data:image")) {
+        const srcset = $(el).attr("srcset") || ""
+        if (srcset) {
+          const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+          if (firstUrl && !firstUrl.startsWith("data:")) {
+            src = firstUrl
+          }
         }
       }
-    }
-    
-    if (src && !src.startsWith("data:image")) {
-      let cleanSrc = src
-      if (cleanSrc.startsWith("//")) {
-        cleanSrc = "https:" + cleanSrc
+      
+      if (src && !src.startsWith("data:image")) {
+        let cleanSrc = src
+        // Handle protocol-relative URLs
+        if (cleanSrc.startsWith("//")) {
+          cleanSrc = "https:" + cleanSrc
+        }
+        
+        // Avoid duplicates
+        if (!bloggerImages.includes(cleanSrc)) {
+          bloggerImages.push(cleanSrc)
+        }
       }
-      if (!ssImgScreenshots.includes(cleanSrc)) {
-        ssImgScreenshots.push(cleanSrc)
-      }
-    }
-  })
+    })
+  }
   
   // Strategy 2: Look for "Screenshots:" heading and get images after it
   const screenshotHeadingImages: string[] = []
@@ -288,9 +265,9 @@ function parseMovieDetails(html: string): MovieDetails {
     }
   })
   
-  // Prioritize screenshots from .ss-img container, then from Screenshots: heading
-  if (ssImgScreenshots.length > 0) {
-    screenshots.push(...ssImgScreenshots)
+  // Prioritize screenshots from .ss-img container (blogger images), then from Screenshots: heading
+  if (bloggerImages.length > 0) {
+    screenshots.push(...bloggerImages)
   } else if (screenshotHeadingImages.length > 0) {
     screenshots.push(...screenshotHeadingImages)
   } else {
@@ -813,8 +790,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log("Fetching content...")
-    const html = await fetchWithProxy(movieUrl)
+    console.log("Fetching content from vegamovies...")
+    const html = await fetchVegaMovieHTML(movieUrl)
     console.log("Successfully fetched content")
 
     const movieDetails = parseMovieDetails(html)
