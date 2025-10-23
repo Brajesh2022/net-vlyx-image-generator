@@ -200,120 +200,140 @@ function parseMovieDetails(html: string): MovieDetails {
   const plotMatch = infoText.match(/(?:Movie-SYNOPSIS\/PLOT:|Series-SYNOPSIS\/PLOT:)\s*([^]+?)(?=Screenshots:|$)/)
   const plot = plotMatch ? plotMatch[1].replace(/\s+/g, " ").trim() : ""
 
-  // Extract screenshots - prioritize blogger.googleusercontent.com images
+  // Extract screenshots - specifically look for screenshot sections
   const screenshots: string[] = []
-  const bloggerImages: string[] = []
-  const otherImages: string[] = []
-
-  // First, collect all images and categorize them
-  const allImageSelectors = [
-    ".entry-inner img",
-    ".entry-content img", 
-    ".single-service-content img",
-    "img[src*='imgbb.top']",
-    "img[src*='imageban.ru']",
-    "img[src*='imgbox.com']",
-    "img[src*='fastpic.ru']",
-    "img[src*='postimg.cc']",
-  ]
-
-  allImageSelectors.forEach((selector) => {
-    $(selector).each((i, el) => {
-      // Check data-src first (lazy loading), then src, then srcset
-      let src = $(el).attr("data-src") || $(el).attr("src") || ""
-      
-      // If image is empty or is a base64 placeholder, try srcset
-      if (!src || src.startsWith("data:image")) {
-        const srcset = $(el).attr("srcset") || ""
-        if (srcset) {
-          // Extract first URL from srcset
-          const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
-          if (firstUrl && !firstUrl.startsWith("data:")) {
-            src = firstUrl
-          }
+  
+  // Strategy 1: Look for .ss-img container (most reliable for screenshots)
+  const ssImgScreenshots: string[] = []
+  $(".ss-img img, .container.ss-img img").each((i, el) => {
+    let src = $(el).attr("data-src") || $(el).attr("src") || ""
+    
+    if (!src || src.startsWith("data:image")) {
+      const srcset = $(el).attr("srcset") || ""
+      if (srcset) {
+        const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+        if (firstUrl && !firstUrl.startsWith("data:")) {
+          src = firstUrl
         }
       }
-      
-      if (src && src !== poster && !src.startsWith("data:image")) {
-        // Clean up screenshot URLs
-        let cleanSrc = src
-        if (cleanSrc.startsWith("//")) {
-          cleanSrc = "https:" + cleanSrc
-        }
-        
-        // Categorize images based on source
-        if (cleanSrc.includes("blogger.googleusercontent.com")) {
-          if (!bloggerImages.includes(cleanSrc)) {
-            bloggerImages.push(cleanSrc)
-          }
-        } else if (
-          cleanSrc.includes("imgbb.top") || 
-          cleanSrc.includes("screenshot") || 
-          cleanSrc.includes("image") ||
-          cleanSrc.includes("imageban.ru") ||
-          cleanSrc.includes("imgbox.com") ||
-          cleanSrc.includes("fastpic.ru") ||
-          cleanSrc.includes("postimg.cc")
-        ) {
-          if (!otherImages.includes(cleanSrc)) {
-            otherImages.push(cleanSrc)
-          }
-        }
+    }
+    
+    if (src && !src.startsWith("data:image")) {
+      let cleanSrc = src
+      if (cleanSrc.startsWith("//")) {
+        cleanSrc = "https:" + cleanSrc
       }
-    })
+      if (!ssImgScreenshots.includes(cleanSrc)) {
+        ssImgScreenshots.push(cleanSrc)
+      }
+    }
   })
-
-  // Also check synopsis content for images
-  const content = $(CONTENT_SCOPE).html() || ""
-  const synopsisMatch = content.match(/<h3[^>]*>.*?SYNOPSIS.*?<\/h3>(.*?)(?=<h[345]|<hr|$)/gi)
-  if (synopsisMatch) {
-    synopsisMatch.forEach((section: string) => {
-      const imgMatches = section.match(/<img[^>]*(?:src|data-src)=["']([^"']+)["'][^>]*>/gi)
-      if (imgMatches) {
-        imgMatches.forEach((imgTag: string) => {
-          // Check data-src first, then src, then srcset
-          const dataSrcMatch = imgTag.match(/data-src=["']([^"']+)["']/i)
-          const srcMatch = imgTag.match(/src=["']([^"']+)["']/i)
-          const srcsetMatch = imgTag.match(/srcset=["']([^"']+)["']/i)
+  
+  // Strategy 2: Look for "Screenshots:" heading and get images after it
+  const screenshotHeadingImages: string[] = []
+  $(`${CONTENT_SCOPE} h3, ${CONTENT_SCOPE} h2, ${CONTENT_SCOPE} h4`).each((i, heading) => {
+    const headingText = $(heading).text()
+    if (/screenshots?:/i.test(headingText)) {
+      // Get the next few siblings that contain images
+      $(heading).nextAll().slice(0, 5).each((_, sibling) => {
+        $(sibling).find("img").each((_, img) => {
+          let src = $(img).attr("data-src") || $(img).attr("src") || ""
           
-          let cleanSrc = ""
-          
-          if (dataSrcMatch && dataSrcMatch[1] && !dataSrcMatch[1].startsWith("data:image")) {
-            cleanSrc = dataSrcMatch[1]
-          } else if (srcMatch && srcMatch[1] && !srcMatch[1].startsWith("data:image")) {
-            cleanSrc = srcMatch[1]
-          } else if (srcsetMatch && srcsetMatch[1]) {
-            // Extract first URL from srcset
-            const firstUrl = srcsetMatch[1].split(",")[0].trim().split(" ")[0]
-            if (firstUrl && !firstUrl.startsWith("data:")) {
-              cleanSrc = firstUrl
+          if (!src || src.startsWith("data:image")) {
+            const srcset = $(img).attr("srcset") || ""
+            if (srcset) {
+              const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+              if (firstUrl && !firstUrl.startsWith("data:")) {
+                src = firstUrl
+              }
             }
           }
           
-          if (cleanSrc) {
+          if (src && !src.startsWith("data:image") && src !== poster) {
+            let cleanSrc = src
             if (cleanSrc.startsWith("//")) {
               cleanSrc = "https:" + cleanSrc
             }
-            
-            if (cleanSrc.includes("blogger.googleusercontent.com")) {
-              if (!bloggerImages.includes(cleanSrc)) {
-                bloggerImages.push(cleanSrc)
-              }
-            } else if (!otherImages.includes(cleanSrc)) {
-              otherImages.push(cleanSrc)
+            if (!screenshotHeadingImages.includes(cleanSrc)) {
+              screenshotHeadingImages.push(cleanSrc)
             }
           }
         })
-      }
-    })
-  }
-
-  // Prioritize blogger.googleusercontent.com images
-  if (bloggerImages.length > 0) {
-    screenshots.push(...bloggerImages)
+        
+        // Also check direct img children of the sibling
+        if ($(sibling).is("img")) {
+          let src = $(sibling).attr("data-src") || $(sibling).attr("src") || ""
+          
+          if (!src || src.startsWith("data:image")) {
+            const srcset = $(sibling).attr("srcset") || ""
+            if (srcset) {
+              const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+              if (firstUrl && !firstUrl.startsWith("data:")) {
+                src = firstUrl
+              }
+            }
+          }
+          
+          if (src && !src.startsWith("data:image") && src !== poster) {
+            let cleanSrc = src
+            if (cleanSrc.startsWith("//")) {
+              cleanSrc = "https:" + cleanSrc
+            }
+            if (!screenshotHeadingImages.includes(cleanSrc)) {
+              screenshotHeadingImages.push(cleanSrc)
+            }
+          }
+        }
+      })
+    }
+  })
+  
+  // Prioritize screenshots from .ss-img container, then from Screenshots: heading
+  if (ssImgScreenshots.length > 0) {
+    screenshots.push(...ssImgScreenshots)
+  } else if (screenshotHeadingImages.length > 0) {
+    screenshots.push(...screenshotHeadingImages)
   } else {
-    // Fallback to other images if no blogger images found
-    screenshots.push(...otherImages)
+    // Fallback: Look for images that are likely screenshots (imgbb, imageban, etc.)
+    const fallbackImages: string[] = []
+    const screenshotHostSelectors = [
+      "img[src*='imgbb']",
+      "img[src*='ibb.co']",
+      "img[src*='imageban.ru']",
+      "img[src*='imgbox.com']",
+      "img[src*='fastpic.ru']",
+      "img[src*='postimg.cc']",
+      "img[data-src*='imgbb']",
+      "img[data-src*='ibb.co']",
+    ]
+    
+    screenshotHostSelectors.forEach((selector) => {
+      $(selector).each((i, el) => {
+        let src = $(el).attr("data-src") || $(el).attr("src") || ""
+        
+        if (!src || src.startsWith("data:image")) {
+          const srcset = $(el).attr("srcset") || ""
+          if (srcset) {
+            const firstUrl = srcset.split(",")[0].trim().split(" ")[0]
+            if (firstUrl && !firstUrl.startsWith("data:")) {
+              src = firstUrl
+            }
+          }
+        }
+        
+        if (src && src !== poster && !src.startsWith("data:image")) {
+          let cleanSrc = src
+          if (cleanSrc.startsWith("//")) {
+            cleanSrc = "https:" + cleanSrc
+          }
+          if (!fallbackImages.includes(cleanSrc)) {
+            fallbackImages.push(cleanSrc)
+          }
+        }
+      })
+    })
+    
+    screenshots.push(...fallbackImages)
   }
 
   // Enhanced function to extract season from text

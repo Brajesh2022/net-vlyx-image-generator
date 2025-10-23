@@ -37,6 +37,7 @@ interface VlyxDriveData {
   title: string
   episodes?: EpisodeDownload[]
   movie?: MovieDownload
+  hasQualityMatch?: boolean // Track if quality parameter matched
 }
 
 interface TMDbEpisode {
@@ -180,10 +181,12 @@ export default function VlyxDrivePage() {
         
         // Filter data by quality parameter if provided
         let filteredLinkData = data.linkData
+        let hasQualityMatch = false
         if (quality) {
           const qualityMatches = data.linkData.filter((item: any) => matchesQuality(item.quality, quality))
           if (qualityMatches.length > 0) {
             filteredLinkData = qualityMatches
+            hasQualityMatch = true
           }
           // If no matches, show all (user may need to select manually)
         }
@@ -206,6 +209,7 @@ export default function VlyxDrivePage() {
             type: "episode" as const,
             title: quality ? `Episode Downloads (${quality})` : "Episode Downloads",
             episodes,
+            hasQualityMatch, // Track if quality parameter matched
           }
         } else {
           // Quality-wise structure (treat as movie)
@@ -221,6 +225,7 @@ export default function VlyxDrivePage() {
             type: "movie" as const,
             title: quality ? `Download Options (${quality})` : "Download Options",
             movie: { servers },
+            hasQualityMatch, // Track if quality parameter matched
           }
         }
       }
@@ -558,10 +563,22 @@ export default function VlyxDrivePage() {
 
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-white">{displayTitle}</h1>
-              <Badge className="bg-blue-600/90 backdrop-blur-sm text-white">
-                {vlyxDriveData.type === "episode" ? "TV Series" : "Movie"} • VlyxDrive
-                {season && ` • Season ${season}`}
-              </Badge>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Badge className="bg-blue-600/90 backdrop-blur-sm text-white">
+                  {vlyxDriveData.type === "episode" ? "TV Series" : "Movie"} • VlyxDrive
+                  {season && ` • Season ${season}`}
+                </Badge>
+                {quality && vlyxDriveData.hasQualityMatch && (
+                  <Badge className="bg-green-600/90 backdrop-blur-sm text-white">
+                    ✓ Filtered by {quality}
+                  </Badge>
+                )}
+                {quality && !vlyxDriveData.hasQualityMatch && (
+                  <Badge className="bg-yellow-600/90 backdrop-blur-sm text-white">
+                    {quality} not found - showing all
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -761,6 +778,12 @@ export default function VlyxDrivePage() {
                 <p className="text-gray-400 text-lg">
                   {vlyxDriveData.episodes?.length} episodes available
                   {season && ` • Season ${season}`}
+                  {quality && vlyxDriveData.hasQualityMatch && (
+                    <span className="ml-2 text-green-400">• Filtered by {quality}</span>
+                  )}
+                  {quality && !vlyxDriveData.hasQualityMatch && (
+                    <span className="ml-2 text-yellow-400">• {quality} not found, showing all options</span>
+                  )}
                 </p>
               </div>
 
@@ -857,7 +880,15 @@ export default function VlyxDrivePage() {
             <div>
               <div className="text-center mb-12">
                 <h2 className="text-4xl font-bold mb-4">Access Options</h2>
-                <p className="text-gray-400 text-lg">Watch or Download</p>
+                <p className="text-gray-400 text-lg">
+                  Watch or Download
+                  {quality && vlyxDriveData.hasQualityMatch && (
+                    <span className="ml-2 text-green-400">• Filtered by {quality}</span>
+                  )}
+                  {quality && !vlyxDriveData.hasQualityMatch && (
+                    <span className="ml-2 text-yellow-400">• {quality} not found, showing all options</span>
+                  )}
+                </p>
               </div>
 
               <div className="max-w-2xl mx-auto">
@@ -866,6 +897,13 @@ export default function VlyxDrivePage() {
                   
                   return hasNCloud ? (
                     <div className="text-center space-y-4">
+                      {quality && vlyxDriveData.hasQualityMatch && (
+                        <div className="mb-4 p-4 bg-green-900/30 border border-green-600/50 rounded-xl">
+                          <p className="text-green-300 text-sm">
+                            ✓ Found {quality} quality with N-Cloud. Click below to continue.
+                          </p>
+                        </div>
+                      )}
                       <Button
                         className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
                         onClick={handleMovieNCloudClick}

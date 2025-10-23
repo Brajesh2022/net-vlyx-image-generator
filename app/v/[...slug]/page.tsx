@@ -587,12 +587,13 @@ export default function VegaMoviePage() {
         seasonNumber = extractSeasonFromTitle(movieDetails?.title || "")
       }
       
-      // Use encoding for security
+      // Use encoding for security and pass quality parameter
       const encodedKey = encodeVlyxDriveParams({
         link: url,
         tmdbid: tmdbIdWithType,
         ...(seasonNumber && { season: seasonNumber }),
-        ...(serverName && { server: serverName })
+        ...(serverName && { server: serverName }),
+        ...(quality && { quality: quality }) // NEW: Pass quality for filtering
       })
       
       const actionParam = action ? `&action=${action}` : ''
