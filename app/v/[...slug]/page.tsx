@@ -242,18 +242,17 @@ export default function VegaMoviePage() {
     }
   }, [movieUrl, clientScreenshots.length])
   
-  // Gallery images - ONLY client screenshots + TMDb (merged in same layout)
+  // Gallery images - Client screenshots OR TMDb (not both)
   const hasTmdbImages = tmdbDetails?.images && tmdbDetails.images.length > 0
   const galleryImages = (() => {
     const images = []
     
-    // Add client-scraped screenshots first
+    // If we have client-scraped screenshots, use ONLY those
     if (clientScreenshots.length > 0) {
       images.push(...clientScreenshots)
     }
-    
-    // Add TMDB images
-    if (hasTmdbImages) {
+    // Otherwise, fallback to TMDB images
+    else if (hasTmdbImages) {
       images.push(...tmdbDetails.images)
     }
     
@@ -1351,25 +1350,25 @@ export default function VegaMoviePage() {
         </section>
       )}
 
-      {/* Image Modal */}
+      {/* Image Modal - Mobile Responsive */}
       {showScreenshotModal && displayImages && displayImages.length > 0 && (
         <Dialog open={showScreenshotModal} onOpenChange={(open) => {
           setShowScreenshotModal(open)
           if (!open) handleResetZoom()
         }}>
-          <DialogContent className="max-w-full max-h-full w-screen h-screen bg-black border-none p-0 m-0">
+          <DialogContent className="max-w-full w-full h-full sm:h-screen bg-black border-none p-0 m-0 flex flex-col">
             <div className="relative w-full h-full flex flex-col">
               {/* Close Button */}
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 bg-black/80 hover:bg-red-600 text-white rounded-full p-2 sm:p-3 border-2 border-white/20 shadow-lg transition-all duration-200"
+                className="absolute top-1 right-1 sm:top-4 sm:right-4 z-50 bg-black/80 hover:bg-red-600 text-white rounded-full p-2 sm:p-3 border border-white/20 sm:border-2 shadow-lg transition-all duration-200"
                 onClick={() => {
                   setShowScreenshotModal(false)
                   handleResetZoom()
                 }}
               >
-                <X className="h-5 w-5 sm:h-6 sm:w-6" />
+                <X className="h-4 w-4 sm:h-6 sm:w-6" />
               </Button>
 
               {/* Zoom Controls */}
@@ -1404,7 +1403,7 @@ export default function VegaMoviePage() {
 
               {/* Image Display */}
               <div
-                className="relative flex-1 flex items-center justify-center overflow-auto px-2 py-16 sm:px-4 sm:py-20"
+                className="relative flex-1 flex items-center justify-center overflow-auto px-1 py-12 sm:px-4 sm:py-20"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
@@ -1413,20 +1412,20 @@ export default function VegaMoviePage() {
                 <img
                   src={displayImages[selectedScreenshot] || "/placeholder.svg"}
                   alt={`Movie Image ${selectedScreenshot + 1}`}
-                  className="w-auto h-auto max-w-full max-h-full object-contain transition-transform duration-200"
+                  className="w-full h-auto sm:w-auto sm:h-auto max-w-full max-h-full object-contain transition-transform duration-200"
                   style={{
                     transform: `scale(${imageZoom}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
                     cursor: imageZoom > 1 ? 'move' : 'default'
                   }}
                 />
 
-                {/* Navigation Arrows - Only show when not zoomed */}
+                {/* Navigation Arrows - Mobile Responsive */}
                 {imageZoom === 1 && displayImages.length > 1 && (
                   <>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute left-1 sm:left-4 top-1/2 transform -translate-y-1/2 bg-black/80 hover:bg-black/90 text-white rounded-full p-2 sm:p-4 border border-white/20 sm:border-2 shadow-lg"
+                      className="absolute left-0.5 sm:left-4 top-1/2 transform -translate-y-1/2 bg-black/80 hover:bg-black/90 text-white rounded-full p-1.5 sm:p-4 border border-white/20 shadow-lg"
                       onClick={() => {
                         setSelectedScreenshot((prev) => (prev === 0 ? displayImages.length - 1 : prev - 1))
                         handleResetZoom()
@@ -1437,7 +1436,7 @@ export default function VegaMoviePage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-1 sm:right-4 top-1/2 transform -translate-y-1/2 bg-black/80 hover:bg-black/90 text-white rounded-full p-2 sm:p-4 border border-white/20 sm:border-2 shadow-lg"
+                      className="absolute right-0.5 sm:right-4 top-1/2 transform -translate-y-1/2 bg-black/80 hover:bg-black/90 text-white rounded-full p-1.5 sm:p-4 border border-white/20 shadow-lg"
                       onClick={() => {
                         setSelectedScreenshot((prev) => (prev === displayImages.length - 1 ? 0 : prev + 1))
                         handleResetZoom()
@@ -1449,17 +1448,17 @@ export default function VegaMoviePage() {
                 )}
               </div>
 
-              {/* Bottom Controls Bar */}
-              <div className="bg-gradient-to-t from-black/95 via-black/80 to-transparent py-3 px-2 sm:py-6 sm:px-4">
+              {/* Bottom Controls Bar - Mobile Responsive */}
+              <div className="bg-gradient-to-t from-black/95 via-black/80 to-transparent py-2 px-1 sm:py-6 sm:px-4">
                 {/* Image Counter */}
-                <div className="text-center mb-2 sm:mb-4">
-                  <span className="text-white text-xs sm:text-base font-medium bg-black/50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full">
+                <div className="text-center mb-1 sm:mb-4">
+                  <span className="text-white text-xs sm:text-base font-medium bg-black/50 px-2 py-1 sm:px-4 sm:py-2 rounded-full">
                     {selectedScreenshot + 1} of {displayImages.length}
                   </span>
                 </div>
 
                 {/* Thumbnail Navigation */}
-                <div className="flex gap-1.5 sm:gap-2 justify-start sm:justify-center overflow-x-auto pb-2 px-2 sm:px-4 max-w-4xl mx-auto scrollbar-hide">
+                <div className="flex gap-1 sm:gap-2 justify-start sm:justify-center overflow-x-auto pb-1 px-1 sm:pb-2 sm:px-4 max-w-4xl mx-auto scrollbar-hide">
                   {displayImages.map((image, index) => (
                     <button
                       key={index}
@@ -1467,7 +1466,7 @@ export default function VegaMoviePage() {
                         setSelectedScreenshot(index)
                         handleResetZoom()
                       }}
-                      className={`flex-shrink-0 w-12 h-9 sm:w-16 sm:h-12 rounded overflow-hidden border-2 transition-all ${
+                      className={`flex-shrink-0 w-10 h-8 sm:w-16 sm:h-12 rounded overflow-hidden border transition-all ${
                         index === selectedScreenshot ? "border-blue-500 ring-1 sm:ring-2 ring-blue-400" : "border-white/30 hover:border-white/60"
                       }`}
                     >
@@ -1480,9 +1479,9 @@ export default function VegaMoviePage() {
                   ))}
                 </div>
 
-                {/* Zoom Help Text */}
-                <div className="text-center mt-2 sm:mt-3">
-                  <p className="text-xs text-gray-400">
+                {/* Zoom Help Text - Hidden on very small screens */}
+                <div className="text-center mt-1 sm:mt-3 hidden sm:block">
+                  <p className="text-xs sm:text-sm text-gray-400">
                     <span className="hidden sm:inline">Use mouse wheel or </span>+/- to zoom • Pinch on mobile
                   </p>
                 </div>
