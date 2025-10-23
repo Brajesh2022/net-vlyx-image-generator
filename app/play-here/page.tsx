@@ -2,18 +2,44 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { Film, Shield, Smartphone, Monitor, Copy, Check, RefreshCw, ArrowLeft } from "lucide-react"
+import { Film, Shield, Smartphone, Monitor, Copy, Check, RefreshCw, ArrowLeft, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
+interface WatchOption {
+  url: string
+  label: string
+}
 
 export default function PlayHerePage() {
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
-  const extraWatchUrl = searchParams.get('extra') // NEW: Watch Online URL from movies4u
+  
+  // ✅ NEW: Extract ALL watch links and their labels
+  const watchOptions: WatchOption[] = []
+  
+  // Check for extra, extra2, extra3, etc. and button1, button2, button3, etc.
+  let index = 1
+  while (true) {
+    const paramName = index === 1 ? 'extra' : `extra${index}`
+    const buttonName = `button${index}`
+    
+    const url = searchParams.get(paramName)
+    if (!url) break // No more watch links
+    
+    const label = searchParams.get(buttonName) || `Watch Option ${index}`
+    watchOptions.push({ url, label })
+    index++
+  }
+  
+  // Backward compatibility: single extra parameter
+  const extraWatchUrl = searchParams.get('extra')
   
   const [isMobile, setIsMobile] = useState(false)
   const [copied, setCopied] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [showWatchOptionsModal, setShowWatchOptionsModal] = useState(false) // ✅ NEW: Modal for multiple watch links
 
   // Device detection
   useEffect(() => {
@@ -115,20 +141,32 @@ export default function PlayHerePage() {
               )}
             </div>
             
-            {/* Alternative Watch Online Button - NEW */}
-            {extraWatchUrl && (
+            {/* Alternative Watch Online Button - ✅ UPDATED for multiple links */}
+            {watchOptions.length > 0 && (
               <div className="mt-4">
-                <a 
-                  href={extraWatchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full block"
-                >
-                  <Button className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white py-4 rounded-xl">
+                {watchOptions.length === 1 ? (
+                  // Single watch link - direct button
+                  <a 
+                    href={watchOptions[0].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full block"
+                  >
+                    <Button className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white py-4 rounded-xl">
+                      <Film className="h-5 w-5 mr-2" />
+                      If above player not work then click me
+                    </Button>
+                  </a>
+                ) : (
+                  // Multiple watch links - show popup
+                  <Button 
+                    onClick={() => setShowWatchOptionsModal(true)}
+                    className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white py-4 rounded-xl"
+                  >
                     <Film className="h-5 w-5 mr-2" />
-                    If above player not work then click me
+                    If above player not work then click me ({watchOptions.length} options)
                   </Button>
-                </a>
+                )}
               </div>
             )}
           </div>
@@ -302,6 +340,73 @@ export default function PlayHerePage() {
           </div>
         </div>
       </footer>
+      
+      {/* ✅ NEW: Watch Options Modal for Multiple Links */}
+      <Dialog open={showWatchOptionsModal} onOpenChange={setShowWatchOptionsModal}>
+        <DialogContent className="max-w-2xl bg-gray-900 border-gray-700 p-6">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
+              <Film className="h-6 w-6 text-orange-500" />
+              Select Watch Option
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="mt-6 space-y-3">
+            {watchOptions.map((option, index) => {
+              // ✅ Color coding based on language/version
+              const getColorClass = (label: string) => {
+                const lowerLabel = label.toLowerCase()
+                if (lowerLabel.includes('hindi') && lowerLabel.includes('tamil')) {
+                  return 'from-orange-600 to-red-600 border-orange-500/50'
+                } else if (lowerLabel.includes('telugu')) {
+                  return 'from-blue-600 to-purple-600 border-blue-500/50'
+                } else if (lowerLabel.includes('hindi')) {
+                  return 'from-yellow-600 to-orange-600 border-yellow-500/50'
+                } else if (lowerLabel.includes('tamil')) {
+                  return 'from-green-600 to-teal-600 border-green-500/50'
+                } else if (lowerLabel.includes('english')) {
+                  return 'from-cyan-600 to-blue-600 border-cyan-500/50'
+                } else {
+                  return 'from-gray-600 to-gray-700 border-gray-500/50'
+                }
+              }
+              
+              return (
+                <a
+                  key={index}
+                  href={option.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <div className={`p-4 rounded-xl border-2 bg-gradient-to-r ${getColorClass(option.label)} hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-xl`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <Film className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">
+                            Watch Online {option.label}
+                          </h3>
+                          <p className="text-sm text-white/80">
+                            Button {index + 1}
+                          </p>
+                        </div>
+                      </div>
+                      <ExternalLink className="h-5 w-5 text-white/80" />
+                    </div>
+                  </div>
+                </a>
+              )
+            })}
+          </div>
+          
+          <p className="mt-4 text-sm text-gray-400 text-center">
+            Each option may have different language/version. Choose the one you prefer.
+          </p>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

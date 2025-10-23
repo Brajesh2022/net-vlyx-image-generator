@@ -160,12 +160,27 @@ function parseMovies4UMovie(html: string): MovieDetails {
     })
   }
 
-  // Extract "Watch Online" URL from div.watch-links-div as per user's example
-  let watchOnlineUrl: string | null = null
-  const $watchLink = $("div.watch-links-div a.btn-zip, div.watch-links-div a.btn").first()
-  if ($watchLink.length) {
-    watchOnlineUrl = $watchLink.attr("href") || null
-  }
+  // ✅ Extract ALL "Watch Online" links from div.watch-links-div
+  const watchLinks: WatchLink[] = []
+  $("div.watch-links-div a.btn-zip, div.watch-links-div a.btn").each((i, el) => {
+    const $link = $(el)
+    const url = $link.attr("href")
+    if (url) {
+      // Extract label - remove image tags and trim
+      let label = $link.text().trim()
+      // Clean up - remove "Watch Online" text to isolate language/version
+      const match = label.match(/\[(.*?)\]/)
+      const variant = match ? match[1] : label.replace("Watch Online", "").trim()
+      
+      watchLinks.push({
+        url,
+        label: variant || "Watch Online",
+      })
+    }
+  })
+  
+  // Backward compatibility: use first watch link as watchOnlineUrl
+  let watchOnlineUrl: string | null = watchLinks.length > 0 ? watchLinks[0].url : null
 
   // Extract download sections from div.download-links-div
   // Convert to vegamovies-compatible format
@@ -175,17 +190,54 @@ function parseMovies4UMovie(html: string): MovieDetails {
     const $header = $(el)
     const headerText = $header.text().trim()
     
+    // ✅ Extract language/version variant from span tag or brackets
+    // Example: <h4>War 2 (2025) <span>[Hindi + Tamil]</span> 480p [750MB]</h4>
+    let variant = ""
+    const $span = $header.find("span")
+    if ($span.length) {
+      const spanText = $span.text().trim()
+      const variantMatch = spanText.match(/\[(.*?)\]/)
+      variant = variantMatch ? variantMatch[1] : spanText
+    } else {
+      // Fallback: extract from text directly
+      const variantMatch = headerText.match(/\[(.*?)\]/)
+      if (variantMatch) {
+        // Get the first bracket content that's not size (contains letters like Hindi/Tamil/Telugu)
+        const allMatches = headerText.match(/\[([^\]]+)\]/g)
+        if (allMatches && allMatches.length > 0) {
+          for (const match of allMatches) {
+            const content = match.replace(/[\[\]]/g, '')
+            // If it contains letters and not just numbers/MB/GB, it's likely the variant
+            if (/[a-zA-Z]/.test(content) && !/(MB|GB|E)/i.test(content)) {
+              variant = content
+              break
+            }
+          }
+        }
+      }
+    }
+    
     // Extract FULL quality from the header including HEVC, etc.
     // Examples: "720p HEVC", "1080p", "2160p 4K", "720p"
     // Match pattern: [number]p followed by optional HEVC/4K
-    const qualityMatch = headerText.match(/(\d+p(?:\s+(?:HEVC|4K|HDR|10bit))?)/i)
+    const qualityMatch = headerText.match(/(\d+p(?:\s+(?:HEVC|HQ|4K|HDR|10bit))?)/i)
     if (!qualityMatch) return // Skip if no quality found
     
     const quality = qualityMatch[1].trim() // e.g., "720p HEVC" or "1080p"
     
     // Extract size from header (e.g., [120MB/E] or [1.4GB/E])
-    const sizeMatch = headerText.match(/\[([^\]]+)\]/)
-    const size = sizeMatch ? sizeMatch[1] : ""
+    const sizeMatches = headerText.match(/\[([^\]]+)\]/g)
+    let size = ""
+    if (sizeMatches) {
+      // Find the size (contains MB/GB)
+      for (const match of sizeMatches) {
+        const content = match.replace(/[\[\]]/g, '')
+        if (/(MB|GB)/i.test(content)) {
+          size = content
+          break
+        }
+      }
+    }
     
     // Find the download buttons in the next sibling div
     const $downloadDiv = $header.next("div.downloads-btns-div")
@@ -222,6 +274,7 @@ function parseMovies4UMovie(html: string): MovieDetails {
           downloads: [{
             quality,
             size,
+            variant, // ✅ NEW: Language/version variant
             links,
           }],
         })
@@ -237,7 +290,8 @@ function parseMovies4UMovie(html: string): MovieDetails {
     movieInfo,
     plot,
     screenshots,
-    watchOnlineUrl,
+    watchOnlineUrl, // Backward compatibility
+    watchLinks, // ✅ NEW: Multiple watch links with labels
     downloadSections,
     hasBloggerImages: false, // movies4u doesn't use blogger images
   }

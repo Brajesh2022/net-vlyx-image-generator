@@ -392,11 +392,24 @@ export default function VegaMoviePage() {
   const handleContinuePlayHere = () => {
     const imdbId = getImdbId()
     if (imdbId) {
-      // NEW: Add extra parameter if watchOnlineUrl exists (movies4u feature)
-      const extraParam = movieDetails?.watchOnlineUrl 
-        ? `&extra=${encodeURIComponent(movieDetails.watchOnlineUrl)}` 
-        : ''
-      window.location.href = `/play-here?id=${imdbId}${extraParam}`
+      let url = `/play-here?id=${imdbId}`
+      
+      // ✅ NEW: Support multiple watch links
+      if (movieDetails?.watchLinks && movieDetails.watchLinks.length > 0) {
+        // Add all watch links as extra, extra2, extra3, etc.
+        movieDetails.watchLinks.forEach((watchLink, index) => {
+          const paramName = index === 0 ? 'extra' : `extra${index + 1}`
+          url += `&${paramName}=${encodeURIComponent(watchLink.url)}`
+          
+          // Add button labels as button1, button2, button3, etc.
+          url += `&button${index + 1}=${encodeURIComponent(watchLink.label)}`
+        })
+      } else if (movieDetails?.watchOnlineUrl) {
+        // Backward compatibility: use old single watch URL
+        url += `&extra=${encodeURIComponent(movieDetails.watchOnlineUrl)}`
+      }
+      
+      window.location.href = url
     }
   }
 
@@ -1728,6 +1741,22 @@ export default function VegaMoviePage() {
                                       {tmdbDetails?.contentType === "movie" ? "Movie Download" : "Episode Download"}
                                       {item.season && (
                                         <span className="text-blue-400 ml-2">• Season {item.season}</span>
+                                      )}
+                                      {/* ✅ Show language/version variant with color coding */}
+                                      {item.download.variant && (
+                                        <span className={`ml-2 font-semibold ${
+                                          item.download.variant.toLowerCase().includes('hindi') && item.download.variant.toLowerCase().includes('tamil')
+                                            ? 'text-orange-400'
+                                            : item.download.variant.toLowerCase().includes('telugu')
+                                            ? 'text-purple-400'
+                                            : item.download.variant.toLowerCase().includes('hindi')
+                                            ? 'text-yellow-400'
+                                            : item.download.variant.toLowerCase().includes('tamil')
+                                            ? 'text-green-400'
+                                            : 'text-cyan-400'
+                                        }`}>
+                                          • [{item.download.variant}]
+                                        </span>
                                       )}
                                     </p>
                                     <div className="flex gap-2 mt-2">
