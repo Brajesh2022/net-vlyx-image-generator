@@ -176,24 +176,17 @@ export default function VlyxDrivePage() {
         }
         const data = await response.json()
         
-        // Helper function to match quality strings (fuzzy match)
+        // Helper function to match quality strings (EXACT match only)
         const matchesQuality = (itemQuality: string | undefined, targetQuality: string | undefined): boolean => {
           if (!targetQuality || !itemQuality) return true
           
-          // Normalize both strings for comparison
+          // Normalize both strings for comparison (remove spaces, dashes, underscores, case-insensitive)
           const normalize = (q: string) => q.toLowerCase().replace(/[\s\-_]/g, '')
           const normalizedItem = normalize(itemQuality)
           const normalizedTarget = normalize(targetQuality)
           
-          // Exact match
-          if (normalizedItem === normalizedTarget) return true
-          
-          // Partial match (e.g., "720p" matches "720p HEVC")
-          if (normalizedItem.includes(normalizedTarget) || normalizedTarget.includes(normalizedItem)) {
-            return true
-          }
-          
-          return false
+          // ✅ EXACT match only - "720p" will NOT match "720p HEVC"
+          return normalizedItem === normalizedTarget
         }
         
         // Convert m4ulinks data to VlyxDrive format
@@ -957,15 +950,14 @@ export default function VlyxDrivePage() {
                     const selectedQualityParam = vlyxDriveData.selectedQuality
                     const hasMatch = vlyxDriveData.hasQualityMatch
                     
-                    // Helper to match quality
+                    // Helper to match quality (EXACT match only)
                     const matchesQuality = (itemQuality: string, targetQuality: string | null | undefined): boolean => {
                       if (!targetQuality || !itemQuality) return false
                       const normalize = (q: string) => q.toLowerCase().replace(/[\s\-_]/g, '')
                       const normalizedItem = normalize(itemQuality)
                       const normalizedTarget = normalize(targetQuality)
-                      return normalizedItem === normalizedTarget || 
-                             normalizedItem.includes(normalizedTarget) || 
-                             normalizedTarget.includes(normalizedItem)
+                      // ✅ EXACT match only - "720p" will NOT match "720phevc"
+                      return normalizedItem === normalizedTarget
                     }
                     
                     // Find the matching quality group
