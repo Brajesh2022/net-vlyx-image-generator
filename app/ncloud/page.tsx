@@ -86,6 +86,7 @@ export default function NCloudPage() {
   const [downloadLinks, setDownloadLinks] = useState<DownloadLink[]>([])
   const [isProcessing, setIsProcessing] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [originalUrl, setOriginalUrl] = useState<string | null>(null)
   const [selectedLink, setSelectedLink] = useState<DownloadLink | null>(null)
   const [isZipFile, setIsZipFile] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
@@ -147,6 +148,7 @@ export default function NCloudPage() {
         if (sourceUrl) {
           // PREFERRED: Use the full URL directly (no reconstruction needed!)
           ncloudUrl = sourceUrl
+          setOriginalUrl(sourceUrl) // Store for manual fallback
           addLog(`Step 1: Using provided URL: ${ncloudUrl}`)
           
           // Detect type for logging
@@ -164,6 +166,7 @@ export default function NCloudPage() {
           // FALLBACK: Reconstruct URL from ID (legacy support)
           addLog(`Step 1: Reconstructing URL from ID: ${id}`)
           ncloudUrl = `https://vcloud.zip/${id}` // Default to vcloud
+          setOriginalUrl(ncloudUrl) // Store for manual fallback
           addLog(`⚠️ Warning: Using fallback URL construction. Prefer passing full URL.`)
         } else {
           throw new Error("No URL or ID provided")
@@ -183,14 +186,48 @@ export default function NCloudPage() {
         const data1 = await response1.json()
         addLog("Received response from N-Cloud page")
 
-        // Extract the tokenized final URL
-        const urlRegex = /var\s+url\s*=\s*'(.*?)'/
-        const match1 = data1.html?.match(urlRegex)
+        // Extract the tokenized final URL - support both old and new patterns
+        let finalUrl: string | null = null
+        
+        // Pattern 1 (OLD): JavaScript variable - var url = '...'
+        const jsVarRegex = /var\s+url\s*=\s*'(.*?)'/
+        const jsMatch = data1.html?.match(jsVarRegex)
+        
+        if (jsMatch && jsMatch[1]) {
+          finalUrl = jsMatch[1]
+          addLog("✅ Found tokenized URL (JavaScript variable pattern)")
+        } else {
+          // Pattern 2 (NEW): HTML link - <a href="/video/xxx?token=yyy">
+          addLog("⚠️ JavaScript variable not found, trying HTML link pattern...")
+          
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(data1.html, "text/html")
+          
+          // Look for links containing "token=" parameter
+          const links = Array.from(doc.querySelectorAll('a[href*="token="]'))
+          
+          if (links.length > 0) {
+            const linkElement = links[0] as HTMLAnchorElement
+            let hrefValue = linkElement.getAttribute('href') || ''
+            
+            // If it's a relative path, construct the full URL
+            if (hrefValue.startsWith('/')) {
+              const baseUrl = new URL(ncloudUrl)
+              finalUrl = `${baseUrl.protocol}//${baseUrl.hostname}${hrefValue}`
+            } else {
+              finalUrl = hrefValue
+            }
+            
+            addLog("✅ Found tokenized URL (HTML link pattern)")
+          }
+        }
+        
+        if (!finalUrl) {
+          throw new Error("Could not find the tokenized URL in either JavaScript or HTML patterns")
+        }
 
-        if (!match1 || !match1[1]) throw new Error("Could not find the tokenized URL")
-
-        const finalUrl = match1[1]
-        addLog("Found tokenized URL, fetching final download page...")
+        addLog(`🔗 Tokenized URL: ${finalUrl}`)
+        addLog("Fetching final download page...")
 
         // Step 3: Fetch the final page with download links
         addLog("Step 3: Fetching final download page...")
@@ -591,10 +628,35 @@ export default function NCloudPage() {
         {/* Error State */}
         {!isProcessing && error && (
           <section className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-center backdrop-blur-xl">
-              <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-red-300 mb-2">Processing Failed</h3>
-              <p className="text-gray-400">{error}</p>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 backdrop-blur-xl">
+              <div className="text-center mb-6">
+                <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-red-300 mb-3">We're Sorry!</h3>
+                <p className="text-gray-300 text-lg mb-2">Automatic extraction failed</p>
+                <p className="text-gray-400 text-sm mb-4">Error details: {error}</p>
+              </div>
+              
+              {originalUrl && (
+                <div className="space-y-4">
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                    <p className="text-yellow-200 text-sm text-center">
+                      Don't worry! You can still proceed manually to download your content.
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={() => window.open(originalUrl, "_blank")}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-blue-500/50 flex items-center justify-center gap-3"
+                  >
+                    <Download className="h-5 w-5" />
+                    <span>Proceed Manually to Download</span>
+                  </button>
+                  
+                  <p className="text-gray-500 text-xs text-center">
+                    This will open the original page where you can manually download the content
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         )}

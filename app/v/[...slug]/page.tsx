@@ -171,6 +171,7 @@ export default function VegaMoviePage() {
   const [showPlayHereWarning, setShowPlayHereWarning] = useState(false) // Warning modal for Play Here option
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null) // Selected season for multi-season series
   const [clientScreenshots, setClientScreenshots] = useState<string[]>([]) // Client-side scraped screenshots
+  const [failedImageIndices, setFailedImageIndices] = useState<Set<number>>(new Set()) // Track failed screenshot indices
 
   // Touch handling for mobile swipe
   const touchStartX = useRef<number>(0)
@@ -250,10 +251,19 @@ export default function VegaMoviePage() {
     // If we have client-scraped screenshots, use ONLY those
     if (clientScreenshots.length > 0) {
       images.push(...clientScreenshots)
+      console.log(`📸 Using ${clientScreenshots.length} client-scraped screenshots`)
     }
     // Otherwise, fallback to TMDB images
     else if (hasTmdbImages) {
       images.push(...tmdbDetails.images)
+      console.log(`🎬 Using ${tmdbDetails.images.length} TMDB images`)
+    }
+    
+    // Log TMDB availability for fallback
+    if (hasTmdbImages) {
+      console.log(`✅ TMDB fallback available: ${tmdbDetails.images.length} images ready`)
+    } else {
+      console.log(`⚠️ No TMDB fallback images available`)
     }
     
     return images
@@ -1081,26 +1091,60 @@ export default function VegaMoviePage() {
 
             {/* Unified grid layout for all images */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-              {galleryImages.map((image, index) => (
-                <div
-                  key={index}
-                  className="group relative aspect-video overflow-hidden rounded-lg sm:rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 hover:z-10"
-                  onClick={() => {
-                    setSelectedScreenshot(index)
-                    setShowScreenshotModal(true)
-                  }}
-                >
-                  <img
-                    src={image || "/placeholder.svg"}
-                    alt={`Movie Image ${index + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    loading="lazy"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      target.alt = "Failed to load image"
-                      target.src = "https://placehold.co/600x400/ef4444/white?text=Failed+to+Load"
+              {galleryImages.map((image, index) => {
+                // Get TMDB images for fallback
+                const tmdbImages = tmdbDetails?.images || []
+                const hasFailed = failedImageIndices.has(index)
+                
+                // Determine which image source to use
+                let imageSource = image || "/placeholder.svg"
+                let imageAlt = `Movie Image ${index + 1}`
+                
+                // If this image has failed to load, try TMDB fallback
+                if (hasFailed && tmdbImages.length > 0) {
+                  // Use TMDB image at same index, or first available TMDB image
+                  imageSource = tmdbImages[index] || tmdbImages[0]
+                  imageAlt = `Gallery Image ${index + 1} (from TMDB)`
+                }
+                
+                return (
+                  <div
+                    key={index}
+                    className="group relative aspect-video overflow-hidden rounded-lg sm:rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 hover:z-10"
+                    onClick={() => {
+                      setSelectedScreenshot(index)
+                      setShowScreenshotModal(true)
                     }}
-                  />
+                  >
+                    <img
+                      src={imageSource}
+                      alt={imageAlt}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        
+                        // Only try fallback if we haven't already failed this image
+                        if (!failedImageIndices.has(index)) {
+                          const tmdbImages = tmdbDetails?.images || []
+                          
+                          if (tmdbImages.length > 0) {
+                            console.log(`Screenshot ${index} failed, using TMDB fallback`)
+                            // Mark as failed to trigger re-render with TMDB image
+                            setFailedImageIndices(prev => new Set(prev).add(index))
+                          } else {
+                            console.log(`Screenshot ${index} failed, no TMDB images available`)
+                            // No TMDB fallback available, show error placeholder
+                            target.src = "https://placehold.co/600x400/ef4444/white?text=No+Image"
+                            target.alt = "Image not available"
+                          }
+                        } else {
+                          // Already failed once, just show placeholder
+                          target.src = "https://placehold.co/600x400/666/white?text=Image+Unavailable"
+                          target.alt = "Image unavailable"
+                        }
+                      }}
+                    />
                   
                   {/* Hover overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -1112,7 +1156,8 @@ export default function VegaMoviePage() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )
+              })}
             </div>
           </div>
         </section>
