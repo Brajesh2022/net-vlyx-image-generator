@@ -88,6 +88,9 @@ export default function VlyxDrivePage() {
   const key = searchParams.get("key")
   const action = searchParams.get("action") as "stream" | "download" | null
   
+  // ✅ NEW: Get quality from URL parameter (not from encoded key)
+  const quality = searchParams.get("quality") || undefined
+  
   // Decode parameters from key (backward compatible)
   const params = key ? decodeVlyxDriveParams(key) : {
     driveid: searchParams.get("driveid") || undefined,
@@ -95,10 +98,9 @@ export default function VlyxDrivePage() {
     tmdbid: searchParams.get("tmdbid") || undefined,
     season: searchParams.get("season") || undefined,
     server: searchParams.get("server") || undefined,
-    quality: searchParams.get("quality") || undefined, // NEW: Quality parameter for filtering
   }
   
-  const { driveid, link, tmdbid, season, server, quality } = params
+  const { driveid, link, tmdbid, season, server } = params
   
   // Detect if this is an m4ulinks URL
   const isM4ULinks = link && /m4ulinks\.com/i.test(link)
@@ -994,55 +996,51 @@ export default function VlyxDrivePage() {
                                         onClick={() => handleServerClick(ncloudServers[0].url)}
                                       >
                                         <Eye className="h-5 w-5 mr-2" />
-                                        ⚡ Continue with {cleanServerName(ncloudServers[0].name)}
+                                        ⚡ Continue with N-Cloud
                                       </Button>
                                       
-                                      {/* Show more N-Cloud servers if available */}
-                                      {ncloudServers.length > 1 && (
-                                        <div className="space-y-2">
-                                          {ncloudServers.slice(1).map((server, idx) => (
-                                            <Button
-                                              key={idx}
-                                              className="w-full px-6 py-3 bg-gradient-to-r from-yellow-600/80 to-orange-600/80 hover:from-yellow-600 hover:to-orange-600 text-white rounded-xl"
-                                              onClick={() => handleServerClick(server.url)}
-                                            >
-                                              <ExternalLink className="h-4 w-4 mr-2" />
-                                              {cleanServerName(server.name)}
-                                            </Button>
-                                          ))}
+                                      {/* ✅ Show more servers button (includes both additional N-Cloud AND other servers) */}
+                                      {(ncloudServers.length > 1 || otherServers.length > 0) && (
+                                        <div className="space-y-3">
+                                          <button
+                                            onClick={() => setShowMoreServers(!showMoreServers)}
+                                            className="w-full text-center py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                                          >
+                                            {showMoreServers ? '▲ Hide other servers' : `▼ Show ${ncloudServers.length - 1 + otherServers.length} more server${(ncloudServers.length - 1 + otherServers.length) > 1 ? 's' : ''}`}
+                                          </button>
+                                          
+                                          {showMoreServers && (
+                                            <div className="space-y-2">
+                                              {/* Additional N-Cloud servers */}
+                                              {ncloudServers.slice(1).map((server, idx) => (
+                                                <Button
+                                                  key={`ncloud-${idx}`}
+                                                  className="w-full px-6 py-3 bg-gradient-to-r from-yellow-600/80 to-orange-600/80 hover:from-yellow-600 hover:to-orange-600 text-white rounded-xl"
+                                                  onClick={() => handleServerClick(server.url)}
+                                                >
+                                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                                  ⚡ {cleanServerName(server.name)}
+                                                </Button>
+                                              ))}
+                                              {/* Other servers */}
+                                              {otherServers.map((server, idx) => (
+                                                <Button
+                                                  key={`other-${idx}`}
+                                                  className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl"
+                                                  onClick={() => handleServerClick(server.url)}
+                                                >
+                                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                                  {cleanServerName(server.name)}
+                                                </Button>
+                                              ))}
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                     </div>
                                   )}
                                   
-                                  {/* Show more servers button */}
-                                  {otherServers.length > 0 && (
-                                    <div className="space-y-3">
-                                      <button
-                                        onClick={() => setShowMoreServers(!showMoreServers)}
-                                        className="w-full text-center py-2 text-sm text-gray-400 hover:text-white transition-colors"
-                                      >
-                                        {showMoreServers ? '▲ Hide other servers' : `▼ Show ${otherServers.length} more server${otherServers.length > 1 ? 's' : ''}`}
-                                      </button>
-                                      
-                                      {showMoreServers && (
-                                        <div className="space-y-2">
-                                          {otherServers.map((server, idx) => (
-                                            <Button
-                                              key={idx}
-                                              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl"
-                                              onClick={() => handleServerClick(server.url)}
-                                            >
-                                              <ExternalLink className="h-4 w-4 mr-2" />
-                                              {cleanServerName(server.name)}
-                                            </Button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  
-                                  {/* If no N-Cloud, show all servers */}
+                                  {/* If no N-Cloud, show all servers directly */}
                                   {ncloudServers.length === 0 && (
                                     <div className="space-y-2">
                                       {matchingGroup.servers.map((server, idx) => (

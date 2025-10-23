@@ -563,16 +563,16 @@ export default function VegaMoviePage() {
         seasonNumber = extractSeasonFromTitle(movieDetails?.title || "")
       }
       
-      // Use encoding for security and pass quality parameter
+      // Use encoding for security
       const encodedKey = encodeVlyxDriveParams({
         link: url,
         tmdbid: tmdbIdWithType,
         ...(seasonNumber && { season: seasonNumber }),
-        ...(quality && { quality: quality }) // NEW: Pass quality for filtering
       })
       
       const actionParam = action ? `&action=${action}` : ''
-      return `/vlyxdrive?key=${encodedKey}${actionParam}`
+      const qualityParam = quality ? `&quality=${encodeURIComponent(quality)}` : '' // ✅ NEW: Quality as separate URL parameter
+      return `/vlyxdrive?key=${encodedKey}${actionParam}${qualityParam}`
     }
     
     // Check if it's ANY nextdrive URL (broader pattern to catch all nextdrive domains)
@@ -587,17 +587,17 @@ export default function VegaMoviePage() {
         seasonNumber = extractSeasonFromTitle(movieDetails?.title || "")
       }
       
-      // Use encoding for security and pass quality parameter
+      // Use encoding for security
       const encodedKey = encodeVlyxDriveParams({
         link: url,
         tmdbid: tmdbIdWithType,
         ...(seasonNumber && { season: seasonNumber }),
         ...(serverName && { server: serverName }),
-        ...(quality && { quality: quality }) // NEW: Pass quality for filtering
       })
       
       const actionParam = action ? `&action=${action}` : ''
-      return `/vlyxdrive?key=${encodedKey}${actionParam}`
+      const qualityParam = quality ? `&quality=${encodeURIComponent(quality)}` : '' // ✅ NEW: Quality as separate URL parameter
+      return `/vlyxdrive?key=${encodedKey}${actionParam}${qualityParam}`
     }
     
     // For non-nextdrive/non-m4ulinks links, return original URL
