@@ -110,7 +110,7 @@ export default function VlyxDrivePage() {
   const [showNCloudConfirm, setShowNCloudConfirm] = useState(false)
   const [selectedNCloudServer, setSelectedNCloudServer] = useState<{name: string, url: string} | null>(null)
   const [showAllOptions, setShowAllOptions] = useState(false) // NEW: Toggle to show all quality options
-  const [showOtherQualities, setShowOtherQualities] = useState(false) // NEW: Toggle to show other qualities
+  const [showOtherQualities, setShowOtherQualities] = useState(!quality) // ✅ Auto-expand if quality missing
   const [showMoreServers, setShowMoreServers] = useState(false) // NEW: Toggle to show more servers for selected quality
   const [expandedQuality, setExpandedQuality] = useState<string | null>(null) // NEW: Track which quality section is expanded
 
