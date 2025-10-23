@@ -828,9 +828,6 @@ export default function VlyxDrivePage() {
                   {quality && vlyxDriveData.hasQualityMatch && (
                     <span className="ml-2 text-green-400">• Filtered by {quality}</span>
                   )}
-                  {quality && !vlyxDriveData.hasQualityMatch && (
-                    <span className="ml-2 text-yellow-400">• {quality} not found, showing all options</span>
-                  )}
                 </p>
               </div>
 
