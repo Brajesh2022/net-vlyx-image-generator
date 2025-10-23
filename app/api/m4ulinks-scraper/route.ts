@@ -8,6 +8,7 @@ interface LinkData {
   title: string // e.g., "Episodes: 1:" or "480p [2.6GB]"
   episodeNumber?: number // Extracted episode number if it's an episode
   quality?: string // Extracted quality if it's a quality section
+  size?: string // Extracted size (e.g., "1GB", "8.4GB")
   links: {
     name: string
     url: string
@@ -59,12 +60,22 @@ function parseM4ULinks(html: string): LinkData[] {
       episodeNumber = parseInt(episodeMatch[1])
     }
     
-    // Try to extract FULL quality from title including HEVC, 4K, etc.
-    // Patterns: "480p [2.6GB]", "Season 4 720p HEVC", "1080p 4K"
+    // Extract quality using simple formula: remove brackets and their content
+    // Examples: "480p [1GB]" -> "480p", "1080p HQ [8.4GB]" -> "1080p HQ", "720p HEVC [1.8GB]" -> "720p HEVC"
     let quality: string | undefined
-    const qualityMatch = title.match(/(\d+p(?:\s+(?:HEVC|4K|HDR|10bit))?)/i)
-    if (qualityMatch) {
-      quality = qualityMatch[1].trim()
+    let size: string | undefined
+    
+    // Extract size from brackets
+    const sizeMatch = title.match(/\[([^\]]+)\]/)
+    if (sizeMatch) {
+      size = sizeMatch[1].trim()
+    }
+    
+    // Remove everything in brackets including the brackets to get quality
+    const qualityText = title.replace(/\[.*?\]/g, '').trim()
+    // Check if it contains a quality indicator (e.g., 480p, 720p, 1080p, 2160p, 4K)
+    if (/\d+p|4K/i.test(qualityText)) {
+      quality = qualityText
     }
     
     // Find the download buttons in the next sibling div
@@ -105,6 +116,7 @@ function parseM4ULinks(html: string): LinkData[] {
           title,
           episodeNumber,
           quality,
+          size,
           links,
         })
       }

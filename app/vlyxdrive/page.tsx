@@ -113,6 +113,7 @@ export default function VlyxDrivePage() {
   const [showOtherQualities, setShowOtherQualities] = useState(!quality) // ✅ Auto-expand if quality missing
   const [showMoreServers, setShowMoreServers] = useState(false) // NEW: Toggle to show more servers for selected quality
   const [expandedQuality, setExpandedQuality] = useState<string | null>(null) // NEW: Track which quality section is expanded
+  const [expandedQualityServers, setExpandedQualityServers] = useState<{[key: string]: boolean}>({}) // NEW: Track which quality has "show more servers" expanded
 
   // Smart back navigation handler
   const handleBackNavigation = () => {
@@ -657,31 +658,90 @@ export default function VlyxDrivePage() {
                   {/* NEW: Handle quality groups if available */}
                   {vlyxDriveData.qualityGroups && vlyxDriveData.qualityGroups.length > 0 ? (
                     <div className="space-y-4">
-                      {vlyxDriveData.qualityGroups.map((group, index) => (
-                        <div key={index} className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-                          <h3 className="text-xl font-bold mb-4 text-center text-white">
-                            {group.quality} {group.size && `[${group.size}]`}
-                          </h3>
-                          <div className="flex flex-wrap justify-center gap-3">
-                            {group.servers.map((server, serverIndex) => (
-                              <Button
-                                key={serverIndex}
-                                className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
-                                onClick={() => handleServerClick(server.url)}
-                              >
-                                <Download className="h-4 w-4 mr-2" />
-                                {isNCloudServer(server.name, server.url) && <span className="mr-1">⚡</span>}
-                                {cleanServerName(server.name)}
-                                {isNCloudServer(server.name, server.url) && (
-                                  <Badge className="ml-2 bg-yellow-600 text-white text-xs">Preferred</Badge>
+                      {vlyxDriveData.qualityGroups.map((group, index) => {
+                        const ncloudServers = group.servers.filter(s => isNCloudServer(s.name, s.url))
+                        const otherServers = group.servers.filter(s => !isNCloudServer(s.name, s.url))
+                        const showMoreForThisQuality = expandedQualityServers[group.quality] || false
+                        
+                        return (
+                          <div key={index} className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
+                            <h3 className="text-xl font-bold mb-4 text-center text-white">
+                              {group.quality} {group.size && `[${group.size}]`}
+                            </h3>
+                            
+                            {/* Show N-Cloud button prominently */}
+                            {ncloudServers.length > 0 ? (
+                              <div className="space-y-3">
+                                <Button
+                                  className="w-full px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+                                  onClick={() => handleServerClick(ncloudServers[0].url)}
+                                >
+                                  <Download className="h-5 w-5 mr-2" />
+                                  ⚡ Continue with N-Cloud
+                                </Button>
+                                
+                                {/* Show more servers button */}
+                                {(ncloudServers.length > 1 || otherServers.length > 0) && (
+                                  <div className="space-y-3">
+                                    <button
+                                      onClick={() => setExpandedQualityServers(prev => ({...prev, [group.quality]: !showMoreForThisQuality}))}
+                                      className="w-full text-center py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                                    >
+                                      {showMoreForThisQuality ? '▲ Hide other servers' : `▼ Show ${ncloudServers.length - 1 + otherServers.length} more server${(ncloudServers.length - 1 + otherServers.length) > 1 ? 's' : ''}`}
+                                    </button>
+                                    
+                                    {showMoreForThisQuality && (
+                                      <div className="flex flex-wrap justify-center gap-3">
+                                        {/* Additional N-Cloud servers */}
+                                        {ncloudServers.slice(1).map((server, serverIndex) => (
+                                          <Button
+                                            key={`ncloud-${serverIndex}`}
+                                            className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 bg-gradient-to-r from-yellow-600/80 to-orange-600/80 text-white hover:from-yellow-600 hover:to-orange-600"
+                                            onClick={() => handleServerClick(server.url)}
+                                          >
+                                            <Download className="h-4 w-4 mr-2" />
+                                            ⚡ {cleanServerName(server.name)}
+                                            <ExternalLink className="h-4 w-4 ml-2" />
+                                          </Button>
+                                        ))}
+                                        {/* Other servers */}
+                                        {otherServers.map((server, serverIndex) => (
+                                          <Button
+                                            key={`other-${serverIndex}`}
+                                            className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                                            onClick={() => handleServerClick(server.url)}
+                                          >
+                                            <Download className="h-4 w-4 mr-2" />
+                                            {cleanServerName(server.name)}
+                                            <ExternalLink className="h-4 w-4 ml-2" />
+                                          </Button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
-                                <ExternalLink className="h-4 w-4 ml-2" />
-                              </Button>
-                            ))}
+                              </div>
+                            ) : (
+                              // No N-Cloud, show all servers
+                              <div className="flex flex-wrap justify-center gap-3">
+                                {group.servers.map((server, serverIndex) => (
+                                  <Button
+                                    key={serverIndex}
+                                    className={getEnhancedServerStyle(server.name, isServerHighlighted(server.name))}
+                                    onClick={() => handleServerClick(server.url)}
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    {cleanServerName(server.name)}
+                                    <ExternalLink className="h-4 w-4 ml-2" />
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {index < vlyxDriveData.qualityGroups.length - 1 && <hr className="border-gray-700 my-6" />}
                           </div>
-                          {index < vlyxDriveData.qualityGroups.length - 1 && <hr className="border-gray-700 my-6" />}
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   ) : (
                     // FALLBACK: Old format
@@ -1079,21 +1139,83 @@ export default function VlyxDrivePage() {
                                     
                                     {expandedQuality === group.quality && (
                                       <div className="px-6 pb-4 space-y-2">
-                                        {group.servers.map((server, serverIdx) => (
-                                          <Button
-                                            key={serverIdx}
-                                            className={`w-full px-6 py-3 rounded-xl text-white ${
-                                              isNCloudServer(server.name, server.url)
-                                                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600'
-                                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                                            }`}
-                                            onClick={() => handleServerClick(server.url)}
-                                          >
-                                            {isNCloudServer(server.name, server.url) && <span className="mr-2">⚡</span>}
-                                            <ExternalLink className="h-4 w-4 mr-2 inline" />
-                                            {cleanServerName(server.name)}
-                                          </Button>
-                                        ))}
+                                        {(() => {
+                                          const ncloudServers = group.servers.filter(s => isNCloudServer(s.name, s.url))
+                                          const otherServers = group.servers.filter(s => !isNCloudServer(s.name, s.url))
+                                          const showMoreForThisQuality = expandedQualityServers[group.quality] || false
+                                          
+                                          return (
+                                            <div className="space-y-2">
+                                              {/* Show N-Cloud button prominently */}
+                                              {ncloudServers.length > 0 && (
+                                                <div className="space-y-2">
+                                                  <Button
+                                                    className="w-full px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white rounded-xl font-semibold"
+                                                    onClick={() => handleServerClick(ncloudServers[0].url)}
+                                                  >
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    ⚡ Continue with N-Cloud
+                                                  </Button>
+                                                  
+                                                  {/* Show more servers button (includes both additional N-Cloud AND other servers) */}
+                                                  {(ncloudServers.length > 1 || otherServers.length > 0) && (
+                                                    <div className="space-y-2">
+                                                      <button
+                                                        onClick={() => setExpandedQualityServers(prev => ({...prev, [group.quality]: !showMoreForThisQuality}))}
+                                                        className="w-full text-center py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                                                      >
+                                                        {showMoreForThisQuality ? '▲ Hide other servers' : `▼ Show ${ncloudServers.length - 1 + otherServers.length} more server${(ncloudServers.length - 1 + otherServers.length) > 1 ? 's' : ''}`}
+                                                      </button>
+                                                      
+                                                      {showMoreForThisQuality && (
+                                                        <div className="space-y-2">
+                                                          {/* Additional N-Cloud servers */}
+                                                          {ncloudServers.slice(1).map((server, idx) => (
+                                                            <Button
+                                                              key={`ncloud-${idx}`}
+                                                              className="w-full px-6 py-3 bg-gradient-to-r from-yellow-600/80 to-orange-600/80 hover:from-yellow-600 hover:to-orange-600 text-white rounded-xl"
+                                                              onClick={() => handleServerClick(server.url)}
+                                                            >
+                                                              <ExternalLink className="h-4 w-4 mr-2" />
+                                                              ⚡ {cleanServerName(server.name)}
+                                                            </Button>
+                                                          ))}
+                                                          {/* Other servers */}
+                                                          {otherServers.map((server, idx) => (
+                                                            <Button
+                                                              key={`other-${idx}`}
+                                                              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl"
+                                                              onClick={() => handleServerClick(server.url)}
+                                                            >
+                                                              <ExternalLink className="h-4 w-4 mr-2" />
+                                                              {cleanServerName(server.name)}
+                                                            </Button>
+                                                          ))}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )}
+                                              
+                                              {/* If no N-Cloud, show all servers directly */}
+                                              {ncloudServers.length === 0 && (
+                                                <div className="space-y-2">
+                                                  {group.servers.map((server, idx) => (
+                                                    <Button
+                                                      key={idx}
+                                                      className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl"
+                                                      onClick={() => handleServerClick(server.url)}
+                                                    >
+                                                      <ExternalLink className="h-4 w-4 mr-2" />
+                                                      {cleanServerName(server.name)}
+                                                    </Button>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )
+                                        })()}
                                       </div>
                                     )}
                                   </div>
