@@ -703,6 +703,154 @@ export function VisitorAnalyticsEnhanced() {
     )
   }
 
+  // IP Details View
+  if (showIPDetailsPopup && selectedVisitForIP) {
+    const deviceVisits = [...allVisitors, ...allImpressions]
+      .filter(v => v.deviceId === selectedVisitForIP.deviceId)
+      .sort((a, b) => b.timestamp - a.timestamp)
+    
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        {/* Header with Back Button */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <Button
+            onClick={() => {
+              setShowIPDetailsPopup(false)
+              setSelectedVisitForIP(null)
+              setIPDetails({
+                isp: '',
+                region: '',
+                city: '',
+                country: '',
+                timezone: '',
+                lat: 0,
+                lon: 0,
+                loading: false,
+                error: null
+              })
+            }}
+            variant="outline"
+            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Analytics
+          </Button>
+        </div>
+
+        {/* IP Location Information */}
+        <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 backdrop-blur-xl border border-purple-500/30 rounded-xl p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-purple-400" />
+            IP Location Information
+          </h3>
+          
+          {ipDetails.loading ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-gray-300">Looking up IP address...</p>
+            </div>
+          ) : ipDetails.error ? (
+            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
+              <p className="text-red-300">{ipDetails.error}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Globe className="w-4 h-4 text-purple-400" />
+                  <span className="text-gray-400 text-sm">IP Address</span>
+                </div>
+                <p className="text-white font-mono text-lg">{selectedVisitForIP.ipAddress}</p>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-4 h-4 text-blue-400" />
+                  <span className="text-gray-400 text-sm">ISP</span>
+                </div>
+                <p className="text-white text-lg">{ipDetails.isp}</p>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin className="w-4 h-4 text-green-400" />
+                  <span className="text-gray-400 text-sm">City</span>
+                </div>
+                <p className="text-white text-lg">{ipDetails.city}</p>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin className="w-4 h-4 text-orange-400" />
+                  <span className="text-gray-400 text-sm">Region</span>
+                </div>
+                <p className="text-white text-lg">{ipDetails.region}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Visit History */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-purple-400" />
+            Visit History
+            <span className="text-sm text-gray-400 ml-auto">
+              ({deviceVisits.length} total visits)
+            </span>
+          </h3>
+          
+          <div className="space-y-3">
+            {deviceVisits.map((visit, index) => (
+              <div 
+                key={visit.id}
+                className="bg-white/5 border border-white/10 rounded-lg p-3 sm:p-4 hover:bg-white/10 transition-all"
+              >
+                <div className="flex items-start justify-between flex-wrap gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-purple-400 font-bold text-sm">#{index + 1}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          visit.type === 'unique' 
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                        }`}>
+                          {visit.type === 'unique' ? 'First Visit' : 'Return Visit'}
+                        </span>
+                        <span className="text-gray-400 text-sm">
+                          {new Date(visit.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs sm:text-sm">
+                        <div>
+                          <span className="text-gray-400">Device: </span>
+                          <span className="text-white flex items-center gap-1">
+                            {visit.deviceType === 'Mobile' ? <Smartphone className="w-3 h-3" /> : 
+                             visit.deviceType === 'Tablet' ? <Tablet className="w-3 h-3" /> : 
+                             <Monitor className="w-3 h-3" />}
+                            {visit.deviceType}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Browser: </span>
+                          <span className="text-white">{visit.browser}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">OS: </span>
+                          <span className="text-white">{visit.os}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Device Detail View
   if (selectedDevice) {
     const deviceStats = stats.topDevices.find(d => d.deviceId === selectedDevice)
@@ -1578,213 +1726,6 @@ export function VisitorAnalyticsEnhanced() {
               >
                 Delete {selectedItems.size} Record(s)
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* IP Details and Visit History Popup */}
-      {showIPDetailsPopup && selectedVisitForIP && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => {
-            setShowIPDetailsPopup(false)
-            setSelectedVisitForIP(null)
-            setIPDetails({
-              isp: '',
-              region: '',
-              city: '',
-              country: '',
-              timezone: '',
-              lat: 0,
-              lon: 0,
-              loading: false,
-              error: null
-            })
-          }} />
-          <div className="relative bg-gradient-to-br from-purple-900/95 to-blue-900/95 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 sm:p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => {
-                setShowIPDetailsPopup(false)
-                setSelectedVisitForIP(null)
-                setIPDetails({
-                  isp: '',
-                  region: '',
-                  city: '',
-                  country: '',
-                  timezone: '',
-                  lat: 0,
-                  lon: 0,
-                  loading: false,
-                  error: null
-                })
-              }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPin className="w-8 h-8 text-purple-400" />
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
-                Visit Details & IP Information
-              </h3>
-              <p className="text-gray-300 text-sm">
-                {new Date(selectedVisitForIP.timestamp).toLocaleString()}
-              </p>
-            </div>
-
-            {/* IP Details Section */}
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6 mb-6">
-              <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-blue-400" />
-                IP Address Details
-              </h4>
-              
-              {ipDetails.loading ? (
-                <div className="text-center py-8">
-                  <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                  <p className="text-gray-300">Looking up IP address...</p>
-                </div>
-              ) : ipDetails.error ? (
-                <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
-                  <p className="text-red-300">{ipDetails.error}</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <span className="text-gray-400 text-sm">IP Address</span>
-                    <p className="text-white font-mono text-lg mt-1">{selectedVisitForIP.ipAddress}</p>
-                  </div>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <span className="text-gray-400 text-sm">ISP</span>
-                    <p className="text-white text-lg mt-1">{ipDetails.isp}</p>
-                  </div>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <span className="text-gray-400 text-sm">City</span>
-                    <p className="text-white text-lg mt-1">{ipDetails.city}</p>
-                  </div>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <span className="text-gray-400 text-sm">Region</span>
-                    <p className="text-white text-lg mt-1">{ipDetails.region}</p>
-                  </div>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <span className="text-gray-400 text-sm">Country</span>
-                    <p className="text-white text-lg mt-1">{ipDetails.country}</p>
-                  </div>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <span className="text-gray-400 text-sm">Timezone</span>
-                    <p className="text-white text-lg mt-1">{ipDetails.timezone}</p>
-                  </div>
-                  {ipDetails.lat && ipDetails.lon && (
-                    <div className="bg-white/5 rounded-lg p-4 sm:col-span-2">
-                      <span className="text-gray-400 text-sm">Coordinates</span>
-                      <p className="text-white font-mono text-lg mt-1">
-                        {ipDetails.lat.toFixed(4)}, {ipDetails.lon.toFixed(4)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Device Information */}
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6 mb-6">
-              <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Monitor className="w-5 h-5 text-green-400" />
-                Device Information
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-lg p-4">
-                  <span className="text-gray-400 text-sm">Device Type</span>
-                  <p className="text-white text-lg mt-1 flex items-center gap-2">
-                    {selectedVisitForIP.deviceType === 'Mobile' ? <Smartphone className="w-5 h-5 text-blue-400" /> : 
-                     selectedVisitForIP.deviceType === 'Tablet' ? <Tablet className="w-5 h-5 text-purple-400" /> : 
-                     <Monitor className="w-5 h-5 text-green-400" />}
-                    {selectedVisitForIP.deviceType}
-                  </p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <span className="text-gray-400 text-sm">Browser</span>
-                  <p className="text-white text-lg mt-1">{selectedVisitForIP.browser}</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <span className="text-gray-400 text-sm">Operating System</span>
-                  <p className="text-white text-lg mt-1">{selectedVisitForIP.os}</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <span className="text-gray-400 text-sm">Screen Resolution</span>
-                  <p className="text-white text-lg mt-1">{selectedVisitForIP.screenResolution}</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-4 sm:col-span-2">
-                  <span className="text-gray-400 text-sm">Device ID</span>
-                  <p className="text-white font-mono text-sm mt-1 break-all">{selectedVisitForIP.deviceId}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* User Visit History */}
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
-              <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-orange-400" />
-                Complete Visit History for This Device
-                <span className="text-sm text-gray-400 ml-auto">
-                  ({[...allVisitors, ...allImpressions].filter(v => v.deviceId === selectedVisitForIP.deviceId).length} visits)
-                </span>
-              </h4>
-              
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {[...allVisitors, ...allImpressions]
-                  .filter(v => v.deviceId === selectedVisitForIP.deviceId)
-                  .sort((a, b) => b.timestamp - a.timestamp)
-                  .map((visit, index) => (
-                    <div 
-                      key={visit.id}
-                      className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
-                    >
-                      <div className="flex items-start justify-between flex-wrap gap-3">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-purple-400 font-bold text-sm">#{index + 1}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                visit.type === 'unique' 
-                                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                  : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                              }`}>
-                                {visit.type === 'unique' ? 'First Visit' : 'Return Visit'}
-                              </span>
-                              <span className="text-gray-400 text-sm">
-                                {new Date(visit.timestamp).toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <span className="text-gray-400">Device: </span>
-                                <span className="text-white">{visit.deviceType}</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">Browser: </span>
-                                <span className="text-white">{visit.browser}</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">OS: </span>
-                                <span className="text-white">{visit.os}</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">IP: </span>
-                                <span className="text-white font-mono text-xs">{visit.ipAddress}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
             </div>
           </div>
         </div>
