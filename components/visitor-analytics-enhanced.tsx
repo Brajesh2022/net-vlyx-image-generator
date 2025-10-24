@@ -408,40 +408,99 @@ export function VisitorAnalyticsEnhanced() {
     setSelectedDevice(deviceId)
   }
 
-  // Fetch IP details from ip-api.com
+  // Fetch IP details using multiple HTTPS APIs with fallback
   const fetchIPDetails = async (ipAddress: string) => {
     setIPDetails(prev => ({ ...prev, loading: true, error: null }))
     
+    // Try primary API: ipapi.co (HTTPS, free, no key required)
     try {
-      const response = await fetch(`https://ip-api.com/json/${ipAddress}?fields=status,message,country,regionName,city,isp,timezone,lat,lon`)
+      const response = await fetch(`https://ipapi.co/${ipAddress}/json/`)
+      
+      if (!response.ok) {
+        throw new Error('Primary API failed')
+      }
+      
       const data = await response.json()
 
-      if (data.status === 'fail') {
-        setIPDetails(prev => ({ 
-          ...prev, 
-          loading: false, 
-          error: data.message || 'Failed to fetch IP details' 
-        }))
-        return
+      // Check for error response
+      if (data.error) {
+        throw new Error(data.reason || 'Invalid IP address')
       }
 
       setIPDetails({
-        isp: data.isp || 'N/A',
-        region: data.regionName || 'N/A',
+        isp: data.org || data.asn || 'N/A',
+        region: data.region || 'N/A',
         city: data.city || 'N/A',
-        country: data.country || 'N/A',
+        country: data.country_name || data.country || 'N/A',
         timezone: data.timezone || 'N/A',
-        lat: data.lat || 0,
-        lon: data.lon || 0,
+        lat: data.latitude || 0,
+        lon: data.longitude || 0,
         loading: false,
         error: null
       })
-    } catch (error) {
-      console.error('Error fetching IP details:', error)
+      return
+    } catch (primaryError) {
+      console.warn('Primary IP API (ipapi.co) failed, trying fallback...', primaryError)
+    }
+
+    // Fallback API #1: ipwhois.app (HTTPS, free, no key required)
+    try {
+      const response = await fetch(`https://ipwhois.app/json/${ipAddress}`)
+      
+      if (!response.ok) {
+        throw new Error('Fallback API #1 failed')
+      }
+      
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.message || 'Invalid IP address')
+      }
+
+      setIPDetails({
+        isp: data.isp || data.org || 'N/A',
+        region: data.region || 'N/A',
+        city: data.city || 'N/A',
+        country: data.country || 'N/A',
+        timezone: data.timezone || 'N/A',
+        lat: parseFloat(data.latitude) || 0,
+        lon: parseFloat(data.longitude) || 0,
+        loading: false,
+        error: null
+      })
+      return
+    } catch (fallback1Error) {
+      console.warn('Fallback API #1 (ipwhois.app) failed, trying fallback #2...', fallback1Error)
+    }
+
+    // Fallback API #2: freeipapi.com (HTTPS, free, no key required)
+    try {
+      const response = await fetch(`https://freeipapi.com/api/json/${ipAddress}`)
+      
+      if (!response.ok) {
+        throw new Error('Fallback API #2 failed')
+      }
+      
+      const data = await response.json()
+
+      setIPDetails({
+        isp: data.isp || 'N/A',
+        region: data.regionName || data.region || 'N/A',
+        city: data.cityName || data.city || 'N/A',
+        country: data.countryName || data.country || 'N/A',
+        timezone: data.timeZone || data.timezone || 'N/A',
+        lat: data.latitude || 0,
+        lon: data.longitude || 0,
+        loading: false,
+        error: null
+      })
+      return
+    } catch (fallback2Error) {
+      console.error('All IP lookup APIs failed:', fallback2Error)
       setIPDetails(prev => ({ 
         ...prev, 
         loading: false, 
-        error: 'Failed to fetch IP details. Please try again.' 
+        error: 'Unable to fetch IP details. All lookup services are currently unavailable.' 
       }))
     }
   }

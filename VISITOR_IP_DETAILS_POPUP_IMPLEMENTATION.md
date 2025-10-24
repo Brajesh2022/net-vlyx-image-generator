@@ -13,7 +13,10 @@ A comprehensive popup feature has been successfully implemented in the admin ana
 - ✅ Non-intrusive - doesn't interfere with existing functionality
 
 ### 2. **IP Address Lookup Integration**
-- ✅ Integrated with `ip-api.com` free API
+- ✅ **HTTPS-Enabled APIs** with automatic fallback system
+- ✅ **Primary API**: `ipapi.co` (HTTPS, free, no API key)
+- ✅ **Fallback #1**: `ipwhois.app` (HTTPS, free, no API key)
+- ✅ **Fallback #2**: `freeipapi.com` (HTTPS, free, no API key)
 - ✅ Real-time IP geolocation lookup
 - ✅ Displays the following IP details:
   - **ISP** (Internet Service Provider)
@@ -23,6 +26,7 @@ A comprehensive popup feature has been successfully implemented in the admin ana
   - **Timezone**
   - **Coordinates** (Latitude & Longitude)
 - ✅ Loading state with spinner during API call
+- ✅ Automatic fallback if one API fails
 - ✅ Error handling with user-friendly messages
 
 ### 3. **Device Information Display**
@@ -168,26 +172,67 @@ const handleVisitClick = (visit: VisitorData) => {
    - Click X button at top-right
    - OR click outside the popup (on backdrop)
 
-### API Usage
+### API Usage (Multi-Tier Fallback System)
 
-**Endpoint:** `https://ip-api.com/json/{IP_ADDRESS}`
+#### **Primary API: ipapi.co**
+**Endpoint:** `https://ipapi.co/{IP_ADDRESS}/json/`
 
-**Query Parameters:**
-- `fields=status,message,country,regionName,city,isp,timezone,lat,lon`
+**Features:**
+- ✅ HTTPS enabled (secure)
+- ✅ No API key required
+- ✅ Free tier: 1,000 requests/day
+- ✅ Fast response time
 
 **Response Example:**
 ```json
 {
-  "status": "success",
-  "country": "United States",
-  "regionName": "California",
-  "city": "San Francisco",
-  "isp": "Google LLC",
+  "ip": "8.8.8.8",
+  "city": "Mountain View",
+  "region": "California",
+  "country_name": "United States",
+  "org": "AS15169 Google LLC",
   "timezone": "America/Los_Angeles",
-  "lat": 37.7749,
-  "lon": -122.4194
+  "latitude": 37.4056,
+  "longitude": -122.0775
 }
 ```
+
+#### **Fallback API #1: ipwhois.app**
+**Endpoint:** `https://ipwhois.app/json/{IP_ADDRESS}`
+
+**Features:**
+- ✅ HTTPS enabled
+- ✅ No API key required
+- ✅ Free tier available
+
+**Response Example:**
+```json
+{
+  "success": true,
+  "ip": "8.8.8.8",
+  "city": "Mountain View",
+  "region": "California",
+  "country": "United States",
+  "isp": "Google LLC",
+  "timezone": "America/Los_Angeles",
+  "latitude": "37.4056",
+  "longitude": "-122.0775"
+}
+```
+
+#### **Fallback API #2: freeipapi.com**
+**Endpoint:** `https://freeipapi.com/api/json/{IP_ADDRESS}`
+
+**Features:**
+- ✅ HTTPS enabled
+- ✅ No API key required
+- ✅ Backup option
+
+**Fallback Logic:**
+1. Try ipapi.co first
+2. If fails → Try ipwhois.app
+3. If fails → Try freeipapi.com
+4. If all fail → Show error message
 
 ## 📊 Data Flow
 
