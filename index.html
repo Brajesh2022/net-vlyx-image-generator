@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Net VLYX - AI Image Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gradient-to-br from-slate-900 to-blue-950 text-gray-200 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-slate-800/70 w-full max-w-lg p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/30 border border-slate-700 backdrop-blur-sm">
+        
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-white tracking-tight">Net VLYX</h1>
+            <p class="text-lg text-blue-400">AI Image Generator</p>
+        </header>
+
+        <div class="mb-6">
+            <div class="flex border-b border-slate-700">
+                <button id="tab-generator" class="tab-btn flex-1 py-3 px-4 font-semibold text-white border-b-2 border-blue-500 transition-all duration-200">
+                    Generator
+                </button>
+                <button id="tab-docs" class="tab-btn flex-1 py-3 px-4 font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-200 transition-all duration-200">
+                    Documentation
+                </button>
+            </div>
+        </div>
+
+        <div id="generator-content" class="tab-content">
+            <main>
+                <div class="mb-4">
+                    <label for="prompt" class="block text-sm font-medium text-gray-300 mb-2">Enter your prompt</label>
+                    <textarea
+                        id="prompt"
+                        rows="3"
+                        class="w-full p-3 bg-slate-900 text-gray-100 border border-slate-700 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none"
+                        placeholder="e.g., A blue cybernetic cat in a neon city..."
+                    ></textarea>
+                </div>
+
+                <div id="error-box" class="hidden bg-red-900/50 border border-red-700 text-red-300 p-3 rounded-lg text-sm text-center mb-4">
+                    </div>
+
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button id="generate" class="w-full bg-blue-600 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Generate Image
+                    </button>
+                    <button id="download" class="w-full bg-slate-700 text-gray-200 font-semibold py-3 px-5 rounded-lg shadow-md hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 hidden">
+                        Download Image
+                    </button>
+                </div>
+
+                <div id="result" class="mt-6">
+                    <div id="loader" class="hidden flex justify-center items-center h-64 bg-slate-900/50 rounded-lg">
+                        <div class="flex flex-col items-center">
+                            <div class="loader w-12 h-12 border-4 rounded-full"></div>
+                            <p class="text-gray-400 mt-4">Generating your masterpiece...</p>
+                        </div>
+                    </div>
+                    
+                    <div id="image-container" class="w-full aspect-square bg-slate-900/50 rounded-lg overflow-hidden shadow-lg hidden">
+                        <img id="image" alt="Generated AI Image" class="w-full h-full object-cover">
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <div id="docs-content" class="tab-content docs-content hidden h-96 overflow-y-auto pr-2">
+            <h2>How This Project Was Made</h2>
+            <p>
+                This project was built with a "single-file" approach, meaning all the necessary code (HTML, CSS, and JavaScript) is contained within one <code>index.html</code> file. This makes it extremely easy to host and share.
+            </p>
+
+            <h3>1. Core Technologies</h3>
+            <ul>
+                <li><strong>HTML:</strong> Provides the fundamental structure of the web page.</li>
+                <li><strong>Tailwind CSS:</strong> A utility-first CSS framework used for all styling, loaded via a <code>&lt;script&gt;</code> tag.</li>
+                <li><strong>JavaScript (JS):</strong> The "brain" of the application. It handles user interactions, API communication, and tab switching.</li>
+            </ul>
+
+            <h3>2. The API: Pollinations AI</h3>
+            <p>
+                We used the free and public API provided by <a href="https://pollinations.ai/" target="_blank">Pollinations AI</a>.
+            </p>
+            <ul>
+                <li><strong>API Endpoint:</strong> <code>https://image.pollinations.ai/prompt/{YOUR_PROMPT}</code></li>
+                <li><strong>How it works:</strong> You send a text prompt as part of the URL. The API's server processes this prompt and sends back an image file.</li>
+                <li><strong>Parameters:</strong> We add <code>?seed={RANDOM_NUMBER}</code> for uniqueness and <code>&width=512&height=512</code> to request a square image.</li>
+            </ul>
+
+            <h3>3. Understanding the JavaScript</h3>
+            <p>The JavaScript logic is split into two main parts:</p>
+
+            <h4>A. Tab-Switching Logic</h4>
+            <p>
+                This small script handles clicking the "Generator" and "Documentation" tabs. It adds/removes Tailwind classes to show the correct content <code>div</code> and highlight the active tab button.
+            </p>
+
+            <h4>B. Image Generator Logic</h4>
+            <ul>
+                <li><strong>DOM Selection:</strong> Gets references to all the buttons, inputs, and image tags.</li>
+                <li><strong>Event Listeners:</strong> Listens for clicks on the "Generate" and "Download" buttons.</li>
+                <li><strong><code>generateImage()</code> Function:</strong> Validates the prompt, shows the loader, builds the API URL, and sets the <code>src</code> of the image tag to fetch the new image.</li>
+                <li><strong><code>downloadImage()</code> Function:</strong> Uses <code>fetch()</code> to get the image data as a <code>blob</code>, creates a temporary local URL for it, and then programmatically "clicks" a hidden link to trigger the browser's download prompt.</li>
+                <li><strong><code>imageEl.onload</code> / <code>imageEl.onerror</code>:</strong> These events handle the success or failure of the image load, hiding the loader and showing either the image or an error message.</li>
+            </ul>
+
+            <h3>How Can Someone Make This?</h3>
+            <ol>
+                <li>Create a new file named <code>index.html</code>.</li>
+                <li>Copy and paste the entire code from this project into your file.</li>
+                <li>Save and open the file in any web browser to run it.</li>
+                <li>To share it, upload this single <code>index.html</code> file to a free hosting service like GitHub Pages.</li>
+            </ol>
+        </div>
+
+        <footer class="text-center mt-6 pt-4 border-t border-slate-700">
+            <p class="text-xs text-gray-500">
+                Special thanks to <a href="https://pollinations.ai/" target="_blank" class="hover:text-blue-400 underline">Pollinations</a> for the API
+                and GitHub Pages for hosting.
+            </p>
+        </footer>
+    </div>
+
+<script src="script.js"></script>
+</body>
+</html>
