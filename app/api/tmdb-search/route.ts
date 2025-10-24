@@ -1,3 +1,4 @@
+export const runtime = 'edge'
 import { type NextRequest, NextResponse } from "next/server"
 
 const TMDB_API_KEY = "848d4c9db9d3f19d0229dc95735190d3"

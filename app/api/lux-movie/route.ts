@@ -1,3 +1,4 @@
+export const runtime = 'edge'
 import { NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import { protectApiRoute } from "@/lib/api-protection"
